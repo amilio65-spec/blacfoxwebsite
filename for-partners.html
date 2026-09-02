@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--
+  Blacfox marketing site -- "For Partners" segment landing page.
+  Shared CSS/JS for all pages live under assets/ (see README.md for the full layout).
+  segment-gate.css / segment-gate.js referenced below are an intentional placeholder
+  for a future audience-gating feature and are not implemented in this repo yet.
+-->
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="stylesheet" href="assets/css/pages/for-partners.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Microsoft &amp; SAP Partner Marketing Agency | Co-op Funded Campaigns | Blacfox</title>
+  <meta name="description" content="Blacfox helps Microsoft and SAP partners generate qualified pipeline, maximise co-op funding, and book sales-ready meetings. 10:1 pipeline ACV guarantee. Book a call."/>
+  <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml"/>
+  
+  
+  <link rel="stylesheet" href="segment-gate.css">
+</head>
+<body class="theme-hero-dark">
+<div aria-hidden="true" style="position:fixed;top:0;left:0;width:100%;height:8px;z-index:1001;pointer-events:none;background-image:url('assets/icons/accent-strip.svg');background-size:100% 100%;background-repeat:no-repeat;"></div>
+
+
+
+
+<div id="header-bg" aria-hidden="true"></div>
+<div id="bottom-nav">
+  <a href="index.html" class="nav-logo nav-pill-glass" aria-label="Blacfox">
+    <img src="assets/logos/logo-no-tagline.svg" class="nav-logo-svg" alt="Blacfox"/>
+  </a>
+  <nav class="nav-links-pill nav-pill-glass">
+    <a href="index.html" data-page="index">Home</a>
+    <a href="method.html" data-page="method">Method</a>
+    <a href="for-partners.html" data-page="for-partners">Partners</a>
+    <a href="for-isvs.html" data-page="for-isvs">ISVs</a>
+    <a href="for-distributors.html" data-page="for-distributors">Distributors</a>
+    <a href="services.html" data-page="services">Services</a>
+    <a href="work.html" data-page="work">Work</a>
+    <a href="about.html" data-page="about">About</a>
+    <a href="contact.html" data-page="contact">Contact</a>
+  </nav>
+</div>
+
+<!-- HERO -->
+<section class="page-hero" style="position:relative;overflow:hidden;min-height:100vh;">
+  <canvas class="hero-bg-grid"></canvas>
+  <div class="hero-split" style="position:relative;z-index:1;width:100%;max-width:1240px;margin:0 auto;">
+    <div>
+      <h1 class="hero-title">
+        <span class="line"><span class="word">You're not</span></span>
+        <span class="line"><span class="word" data-seg-text='{"msft":"selling Microsoft.","sap":"selling SAP.","dual":"selling Microsoft or SAP."}'>selling Microsoft.</span></span>
+        <span class="line"><span class="word">You're selling <em>why-you.</em></span></span>
+      </h1>
+      <p class="hero-sub" data-seg-text='{"msft":"A B2B growth consultancy for Microsoft partners. We help you fund campaigns through Microsoft co-op, position what makes you different in the channel, and book the qualified meetings your sales team actually wants.","sap":"A B2B growth consultancy for SAP partners. We help you fund campaigns through SAP MDF, position what makes you different in the channel, and book the qualified meetings your sales team actually wants.","dual":"A B2B growth consultancy for Microsoft and SAP partners. We help you fund campaigns through Microsoft co-op and SAP MDF, position what makes you different in the channel, and book the qualified meetings your sales team actually wants."}'>A B2B growth consultancy for Microsoft and SAP partners. We help you fund campaigns through Microsoft co-op and SAP MDF, position what makes you different in the channel, and book the qualified meetings your sales team actually wants.</p>
+      <div class="hero-ctas">
+        <a href="contact.html" class="btn-primary">Book a 20-min call →</a>
+        <a href="#co-op" class="btn-ghost" data-seg-text='{"msft":"Read the Microsoft co-op playbook","sap":"Read the SAP MDF playbook","dual":"Read the co-op &amp; MDF playbook"}'>Read the Microsoft co-op playbook</a>
+      </div>
+    </div>
+    <div class="hero-quote-panel is-placeholder">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.75"/><path d="M21 15l-5-5L5 21"/></svg>
+      <span>Illustration placeholder</span>
+    </div>
+  </div>
+  </div>
+
+</section>
+<div id="page-hero-spacer"></div>
+<div class="other-page-content">
+
+
+<!-- CHANNEL FLOW DIAGRAM -->
+<section class="bg-white">
+  <div class="section-inner">
+    <p class="section-tag reveal">The channel flow</p>
+    <h2 class="section-h reveal">Where Blacfox sits in <em>your channel.</em></h2>
+    <p class="section-p reveal" style="margin-top:16px;max-width:640px;">Co-op and MDF funding pays for campaigns. Positioning decides whether the channel actually repeats your story once the funding runs out.</p>
+
+    <div style="display:flex;align-items:center;justify-content:center;gap:0;margin-top:56px;flex-wrap:wrap;row-gap:32px;">
+
+      <div class="dark-card reveal" style="flex:1;min-width:190px;max-width:230px;text-align:center;padding:28px 18px;">
+        <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Vendor</p>
+        <p style="font-size:16px;font-weight:800;color:var(--light);margin-bottom:8px;">Microsoft / SAP</p>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;">Co-op &amp; MDF funding, product roadmap</p>
+      </div>
+
+      <div style="flex:0 0 auto;padding:0 10px;color:var(--orange);font-size:28px;font-weight:700;line-height:1;" aria-hidden="true">→</div>
+
+      <div class="dark-card reveal" style="flex:1;min-width:190px;max-width:230px;text-align:center;padding:28px 18px;border-color:rgba(233,92,37,0.45);">
+        <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--orange);margin-bottom:10px;">Blacfox</p>
+        <p style="font-size:16px;font-weight:800;color:var(--light);margin-bottom:8px;">Positioning &amp; campaign</p>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;">PMF, message stack, funded campaign that reaches buyers</p>
+      </div>
+
+      <div style="flex:0 0 auto;padding:0 10px;color:var(--orange);font-size:28px;font-weight:700;line-height:1;" aria-hidden="true">→</div>
+
+      <div class="dark-card reveal" style="flex:1;min-width:190px;max-width:230px;text-align:center;padding:28px 18px;">
+        <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">You</p>
+        <p style="font-size:16px;font-weight:800;color:var(--light);margin-bottom:8px;">The partner</p>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;">Sales-ready meetings, a story reps can repeat unprompted</p>
+      </div>
+
+      <div style="flex:0 0 auto;padding:0 10px;color:var(--orange);font-size:28px;font-weight:700;line-height:1;" aria-hidden="true">→</div>
+
+      <div class="dark-card reveal" style="flex:1;min-width:190px;max-width:230px;text-align:center;padding:28px 18px;">
+        <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Outcome</p>
+        <p style="font-size:16px;font-weight:800;color:var(--light);margin-bottom:8px;">End customer</p>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;">Buys the outcome, not the vendor logo</p>
+      </div>
+
+    </div>
+    <p style="font-size:10px;color:var(--muted);margin-top:28px;letter-spacing:0.06em;text-transform:uppercase;text-align:center;">The funding moves the campaign. Positioning is what still works after the funding is spent.</p>
+  </div>
+</section>
+
+<!-- S02 THREE PROBLEMS -->
+<section class="bg-grey">
+  <div class="section-inner">
+    <p class="section-tag reveal">The problems</p>
+    <h2 class="section-h reveal">Three problems Microsoft &amp; SAP partners face, and how we <em>solve them.</em></h2>
+
+    <div class="card-grid-3 stagger" style="margin-top:48px;" data-problem-grid>
+      <div class="dark-card" data-problem="differentiation">
+        <p class="card-num">01</p>
+        <p class="card-title" data-seg-text='{"msft":"Every Microsoft partner looks identical on paper","sap":"Every SAP partner looks identical on paper","dual":"Every Microsoft and SAP partner looks identical on paper"}'>Every Microsoft partner looks identical on paper</p>
+        <p class="card-body" data-seg-text='{"msft":"Same vendor logos. Same certifications. Same case study templates. The difference between Microsoft partners is invisible in the documents, and it&#39;s the only thing that matters in the sales conversation. We make the difference visible through positioning, messaging, and proof your competitors don&#39;t have.","sap":"Same certifications. Same solution-area badges. Same case study templates. The difference between SAP partners is invisible in the documents, and it&#39;s the only thing that matters in the sales conversation. We make the difference visible through positioning, messaging, and proof your competitors don&#39;t have.","dual":"Same vendor logos, same certifications, same case study templates, on both sides of your business. The difference between partners is invisible in the documents, and it&#39;s the only thing that matters in the sales conversation. We make the difference visible through positioning, messaging, and proof your competitors don&#39;t have."}'>Same vendor logos. Same certifications. Same case study templates. The difference between Microsoft partners is invisible in the documents, and it's the only thing that matters in the sales conversation. We make the difference visible through positioning, messaging, and proof your competitors don't have.</p>
+      </div>
+      <div class="dark-card" data-problem="funding">
+        <p class="card-num">02</p>
+        <p class="card-title" data-seg-text='{"msft":"Microsoft co-op funding goes unused or gets rejected","sap":"SAP MDF funding goes unused or gets rejected","dual":"Co-op and MDF funding go unused or get rejected"}'>Microsoft co-op funding goes unused or gets rejected</p>
+        <p class="card-body" data-seg-text='{"msft":"Microsoft co-op is admin-heavy, eligibility-driven, and Proof of Execution (PoE) rejection-prone. Most partners under-claim, or run campaigns that don&#39;t qualify. We&#39;ve executed co-op-funded campaigns end-to-end for Microsoft partners across South Africa, EMEA, and the wider region. We know what gets approved, and what gets sent back.","sap":"SAP MDF is milestone-driven, approval-heavy, and reconciliation-prone. Most partners under-claim, or run campaigns that don&#39;t match the approved marketing plan. We manage MDF-funded campaigns end-to-end for SAP partners, from proposal through to proof of performance, so funding gets claimed instead of clawed back.","dual":"Two vendors, two rulebooks, two reconciliation processes, running at the same time. Most partners under-claim on one programme while they&#39;re heads-down on the other. We run Microsoft co-op and SAP MDF campaigns side by side, so neither one loses funding because the other one had a deadline."}'>Microsoft co-op is admin-heavy, eligibility-driven, and Proof of Execution (PoE) rejection-prone. Most partners under-claim, or run campaigns that don't qualify. We've executed co-op-funded campaigns end-to-end for Microsoft and SAP partners across South Africa, EMEA, and the wider region. We know what gets approved, and what gets sent back.</p>
+      </div>
+      <div class="dark-card" data-problem="handoff">
+        <p class="card-num">03</p>
+        <p class="card-title">Marketing delivers MQL volume. Sales needs qualified meetings.</p>
+        <p class="card-body">MQL volume and qualified meetings are different things. We stay in the room past the lead (follow-up, nurture, and SDR handoff) until sales is in real conversations with buyers who are ready to talk.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S03 CO-OP SECTION -->
+<section id="co-op" class="section-mid bg-white">
+  <div class="section-inner">
+    <p class="section-tag reveal" data-seg-text='{"msft":"Co-op funding","sap":"MDF funding","dual":"Co-op &amp; MDF funding"}'>Co-op funding</p>
+    <h2 class="section-h reveal" data-seg-text='{"msft":"How to avoid the 5 most common Microsoft co-op <em>funding mistakes.</em>","sap":"How to avoid the 5 most common SAP MDF <em>funding mistakes.</em>","dual":"How to avoid the most common Microsoft co-op and SAP MDF <em>funding mistakes.</em>"}'>How to avoid the 5 most common Microsoft co-op <em>funding mistakes.</em></h2>
+    <p class="section-p reveal" data-seg-text='{"msft":"We&#39;ve executed dozens of co-op-funded campaigns for Microsoft partners across South Africa and EMEA. Five mistakes cost partners their claims more than any others. Here they are, so you can avoid them on your next cycle.","sap":"We manage MDF-funded campaigns for SAP partners across South Africa and EMEA. Five mistakes cost partners their claims more than any others. Here they are, so you can avoid them on your next cycle.","dual":"We&#39;ve executed co-op and MDF-funded campaigns for Microsoft and SAP partners across South Africa and EMEA. Five mistakes cost partners their claims more than any others on either programme. Here they are, so you can avoid them on your next cycle."}'>We&#39;ve executed dozens of co-op-funded campaigns for Microsoft partners across South Africa and EMEA. Five mistakes cost partners their claims more than any others. Here they are, so you can avoid them on your next cycle.</p>
+
+    <!-- #ig8 — Co-op Mistakes -->
+    <div class="mistakes-grid reveal">
+      <div class="mistake-card">
+        <div class="mistake-bg-num">1</div>
+        <div class="mistake-num">Mistake 01</div>
+        <div class="mistake-q" data-seg-text='{"sap": "Does timing of plan approval affect SAP MDF eligibility?"}'>Does timing of campaign approval affect Microsoft co-op eligibility?</div>
+        <div class="mistake-a" data-seg-text='{"sap": "Yes, and it&#39;s the most common rejection reason. <em>Spend after the plan is approved, not before.</em> Most claims fail because campaign spend started before SAP signed off on the marketing plan. Sequence the paperwork before a single rand is committed.", "dual": "Yes, and it&#39;s the most common rejection reason. <em>Launch after approval, not before.</em> Most claims fail because the campaign spent money before Microsoft confirmed eligibility. Sequence the paperwork before a single rand is committed. SAP MDF follows the same rule: never spend before the marketing plan is approved."}'>Yes, and it's the most common rejection reason. <em>Launch after approval, not before.</em> Most claims fail because the campaign spent money before Microsoft confirmed eligibility. Sequence the paperwork before a single rand is committed.</div>
+      </div>
+      <div class="mistake-card">
+        <div class="mistake-bg-num">2</div>
+        <div class="mistake-num">Mistake 02</div>
+        <div class="mistake-q" data-seg-text='{"sap": "What level of proof does SAP require for MDF claims?"}'>What level of Proof of Execution does Microsoft require?</div>
+        <div class="mistake-a" data-seg-text='{"sap": "Proof of performance that matches the approved plan line-by-line. <em>Reconciling against what actually ran, not what was proposed, gets claims rejected.</em> Claims must mirror the original submission to clear review.", "dual": "Asset-level documentation, every email send, every ad placement, every landing page version. <em>Generic PoE gets rejected.</em> Claims must clear the first review without resubmission, which requires documenting at the asset level by default. SAP MDF proof works the same way: it must match the approved plan, not just what shipped."}'>Asset-level documentation, every email send, every ad placement, every landing page version. <em>Generic PoE gets rejected.</em> Claims must clear the first review without resubmission, which requires documenting at the asset level by default.</div>
+      </div>
+      <div class="mistake-card">
+        <div class="mistake-bg-num">3</div>
+        <div class="mistake-num">Mistake 03</div>
+        <div class="mistake-q" data-seg-text='{"sap": "What are SAP&#39;s current MDF priority areas?"}'>What are Microsoft's current co-op priority areas?</div>
+        <div class="mistake-a" data-seg-text='{"sap": "They shift by GTM cycle. <em>RISE with SAP today. BTP last cycle. Industry cloud before that.</em> Campaigns built on last cycle&#39;s solution priorities lose alignment funding. Brief and budget must be rebuilt each cycle, not recycled.", "dual": "They shift quarterly. <em>Co-Pilot today. Azure security last cycle. Modern Work before that.</em> Campaigns built on last quarter&#39;s priorities lose alignment funding. Brief and budget must be rebuilt each cycle, not recycled. SAP&#39;s priorities shift by GTM cycle too, RISE, BTP, industry cloud, so both playbooks get rebuilt every quarter."}'>They shift quarterly. <em>Co-Pilot today. Azure security last cycle. Modern Work before that.</em> Campaigns built on last quarter's priorities lose alignment funding. Brief and budget must be rebuilt each cycle, not recycled.</div>
+      </div>
+    </div>
+    <div class="mistakes-bottom">
+      <div class="mistake-card">
+        <div class="mistake-bg-num">4</div>
+        <div class="mistake-num">Mistake 04</div>
+        <div class="mistake-q" data-seg-text='{"sap": "Should MDF campaigns focus on partner services or SAP&#39;s strategic solutions?"}'>Should co-op campaigns focus on partner services or vendor products?</div>
+        <div class="mistake-a" data-seg-text='{"sap": "Campaigns that lead with partner services rather than SAP&#39;s strategic solutions often lose eligibility. <em>Your partner brand and SAP&#39;s goals must ladder together.</em> The campaign stays eligible when SAP&#39;s priorities are front and centre.", "dual": "Campaigns that lead with partner services rather than Microsoft&#39;s strategic products often lose eligibility. <em>Your partner brand and Microsoft&#39;s goals must ladder together.</em> The campaign stays eligible when Microsoft&#39;s priorities are front and centre. The same discipline applies to SAP MDF: partner branding must ladder to SAP&#39;s strategic solutions, not just services."}'>Campaigns that lead with partner services rather than Microsoft's strategic products often lose eligibility. <em>Your partner brand and Microsoft's goals must ladder together.</em> The campaign stays eligible when Microsoft's priorities are front and centre.</div>
+      </div>
+      <div class="mistake-card">
+        <div class="mistake-bg-num">5</div>
+        <div class="mistake-num">Mistake 05</div>
+        <div class="mistake-q" data-seg-text='{"sap": "How do you avoid missing the SAP MDF claim window?"}'>How do you avoid missing Microsoft co-op reporting deadlines?</div>
+        <div class="mistake-a" data-seg-text='{"sap": "Treat the fund-year deadline as a hard stop, not a guideline. <em>A late claim is a forfeited claim.</em> Build the claim date into the campaign schedule from day one.", "dual": "Treat reporting as a campaign milestone, not an afterthought. <em>Build reporting dates into the schedule from day one.</em> Deadlines get missed when partners start thinking about reporting after the campaign ends, not before it begins. SAP MDF has its own hard fund-year deadline, we track both calendars on one schedule."}'>Treat reporting as a campaign milestone, not an afterthought. <em>Build reporting dates into the schedule from day one.</em> Deadlines get missed when partners start thinking about reporting after the campaign ends, not before it begins.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S04 CASE STUDY -->
+<section class="bg-grey">
+  <div class="section-inner">
+    <p class="section-tag reveal">Results</p>
+    <h2 class="section-h reveal">What this looks like <em>in practice.</em></h2>
+
+    <div class="case-study-card reveal" data-seg-show="msft,dual">
+      <div class="case-study-body">
+        <div class="case-badge">Microsoft Solutions Partner · Azure · South Africa</div>
+        <p class="case-meta">CLIENT · ADEPT ICT</p>
+        <h3 class="case-headline">How Adept ICT, a Microsoft Solutions Partner, <em>doubled partner pipeline</em> in 9 months, by changing the conversation about Azure.</h3>
+        <p style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px;">Adept ICT had the certifications, the capability, and the case studies, but looked identical to every other Microsoft partner in the room. Blacfox reframed their Azure positioning, built a PMF around their genuine differentiators, and ran a co-op-funded campaign that put them in front of the right buyers. Sales followed.</p>
+        <div style="margin-top:32px;">
+          <a href="work.html" class="btn-ghost">Read the full case study →</a>
+        </div>
+      </div>
+      <div class="case-stats-strip">
+        <div><p class="case-stat-num">2×</p><p class="case-stat-label">partner pipeline in 9 months</p></div>
+        <div><p class="case-stat-num">47</p><p class="case-stat-label">dormant Microsoft partners reactivated</p></div>
+        <div><p class="case-stat-num">4mo</p><p class="case-stat-label">sales cycle (down from 8 months)</p></div>
+        <div><p class="case-stat-num">10:1</p><p class="case-stat-label">ROI on Microsoft co-op campaign spend</p></div>
+      </div>
+
+    <div class="case-study-card reveal" data-seg-show="sap" hidden style="padding:40px 48px;">
+      <div class="case-study-body">
+        <div class="case-badge">SAP partners · honest, in-progress proof</div>
+        <p class="case-meta">WHERE WE ARE WITH SAP</p>
+        <h3 class="case-headline">We don&#39;t have a published SAP case study yet, so here&#39;s what we can actually back up.</h3>
+        <p style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px;">Same rigor, applied to SAP: a 10:1 pipeline ACV return on campaign spend across our portfolio (11 engagements, May 2025&ndash;May 2026), and 15+ years inside the Microsoft &amp; SAP partner ecosystem. Ask us for SAP-specific numbers on the call, we&#39;ll be straight with you about what we have and don&#39;t have yet.</p>
+        <div style="margin-top:32px;">
+          <a href="contact.html" class="btn-ghost">Ask us on the call →</a>
+        </div>
+      </div>
+      <div class="case-stats-strip">
+        <div><p class="case-stat-num">10:1</p><p class="case-stat-label">portfolio pipeline ACV return (n=11)</p></div>
+        <div><p class="case-stat-num">15+</p><p class="case-stat-label">years inside Microsoft &amp; SAP</p></div>
+      </div>
+    </div>
+      <!-- Charts 03 + 04 -->
+      <div style="padding:32px 48px 40px;border-top:1px solid var(--border);">
+        <p style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--orange);margin-bottom:24px;">Visualised results · Adept ICT engagement</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;">
+          <div>
+            <p style="font-size:13px;font-weight:600;color:var(--light);margin-bottom:16px;">Sales cycle reduction (months)</p>
+            <canvas id="salesCycleChart" height="200"></canvas>
+            <p style="font-size:10px;color:var(--muted);margin-top:12px;letter-spacing:0.06em;text-transform:uppercase;">Source: Adept ICT · Microsoft Solutions Partner · 9-month engagement</p>
+          </div>
+          <div>
+            <p style="font-size:13px;font-weight:600;color:var(--light);margin-bottom:16px;">Key outcomes from the engagement</p>
+            <canvas id="adeptOutcomesChart" height="200"></canvas>
+            <p style="font-size:10px;color:var(--muted);margin-top:12px;letter-spacing:0.06em;text-transform:uppercase;">Source: Adept ICT · Microsoft Solutions Partner · 9-month engagement</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <canvas class="hero-bg-grid"></canvas>
+  <h2 class="cta-h reveal" data-seg-text='{"msft":"Talk to us about your next <em>Microsoft co-op cycle.</em>","sap":"Talk to us about your next <em>SAP MDF cycle.</em>","dual":"Talk to us about your next <em>Microsoft co-op and SAP MDF cycle.</em>"}'>Talk to us about your next <em>Microsoft co-op cycle.</em></h2>
+  <p class="cta-p reveal">No slide deck. We'll tell you honestly if we can help, and exactly how.</p>
+  <a href="contact.html" class="btn-white reveal">Book a 20-min call
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+</section>
+
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <img src="assets/logos/logo-tagline.svg" alt="Blacfox" style="height:64px;width:auto;object-fit:contain;display:block;"/>
+      <p>A research-led B2B tech growth consultancy for Microsoft &amp; SAP partners, ISVs, and the distributors who supply their channel. Paid on outcomes, we don't get paid until you do.</p>
+      <div class="footer-socials"><a class="soc" href="https://www.linkedin.com/company/blacfox-enterprises" aria-label="LinkedIn" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="1.5" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 6.5v4M4.5 4.5v.6M7.5 10.5v-3a1.5 1.5 0 013 0v3M7.5 6.5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></a></div>
+    </div>
+    <div class="footer-col"><h5>Pages</h5><ul><li><a href="index.html">Home</a></li><li><a href="method.html">Method</a></li><li><a href="for-partners.html">For Partners</a></li><li><a href="for-isvs.html">For ISVs</a></li><li><a href="for-distributors.html">For Distributors</a></li><li><a href="services.html">Services</a></li><li><a href="work.html">Work</a></li></ul></div>
+    <div class="footer-col"><h5>Company</h5><ul><li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li></ul></div>
+    <div class="footer-col"><h5>Contact</h5><ul><li><a href="mailto:info@blacfox.com">info@blacfox.com</a></li><li><a href="tel:+27214939327">+27 21 493 9327</a></li><li><a href="https://www.linkedin.com/company/blacfox-enterprises" target="_blank" rel="noopener">LinkedIn</a></li></ul></div>
+
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 Blacfox Enterprises. All rights reserved.</p><p>Cape Town, South Africa</p></div>
+</footer>
+<div aria-hidden="true" style="display:block;width:100%;height:10px;background-image:url('assets/icons/accent-strip.svg');background-size:100% 100%;background-repeat:no-repeat;"></div>
+
+
+<script src="assets/js/vendor/chart.umd.min.js"></script>
+<script src="assets/js/pages/for-partners.js"></script>
+
+</div><!-- /other-page-content --><script src="assets/js/hero-bg-grid.js"></script>
+<script src="segment-gate.js" defer></script>
+</body>
+</html>

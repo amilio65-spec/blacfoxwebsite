@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--
+  Blacfox marketing site -- Contact / discovery-call booking page.
+  Shared CSS/JS for all pages live under assets/ (see README.md for the full layout).
+  segment-gate.css / segment-gate.js referenced below are an intentional placeholder
+  for a future audience-gating feature and are not implemented in this repo yet.
+-->
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/pages/contact.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Book a Discovery Call | B2B Tech Marketing Agency Cape Town | Blacfox</title>
+  <meta name="description" content="Book a 20-minute discovery call with Blacfox. No slide deck. We'll tell you honestly if we can help — and if we can't, who we'd send you to. Cape Town &amp; EMEA."/>
+  <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml"/>
+  
+  <link rel="stylesheet" href="segment-gate.css">
+</head>
+<body class="theme-hero-dark">
+<div aria-hidden="true" style="position:fixed;top:0;left:0;width:100%;height:8px;z-index:1001;pointer-events:none;background-image:url('assets/icons/accent-strip.svg');background-size:100% 100%;background-repeat:no-repeat;"></div>
+
+
+
+
+<div id="header-bg" aria-hidden="true"></div>
+<div id="bottom-nav">
+  <a href="index.html" class="nav-logo nav-pill-glass" aria-label="Blacfox">
+    <img src="assets/logos/logo-no-tagline.svg" class="nav-logo-svg" alt="Blacfox"/>
+  </a>
+  <nav class="nav-links-pill nav-pill-glass">
+    <a href="index.html" data-page="index">Home</a>
+    <a href="method.html" data-page="method">Method</a>
+    <a href="for-partners.html" data-page="for-partners">Partners</a>
+    <a href="for-isvs.html" data-page="for-isvs">ISVs</a>
+    <a href="for-distributors.html" data-page="for-distributors">Distributors</a>
+    <a href="services.html" data-page="services">Services</a>
+    <a href="work.html" data-page="work">Work</a>
+    <a href="about.html" data-page="about">About</a>
+    <a href="contact.html" data-page="contact">Contact</a>
+  </nav>
+</div>
+
+<!-- HERO -->
+<section class="hero-section" style="position:relative;overflow:hidden;min-height:60vh;">
+  <canvas class="hero-bg-grid"></canvas>
+  <div class="hero-split" style="position:relative;z-index:1;width:100%;max-width:1240px;margin:0 auto;">
+    <div>
+      <h1 class="hero-title">
+        <span class="line"><span class="word">20 minutes.</span></span>
+        <span class="line"><span class="word">No slide deck.</span></span>
+        <span class="line"><span class="word"><em>Real talk.</em></span></span>
+      </h1>
+      <p class="hero-sub">Tell us where you are, what you've tried, and what's stuck. We'll come prepared. If we can help, we'll explain exactly how. If we can't, we'll tell you who can, because a bad-fit engagement wastes everyone's time.</p>
+      <div class="hero-ctas">
+        <a href="#contact-form" class="btn-primary">Start the conversation →</a>
+      </div>
+    </div>
+    <div class="hero-quote-panel is-placeholder">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.75"/><path d="M21 15l-5-5L5 21"/></svg>
+      <span>Illustration placeholder</span>
+    </div>
+  </div>
+
+</section>
+<div id="page-hero-spacer"></div>
+<div class="other-page-content">
+
+
+<!-- CONTACT SECTION -->
+<section class="bg-white">
+  <div class="section-inner">
+    <div class="contact-layout" id="contact-form">
+
+      <!-- Direct contact -->
+      <div class="contact-info reveal-left">
+        <div>
+          <p class="section-tag" style="margin-bottom:12px;">Direct contact</p>
+        </div>
+
+        <div class="contact-item">
+          <h4>Email</h4>
+          <a href="mailto:info@blacfox.com">info@blacfox.com</a>
+        </div>
+
+        <div class="contact-item">
+          <h4>Phone</h4>
+          <a href="tel:+27214939327">+27 21 493 9327</a>
+        </div>
+
+        <div class="contact-item">
+          <h4>Location</h4>
+          <p>Cape Town, South Africa</p>
+        </div>
+
+        <div class="contact-item">
+          <h4>LinkedIn</h4>
+          <a href="https://www.linkedin.com/company/blacfox-enterprises" target="_blank" rel="noopener">/company/blacfox-enterprises</a>
+        </div>
+
+        <div class="glass-card" style="padding:32px;border-radius:16px;margin-top:8px;">
+          <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--orange);margin-bottom:12px;">What to expect</p>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:10px;">
+            <li style="font-size:14px;color:var(--muted);padding-left:20px;position:relative;line-height:1.5;"><span style="position:absolute;left:0;color:var(--orange);">—</span> 20-minute video or phone call</li>
+            <li style="font-size:14px;color:var(--muted);padding-left:20px;position:relative;line-height:1.5;"><span style="position:absolute;left:0;color:var(--orange);">—</span> We'll come prepared with context on your business</li>
+            <li style="font-size:14px;color:var(--muted);padding-left:20px;position:relative;line-height:1.5;"><span style="position:absolute;left:0;color:var(--orange);">—</span> Honest assessment of whether we're a fit</li>
+            <li style="font-size:14px;color:var(--muted);padding-left:20px;position:relative;line-height:1.5;"><span style="position:absolute;left:0;color:var(--orange);">—</span> If we're not, we'll tell you who we'd send you to</li>
+            <li style="font-size:14px;color:var(--muted);padding-left:20px;position:relative;line-height:1.5;"><span style="position:absolute;left:0;color:var(--orange);">—</span> No slide deck. No pitch.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="reveal-right">
+        <p class="section-tag" style="margin-bottom:24px;">Discovery call form</p>
+        <form class="form-grid" action="#" method="POST">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="fname">First name *</label>
+              <input class="form-input" type="text" id="fname" name="first_name" required placeholder="Jane"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="lname">Last name *</label>
+              <input class="form-input" type="text" id="lname" name="last_name" required placeholder="Smith"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="email">Work email *</label>
+            <input class="form-input" type="email" id="email" name="email" required placeholder="jane@company.com"/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="company">Company *</label>
+            <input class="form-input" type="text" id="company" name="company" required placeholder="Acme Technologies"/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="phone">Phone number</label>
+            <input class="form-input" type="tel" id="phone" name="phone" placeholder="+27 82 000 0000"/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="type">Which best describes you? *</label>
+            <select class="form-select" id="type" name="company_type" required>
+              <option value="" disabled selected>Select one</option>
+              <option value="microsoft-sap-partner">I work at a Microsoft or SAP partner</option>
+              <option value="isv">I work at an ISV or software vendor</option>
+              <option value="distributor">I work at a tech distributor or reseller</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="revenue">Approximate annual revenue? *</label>
+            <select class="form-select" id="revenue" name="revenue" required>
+              <option value="" disabled selected>Select one</option>
+              <option value="under-10m">Under R10M</option>
+              <option value="10-100m">R10M – R100M</option>
+              <option value="100-500m">R100M – R500M</option>
+              <option value="500m-plus">R500M+</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="message">Where are you, what have you tried, and what's stuck?</label>
+            <textarea class="form-textarea" id="message" name="message" placeholder="Tell us about your current situation — what you've already tried and where you're getting stuck..."></textarea>
+          </div>
+
+          <div>
+            <button type="submit" class="btn-primary" style="width:100%;justify-content:center;cursor:pointer;border:none;">
+              Book my discovery call →
+            </button>
+            <p style="font-size:12px;color:var(--muted);margin-top:12px;text-align:center;">// No slide deck. We'll tell you honestly if we're a fit.</p>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <img src="assets/logos/logo-tagline.svg" alt="Blacfox" style="height:64px;width:auto;object-fit:contain;display:block;"/>
+      <p>A research-led B2B tech growth consultancy for Microsoft &amp; SAP partners, ISVs, and the distributors who supply their channel. Paid on outcomes, we don't get paid until you do.</p>
+      <div class="footer-socials"><a class="soc" href="https://www.linkedin.com/company/blacfox-enterprises" aria-label="LinkedIn" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="1.5" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 6.5v4M4.5 4.5v.6M7.5 10.5v-3a1.5 1.5 0 013 0v3M7.5 6.5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></a></div>
+    </div>
+    <div class="footer-col"><h5>Pages</h5><ul><li><a href="index.html">Home</a></li><li><a href="method.html">Method</a></li><li><a href="for-partners.html">For Partners</a></li><li><a href="for-isvs.html">For ISVs</a></li><li><a href="for-distributors.html">For Distributors</a></li><li><a href="services.html">Services</a></li><li><a href="work.html">Work</a></li></ul></div>
+    <div class="footer-col"><h5>Company</h5><ul><li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li></ul></div>
+    <div class="footer-col"><h5>Contact</h5><ul><li><a href="mailto:info@blacfox.com">info@blacfox.com</a></li><li><a href="tel:+27214939327">+27 21 493 9327</a></li><li><a href="https://www.linkedin.com/company/blacfox-enterprises" target="_blank" rel="noopener">LinkedIn</a></li></ul></div>
+
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 Blacfox Enterprises. All rights reserved.</p><p>Cape Town, South Africa</p></div>
+</footer>
+<div aria-hidden="true" style="display:block;width:100%;height:10px;background-image:url('assets/icons/accent-strip.svg');background-size:100% 100%;background-repeat:no-repeat;"></div>
+
+
+<script src="assets/js/pages/contact.js"></script>
+
+</div><!-- /other-page-content --><script src="assets/js/hero-bg-grid.js"></script>
+<script src="segment-gate.js" defer></script>
+</body>
+</html>
