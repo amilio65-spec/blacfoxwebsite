@@ -1,0 +1,9 @@
+{
+  "name": "blacfox-website",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Blacfox marketing site -- partials + build.js assemble the static pages into dist/",
+  "scripts": {
+    "build": "node build.js"
+  }
+}

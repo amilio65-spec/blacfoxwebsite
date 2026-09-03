@@ -1,45 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<!--
-  Blacfox marketing site -- "For ISVs" segment landing page.
-  Shared CSS/JS for all pages live under assets/ (see README.md for the full layout).
-  segment-gate.css / segment-gate.js referenced below are an intentional placeholder
-  for a future audience-gating feature and are not implemented in this repo yet.
--->
-<link rel="stylesheet" href="assets/css/fonts.css">
-<link rel="stylesheet" href="assets/css/site.css">
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>ISV Marketing Agency | B2B Software Vendor Demand Generation | Blacfox</title>
-  <meta name="description" content="Blacfox helps ISVs generate demand, enable partner channels, and sharpen positioning. Research-led B2B growth consultancy. 10:1 pipeline ACV. Book a call."/>
-  <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml"/>
-  
-  <link rel="stylesheet" href="segment-gate.css">
-</head>
-<body>
-<div aria-hidden="true" style="position:fixed;top:0;left:0;width:100%;height:8px;z-index:1001;pointer-events:none;background-image:url('assets/icons/accent-strip.svg');background-size:100% 100%;background-repeat:no-repeat;"></div>
+---
+title: "ISV Marketing Agency | B2B Software Vendor Demand Generation | Blacfox"
+description: "Blacfox helps ISVs generate demand, enable partner channels, and sharpen positioning. Research-led B2B growth consultancy. 10:1 pipeline ACV. Book a call."
+cssFiles: ["assets/css/site.css"]
+bodyClass: ""
+layout: inner
+canonical: "https://blacfox.com/for-isvs.html"
+pageScripts: ["assets/js/pages/for-isvs.js"]
+---
 
-
-
-
-<div id="header-bg" aria-hidden="true"></div>
-<div id="bottom-nav">
-  <a href="index.html" class="nav-logo nav-pill-glass" aria-label="Blacfox">
-    <img src="assets/logos/logo-no-tagline.svg" class="nav-logo-svg" alt="Blacfox"/>
-  </a>
-  <nav class="nav-links-pill nav-pill-glass">
-    <a href="index.html" data-page="index">Home</a>
-    <a href="method.html" data-page="method">Method</a>
-    <a href="for-partners.html" data-page="for-partners">Partners</a>
-    <a href="for-isvs.html" data-page="for-isvs">ISVs</a>
-    <a href="for-distributors.html" data-page="for-distributors">Distributors</a>
-    <a href="services.html" data-page="services">Services</a>
-    <a href="work.html" data-page="work">Work</a>
-    <a href="about.html" data-page="about">About</a>
-    <a href="contact.html" data-page="contact">Contact</a>
-  </nav>
-</div>
 
 <!-- HERO -->
 <section class="page-hero" style="position:relative;overflow:hidden;min-height:100vh;">
@@ -66,9 +34,8 @@
   </div>
 
 </section>
-<div id="page-hero-spacer"></div>
-<div class="other-page-content">
 
+<!--CONTENT-WRAP-->
 
 <!-- DEMAND FUNNEL DIAGRAM -->
 <section class="bg-white">
@@ -167,22 +134,3 @@
   </a>
 </section>
 
-<footer>
-  <div class="footer-grid">
-    <div class="footer-brand"><img src="assets/logos/logo-tagline.svg" alt="Blacfox" style="height:64px;width:auto;object-fit:contain;display:block;"/><p>A research-led B2B tech growth consultancy for Microsoft &amp; SAP partners, ISVs, and the distributors who supply their channel. Paid on outcomes, we don't get paid until you do.</p><div class="footer-socials"><a class="soc" href="https://www.linkedin.com/company/blacfox-enterprises" aria-label="LinkedIn" target="_blank" rel="noopener"><svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="1.5" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 6.5v4M4.5 4.5v.6M7.5 10.5v-3a1.5 1.5 0 013 0v3M7.5 6.5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></a></div></div>
-    <div class="footer-col"><h5>Pages</h5><ul><li><a href="index.html">Home</a></li><li><a href="method.html">Method</a></li><li><a href="for-partners.html">For Partners</a></li><li><a href="for-isvs.html">For ISVs</a></li><li><a href="for-distributors.html">For Distributors</a></li><li><a href="services.html">Services</a></li><li><a href="work.html">Work</a></li></ul></div>
-    <div class="footer-col"><h5>Company</h5><ul><li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li></ul></div>
-    <div class="footer-col"><h5>Contact</h5><ul><li><a href="mailto:info@blacfox.com">info@blacfox.com</a></li><li><a href="tel:+27214939327">+27 21 493 9327</a></li><li><a href="https://www.linkedin.com/company/blacfox-enterprises" target="_blank" rel="noopener">LinkedIn</a></li></ul></div>
-
-  </div>
-  <div class="footer-bottom"><p>&copy; 2026 Blacfox Enterprises. All rights reserved.</p><p>Cape Town, South Africa</p></div>
-</footer>
-<div aria-hidden="true" style="display:block;width:100%;height:10px;background-image:url('assets/icons/accent-strip.svg');background-size:100% 100%;background-repeat:no-repeat;"></div>
-
-
-<script src="assets/js/pages/for-isvs.js"></script>
-
-</div><!-- /other-page-content --><script src="assets/js/hero-bg-grid.js"></script>
-<script src="segment-gate.js" defer></script>
-</body>
-</html>

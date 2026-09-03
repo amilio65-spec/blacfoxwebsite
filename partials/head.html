@@ -1,0 +1,19 @@
+<!--
+  Blacfox marketing site.
+  Shared CSS/JS for all pages live under assets/ (see README.md for the full layout).
+  segment-gate.css / segment-gate.js referenced below are an intentional placeholder
+  for a future audience-gating feature and are not implemented in this repo yet.
+-->
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>{{title}}</title>
+<meta name="description" content="{{description}}"/>
+<link rel="canonical" href="{{canonical}}"/>
+<meta property="og:title" content="{{title}}"/>
+<meta property="og:description" content="{{description}}"/>
+<!-- TODO: replace with per-page OG images -->
+<meta property="og:image" content="assets/og/default.png"/>
+<link rel="stylesheet" href="assets/css/fonts.css">
+{{cssLinks}}
+<link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="segment-gate.css">
