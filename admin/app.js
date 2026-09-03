@@ -359,7 +359,208 @@ const App = {
   current: null,       // {type:'page', slug} | {type:'nav'} | {type:'footer'}
   activeTab: 'meta',
   assetCache: new Map(), // `${branch}:${path}` -> text | null
+  previewEditMode: false,
 };
+
+/* ------------------------------------------------------------
+   Click-to-edit-text in the live preview.
+
+   Only text is editable this way (headings, paragraphs, button/link
+   labels) -- adding, removing, or reordering elements still goes
+   through "+ Insert section" or the raw HTML boxes. Anything inside
+   a <form> is left alone entirely so the contact form can't be
+   mangled by an accidental click.
+
+   The same "which elements count as an editable leaf" logic runs in
+   two places: inside the preview iframe (to decide what to make
+   contentEditable) and here in the parent (to find, by position, the
+   matching node in the real hero/main HTML string when an edit comes
+   back). They have to agree exactly, so this is written once and the
+   iframe copy is generated from this same function's source further
+   down -- never duplicated by hand.
+   ------------------------------------------------------------ */
+const INLINE_PASSENGER_TAGS = new Set(['EM', 'I', 'STRONG', 'B', 'SPAN', 'BR', 'SVG', 'PATH', 'RECT', 'CIRCLE', 'POLYGON', 'LINE', 'G']);
+const SKIP_CONTAINER_TAGS = new Set(['FORM', 'SCRIPT', 'STYLE', 'CANVAS', 'SELECT', 'TEXTAREA', 'OPTION']);
+
+function isPhrasingOnly(el) {
+  for (const child of el.children) {
+    // tagName is lowercase for SVG-namespace elements (svg/path/rect/...)
+    // even inside an HTML document, so normalize before checking the set --
+    // otherwise every icon-plus-text pattern (e.g. a button with an inline
+    // arrow SVG) falls through to the "not phrasing-only" branch and its
+    // visible text silently becomes unreachable by this walk.
+    if (!INLINE_PASSENGER_TAGS.has(child.tagName.toUpperCase())) return false;
+    if (!isPhrasingOnly(child)) return false;
+  }
+  return true;
+}
+function hasEditableText(el) {
+  return el.textContent.trim().length > 0;
+}
+function collectEditableLeaves(root, out) {
+  out = out || [];
+  if (!root) return out;
+  for (const el of root.children) {
+    if (SKIP_CONTAINER_TAGS.has(el.tagName.toUpperCase())) continue;
+    if (isPhrasingOnly(el) && hasEditableText(el)) {
+      out.push(el);
+    } else {
+      collectEditableLeaves(el, out);
+    }
+  }
+  return out;
+}
+
+// Applies an edit reported by the preview iframe back into the real,
+// canonical hero/main HTML string for the current page (and mirrors it
+// into the raw-HTML textarea if that tab happens to be open). Nothing is
+// committed to GitHub here -- same as typing in the raw box, it's just an
+// in-memory draft until Save.
+function applyInlineEdit(region, index, newInnerHtml) {
+  if (!App.current || App.current.type !== 'page') return false;
+  const p = App.pages[App.current.slug];
+  const raw = region === 'hero' ? p.hero : p.main;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const leaves = collectEditableLeaves(doc.body);
+  const el = leaves[index];
+  if (!el) return false;
+  el.innerHTML = newInnerHtml;
+  const updated = doc.body.innerHTML.trim();
+  p[region] = updated;
+  const ta = document.getElementById(region === 'hero' ? 'b-hero' : 'b-main');
+  if (ta) ta.value = updated;
+  return true;
+}
+
+window.addEventListener('message', e => {
+  if (!e.data || e.data.source !== 'blacfox-cms-preview' || e.data.type !== 'edit') return;
+  if (applyInlineEdit(e.data.region, e.data.index, e.data.html)) setStatus('edited (unsaved)', '');
+});
+
+// Builds the <script> block injected into the preview iframe. Ships the
+// exact same collectEditableLeaves/isPhrasingOnly/hasEditableText functions
+// defined above (via toString()) so the two sides can never drift apart.
+function buildPreviewEditScript(editable) {
+  return `<script>
+(function() {
+  // Never let a link inside the preview actually navigate -- there's
+  // nothing at these relative paths inside a srcdoc iframe anyway.
+  document.addEventListener('click', function(e) {
+    var a = e.target.closest('a');
+    if (a) e.preventDefault();
+  }, true);
+
+  ${editable ? `
+  var INLINE_PASSENGER_TAGS = new Set(${JSON.stringify([...INLINE_PASSENGER_TAGS])});
+  var SKIP_CONTAINER_TAGS = new Set(${JSON.stringify([...SKIP_CONTAINER_TAGS])});
+  ${isPhrasingOnly.toString()}
+  ${hasEditableText.toString()}
+  ${collectEditableLeaves.toString()}
+
+  var toolbar = document.createElement('div');
+  toolbar.id = 'cms-toolbar';
+  toolbar.innerHTML = '<button data-cmd="strong" onmousedown="return false">B</button>' +
+    '<button data-cmd="em" onmousedown="return false" style="font-style:italic">Highlight</button>' +
+    '<button data-cmd="clear" onmousedown="return false">Clear</button>';
+  document.body.appendChild(toolbar);
+  var style = document.createElement('style');
+  style.textContent = '.cms-editable{outline:1px dashed transparent;cursor:text;transition:outline-color .1s}' +
+    '.cms-editable:hover{outline-color:rgba(233,92,37,.5)}' +
+    '.cms-editable.cms-active{outline:2px solid #e95c25;outline-offset:1px}' +
+    '#cms-toolbar{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:4px;gap:2px;box-shadow:0 6px 20px rgba(0,0,0,.4)}' +
+    '#cms-toolbar button{background:none;border:none;color:#eee;font-size:11px;font-weight:700;padding:5px 9px;border-radius:5px;cursor:pointer;font-family:inherit}' +
+    '#cms-toolbar button:hover{background:rgba(255,255,255,.12)}';
+  document.head.appendChild(style);
+
+  function toggleWrap(tagName) {
+    var sel = window.getSelection();
+    if (!sel.rangeCount || sel.isCollapsed) return;
+    var range = sel.getRangeAt(0);
+    var anc = range.commonAncestorContainer;
+    if (anc.nodeType === 3) anc = anc.parentElement;
+    var existing = anc.closest(tagName);
+    if (existing) {
+      var parent = existing.parentNode;
+      while (existing.firstChild) parent.insertBefore(existing.firstChild, existing);
+      parent.removeChild(existing);
+    } else {
+      var wrapper = document.createElement(tagName);
+      try { range.surroundContents(wrapper); }
+      catch (err) { var frag = range.extractContents(); wrapper.appendChild(frag); range.insertNode(wrapper); }
+    }
+    var editableEl = anc.closest ? anc.closest('.cms-editable') : null;
+    if (editableEl) editableEl.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function clearFormatting() {
+    var sel = window.getSelection();
+    if (!sel.rangeCount || sel.isCollapsed) return;
+    var range = sel.getRangeAt(0);
+    var text = range.toString();
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    var node = sel.anchorNode;
+    var el = node && node.nodeType === 3 ? node.parentElement : node;
+    var editableEl = el && el.closest ? el.closest('.cms-editable') : null;
+    if (editableEl) editableEl.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  toolbar.addEventListener('mousedown', function(e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    e.preventDefault();
+    var cmd = btn.dataset.cmd;
+    if (cmd === 'clear') clearFormatting(); else toggleWrap(cmd);
+  });
+  document.addEventListener('selectionchange', function() {
+    var sel = window.getSelection();
+    if (!sel.rangeCount || sel.isCollapsed) { toolbar.style.display = 'none'; return; }
+    var anc = sel.anchorNode;
+    var el = anc && anc.nodeType === 3 ? anc.parentElement : anc;
+    if (!el || !el.closest || !el.closest('.cms-editable.cms-active')) { toolbar.style.display = 'none'; return; }
+    var rect = sel.getRangeAt(0).getBoundingClientRect();
+    toolbar.style.display = 'flex';
+    toolbar.style.left = Math.max(4, rect.left) + 'px';
+    toolbar.style.top = Math.max(4, rect.top - 40) + 'px';
+  });
+
+  function wireRegion(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    var leaves = collectEditableLeaves(root);
+    leaves.forEach(function(el, index) {
+      el.classList.add('cms-editable');
+      el.title = 'Click to edit';
+      var sendTimer = null;
+      function send() {
+        parent.postMessage({ source: 'blacfox-cms-preview', type: 'edit', region: region, index: index, html: el.innerHTML }, '*');
+      }
+      el.addEventListener('click', function(e) {
+        if (el.contentEditable === 'true') return;
+        e.preventDefault();
+        e.stopPropagation();
+        document.querySelectorAll('.cms-active').forEach(function(x) { x.contentEditable = 'false'; x.classList.remove('cms-active'); });
+        el.contentEditable = 'true';
+        el.classList.add('cms-active');
+        el.focus();
+      });
+      el.addEventListener('input', function() {
+        clearTimeout(sendTimer);
+        sendTimer = setTimeout(send, 500);
+      });
+      el.addEventListener('blur', function() {
+        clearTimeout(sendTimer);
+        el.contentEditable = 'false';
+        el.classList.remove('cms-active');
+        toolbar.style.display = 'none';
+        send();
+      });
+    });
+  }
+  wireRegion('#cms-hero-root', 'hero');
+  wireRegion('#page-content, .other-page-content', 'main');
+  ` : ''}
+})();
+<\/script>`;
+}
 
 function setStatus(msg, kind) {
   const el = document.getElementById('status-line');
@@ -1167,7 +1368,12 @@ async function buildPreviewHTML(slug) {
     gh.getFile(gh.owner, gh.repo, 'partials/nav.html', App.branch),
     gh.getFile(gh.owner, gh.repo, 'partials/footer.html', App.branch),
   ]);
-  let html = renderPageClient(p.data, p.hero, p.main, { head: headText, nav: navFile.text.trim(), footer: footerFile.text.trim() });
+  // "display:contents" is layout-invisible -- this wrapper exists purely so
+  // the edit script (and applyInlineEdit's parsing on the other end) has a
+  // stable root to address hero content by, without affecting the real
+  // build.js output at all (this wrapping never happens there).
+  const heroWrapped = `<div id="cms-hero-root" style="display:contents">${p.hero}</div>`;
+  let html = renderPageClient(p.data, heroWrapped, p.main, { head: headText, nav: navFile.text.trim(), footer: footerFile.text.trim() });
 
   // Inline local stylesheets (text)
   const linkRe = /<link rel="stylesheet" href="([^"]+)">/g;
@@ -1192,6 +1398,7 @@ async function buildPreviewHTML(slug) {
   // data: URI, fetched through the authenticated API rather than a public
   // raw-content URL.
   html = await inlineAssetRefs(html);
+  html = html.replace('</body>', `${buildPreviewEditScript(App.previewEditMode)}</body>`);
   return html;
 }
 
@@ -1220,3 +1427,16 @@ async function doRefreshPreview() {
   }
 }
 document.getElementById('refresh-preview-btn').addEventListener('click', refreshPreview);
+
+function updateEditModeBtn() {
+  const btn = document.getElementById('edit-mode-btn');
+  btn.classList.toggle('btn-primary', App.previewEditMode);
+  btn.classList.toggle('btn-ghost', !App.previewEditMode);
+  btn.textContent = App.previewEditMode ? '✏️ Editing on page — click text to edit' : '✏️ Edit on page';
+}
+document.getElementById('edit-mode-btn').addEventListener('click', () => {
+  App.previewEditMode = !App.previewEditMode;
+  updateEditModeBtn();
+  refreshPreview();
+});
+updateEditModeBtn();
