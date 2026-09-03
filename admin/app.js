@@ -139,7 +139,39 @@ const gh = {
       body: JSON.stringify({ base, head, commit_message }),
     });
   },
+
+  // Returns raw base64 (undecoded) of a file's bytes, or null if missing.
+  // Falls back to the Git Blob API for files >1MB, which the Contents API
+  // can't inline (this matters for this repo's fonts.css, ~1.7MB) --
+  // and, critically, both endpoints are authenticated, so this works
+  // against a PRIVATE repo, unlike an unauthenticated raw.githubusercontent.com
+  // fetch (which 404s on a private repo with no way to tell the difference
+  // from a missing file).
+  async getFileBytesB64(owner, repo, path, ref) {
+    try {
+      const data = await this.req(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path).replace(/%2F/g, '/')}?ref=${encodeURIComponent(ref)}`);
+      if (Array.isArray(data)) return null;
+      if (data.content) return data.content.replace(/\n/g, '');
+      if (data.sha) {
+        const blob = await this.req(`/repos/${owner}/${repo}/git/blobs/${data.sha}`);
+        return blob.content.replace(/\n/g, '');
+      }
+      return null;
+    } catch (e) {
+      if (e.status === 404) return null;
+      throw e;
+    }
+  },
 };
+
+function guessMime(path) {
+  const ext = (path.split('.').pop() || '').toLowerCase();
+  return {
+    svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    gif: 'image/gif', webp: 'image/webp', ico: 'image/x-icon',
+    woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf',
+  }[ext] || 'application/octet-stream';
+}
 
 /* ------------------------------------------------------------
    Build-pipeline mirror (must match build.js exactly, so the
@@ -645,7 +677,6 @@ function renderMetaTab() {
   const slug = App.current.slug;
   const p = App.pages[slug];
   const d = p.data;
-  const ogSrc = d.ogImage ? `${RAW_HOST}/${gh.owner}/${gh.repo}/${App.branch}/${d.ogImage}` : '';
   return `
     <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>.</div>
 
@@ -656,8 +687,7 @@ function renderMetaTab() {
     <div class="section-divider"></div>
     <div class="section-title">Open Graph image</div>
     <div class="img-drop" id="og-drop">
-      ${ogSrc ? `<img src="${ogSrc}">` : ''}
-      <div class="img-drop-lbl">${ogSrc ? d.ogImage : 'Click or drop an image — commits to assets/og/' + slug + '.<ext> on save'}</div>
+      <div class="img-drop-lbl" id="og-drop-lbl">${d.ogImage ? d.ogImage + ' (loading preview…)' : 'Click or drop an image — commits to assets/og/' + slug + '.<ext> on save'}</div>
       <input type="file" id="og-file" accept="image/*">
     </div>
 
@@ -711,6 +741,7 @@ function wireTabHandlers() {
     document.getElementById('og-drop').addEventListener('click', e => { if (e.target.tagName !== 'INPUT') document.getElementById('og-file').click(); });
     document.getElementById('og-file').addEventListener('change', onOgFilePicked);
     document.getElementById('save-page-btn').addEventListener('click', savePageMeta);
+    loadOgThumbnail();
   } else {
     document.getElementById('save-body-btn').addEventListener('click', savePageBody);
     document.getElementById('insert-section-btn').addEventListener('click', openInsertSectionModal);
@@ -720,6 +751,21 @@ function wireArrayRemove() {
   document.querySelectorAll('#editor-scroll [data-remove]').forEach(btn => {
     btn.addEventListener('click', () => btn.closest('.array-row').remove());
   });
+}
+
+async function loadOgThumbnail() {
+  const p = App.pages[App.current.slug];
+  if (!p.data.ogImage) return;
+  const uri = await fetchAssetDataUri(p.data.ogImage);
+  const drop = document.getElementById('og-drop');
+  if (!drop) return; // user navigated away before this resolved
+  const lbl = document.getElementById('og-drop-lbl');
+  if (uri) {
+    drop.insertAdjacentHTML('afterbegin', `<img src="${uri}">`);
+    if (lbl) lbl.textContent = p.data.ogImage;
+  } else if (lbl) {
+    lbl.textContent = p.data.ogImage + ' (file not found in repo)';
+  }
 }
 
 let pendingOgUpload = null;
@@ -1057,12 +1103,39 @@ async function saveFooterFromForm() {
    CSS/JS so it renders correctly inside a sandboxed iframe.
    ------------------------------------------------------------ */
 async function fetchAssetText(path) {
-  const key = `${App.branch}:${path}`;
+  const key = `text:${App.branch}:${path}`;
   if (App.assetCache.has(key)) return App.assetCache.get(key);
-  const file = await gh.getFile(gh.owner, gh.repo, path, App.branch).catch(() => null);
-  const text = file ? file.text : null;
+  const b64 = await gh.getFileBytesB64(gh.owner, gh.repo, path, App.branch).catch(() => null);
+  const text = b64 != null ? b64DecodeText(b64) : null;
   App.assetCache.set(key, text);
   return text;
+}
+
+async function fetchAssetDataUri(path) {
+  const key = `datauri:${App.branch}:${path}`;
+  if (App.assetCache.has(key)) return App.assetCache.get(key);
+  const b64 = await gh.getFileBytesB64(gh.owner, gh.repo, path, App.branch).catch(() => null);
+  const uri = b64 != null ? `data:${guessMime(path)};base64,${b64}` : null;
+  App.assetCache.set(key, uri);
+  return uri;
+}
+
+// Every repo asset the rendered page references by relative path (img/link
+// src|href, and any CSS url(...) — including ones inside the <style> blocks
+// just inlined above) gets swapped for a data: URI fetched via the
+// authenticated API. This is what makes the preview work against a PRIVATE
+// repo: plain raw.githubusercontent.com links 404 for anyone unauthenticated,
+// which is why the logo/background images were breaking.
+async function inlineAssetRefs(html) {
+  const re = /(?:src|href)="(assets\/[^"]+)"|url\((['"]?)(assets\/[^'")]+)\2\)/g;
+  const paths = new Set();
+  let m;
+  while ((m = re.exec(html))) paths.add(m[1] || m[3]);
+  for (const path of paths) {
+    const uri = await fetchAssetDataUri(path);
+    if (uri) html = html.split(path).join(uri);
+  }
+  return html;
 }
 
 async function buildPreviewHTML(slug) {
@@ -1074,16 +1147,16 @@ async function buildPreviewHTML(slug) {
   ]);
   let html = renderPageClient(p.data, p.hero, p.main, { head: headText, nav: navFile.text.trim(), footer: footerFile.text.trim() });
 
-  // Inline local stylesheets
+  // Inline local stylesheets (text)
   const linkRe = /<link rel="stylesheet" href="([^"]+)">/g;
   const linkMatches = [...html.matchAll(linkRe)];
   for (const m of linkMatches) {
     const href = m[1];
-    if (/^https?:/.test(href)) continue; // external (fonts) — leave as-is, real MIME type
+    if (/^https?:/.test(href)) continue; // external (Google Fonts) — leave as-is, real MIME type
     const text = await fetchAssetText(href);
     html = html.replace(m[0], text != null ? `<style>/* ${href} */\n${text}\n</style>` : '');
   }
-  // Inline local scripts
+  // Inline local scripts (text)
   const scriptRe = /<script src="([^"]+)"[^>]*><\/script>/g;
   const scriptMatches = [...html.matchAll(scriptRe)];
   for (const m of scriptMatches) {
@@ -1092,9 +1165,11 @@ async function buildPreviewHTML(slug) {
     const text = await fetchAssetText(src);
     html = html.replace(m[0], text != null ? `<script>${text}</script>` : '');
   }
-  // Base href so any remaining relative refs (images/svg/font files) resolve
-  const base = `<base href="${RAW_HOST}/${gh.owner}/${gh.repo}/${App.branch}/">`;
-  html = html.replace('<head>', `<head>${base}`);
+  // Inline every remaining relative asset reference (images, fonts, SVG
+  // backgrounds — in the markup AND inside the CSS just inlined above) as a
+  // data: URI, fetched through the authenticated API rather than a public
+  // raw-content URL.
+  html = await inlineAssetRefs(html);
   return html;
 }
 
