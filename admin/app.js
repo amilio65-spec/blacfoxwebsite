@@ -728,7 +728,13 @@ function wireTabHandlers() {
       if (b.style.pointerEvents === 'none') return;
       document.querySelectorAll('#editor-scroll .radio-btn[data-layout]').forEach(x => x.classList.remove('on'));
       b.classList.add('on');
+      App.pages[App.current.slug].data.layout = b.dataset.layout;
+      refreshPreview();
     }));
+    document.getElementById('m-bodyclass').addEventListener('input', e => {
+      App.pages[App.current.slug].data.bodyClass = e.target.value;
+      refreshPreview();
+    });
     document.getElementById('m-css-add').addEventListener('click', () => {
       document.getElementById('m-cssfiles').insertAdjacentHTML('beforeend', arrayRow('css', 999, ''));
       wireArrayRemove();
@@ -745,7 +751,22 @@ function wireTabHandlers() {
   } else {
     document.getElementById('save-body-btn').addEventListener('click', savePageBody);
     document.getElementById('insert-section-btn').addEventListener('click', openInsertSectionModal);
+    document.getElementById('b-hero').addEventListener('input', syncBodyDraftAndPreview);
+    document.getElementById('b-main').addEventListener('input', syncBodyDraftAndPreview);
   }
+}
+
+// The preview renders whatever's in App.pages[slug].hero/main -- so typing
+// into the boxes has to update that in-memory draft immediately (not just on
+// Save) for the preview to feel live, the way the Landing Page Builder does.
+// Nothing is committed to GitHub until "Save" is clicked; this only updates
+// the browser's own copy.
+function syncBodyDraftAndPreview() {
+  if (!App.current || App.current.type !== 'page') return;
+  const p = App.pages[App.current.slug];
+  p.hero = document.getElementById('b-hero').value;
+  p.main = document.getElementById('b-main').value;
+  refreshPreview();
 }
 function wireArrayRemove() {
   document.querySelectorAll('#editor-scroll [data-remove]').forEach(btn => {
@@ -885,8 +906,9 @@ function openComponentForm(key) {
     const textarea = document.getElementById('b-main');
     const pos = textarea.selectionStart ?? textarea.value.length;
     textarea.value = textarea.value.slice(0, pos) + (pos > 0 ? '\n\n' : '') + html + '\n\n' + textarea.value.slice(pos);
+    syncBodyDraftAndPreview();
     closeModal();
-    toast(`${c.label} inserted — remember to Save.`, 'success');
+    toast(`${c.label} inserted — check the preview, then Save when you're happy with it.`, 'success');
   });
 }
 
