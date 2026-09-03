@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blacfox CMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:'Montserrat',sans-serif;background:#0a0a0a;color:#fff;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit}
+a{color:inherit}
+
+/* ── App shell ── */
+#app{display:flex;flex-direction:column;height:100vh}
+#topbar{flex-shrink:0;background:#1a1a1a;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:16px;padding:0 16px;height:52px}
+.brand-row{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.brand-badge{width:26px;height:26px;border-radius:6px;background:#e95c25;display:flex;align-items:center;justify-content:center;color:#000;font-weight:900;font-size:11px}
+.brand-title{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#ddd}
+.repo-pill{font-size:11px;color:#999;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px}
+.repo-pill b{color:#fff;font-weight:700}
+#branch-select{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;padding:5px 8px;font-size:11px;outline:none}
+#branch-select option{background:#1a1a1a}
+.topbar-spacer{flex:1}
+.btn{border:none;border-radius:8px;font-size:11px;font-weight:700;letter-spacing:.03em;padding:7px 14px;cursor:pointer;transition:all .12s;font-family:inherit;white-space:nowrap}
+.btn-primary{background:#e95c25;color:#fff}
+.btn-primary:hover{background:#f07040}
+.btn-primary:disabled{opacity:.35;cursor:default}
+.btn-ghost{background:rgba(255,255,255,.06);color:#ddd;border:1px solid rgba(255,255,255,.12)}
+.btn-ghost:hover{background:rgba(255,255,255,.12)}
+.btn-danger{background:rgba(255,80,80,.12);color:#ff9999;border:1px solid rgba(255,80,80,.25)}
+.btn-danger:hover{background:rgba(255,80,80,.2)}
+.btn-sm{padding:4px 9px;font-size:10px;border-radius:6px}
+#status-line{font-size:10.5px;color:#666;min-width:60px}
+#status-line.busy{color:#e95c25}
+#status-line.error{color:#ff8080}
+#status-line.ok{color:#7fd88f}
+
+#main-body{flex:1;min-height:0;display:flex;overflow:hidden}
+
+/* ── Sidebar (page tree) ── */
+#sidebar{width:250px;flex-shrink:0;background:#111;border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;overflow-y:auto;padding:12px 10px}
+.sidebar-label{font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#666;margin:10px 6px 6px}
+.tree-item{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:7px;cursor:pointer;font-size:12px;color:#bbb;transition:background .1s}
+.tree-item:hover{background:rgba(255,255,255,.05)}
+.tree-item.active{background:rgba(233,92,37,.16);color:#fff}
+.tree-item .layout-badge{font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#777;background:rgba(255,255,255,.07);border-radius:3px;padding:1px 5px;flex-shrink:0}
+.tree-item.active .layout-badge{color:#e95c25;background:rgba(233,92,37,.18)}
+.tree-item .home-star{color:#e95c25;flex-shrink:0}
+.tree-item-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.add-page-row{margin:8px 6px 4px;padding:8px;border:1px dashed rgba(233,92,37,.3);border-radius:7px;color:#e95c25;font-size:11px;font-weight:600;text-align:center;cursor:pointer;transition:all .12s}
+.add-page-row:hover{background:rgba(233,92,37,.08)}
+
+/* ── Editor panel ── */
+#editor-panel{width:420px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;background:#141414;overflow:hidden}
+#editor-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.editor-tab{flex:1;padding:11px 4px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#777;cursor:pointer;border-bottom:2px solid transparent;transition:all .12s}
+.editor-tab:hover{color:#bbb}
+.editor-tab.active{color:#e95c25;border-bottom-color:#e95c25}
+#editor-scroll{flex:1;overflow-y:auto;padding:16px}
+#editor-scroll::-webkit-scrollbar{width:4px}
+#editor-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
+
+.field-group{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field-label{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#666;display:flex;align-items:center;justify-content:space-between}
+.field-hint{font-size:10px;color:#555;font-style:italic;margin-top:2px;line-height:1.4}
+.field-input,.field-select,.field-textarea{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:7px;color:#fff;font-size:12px;padding:8px 10px;width:100%;outline:none;transition:border-color .15s}
+.field-input:focus,.field-select:focus,.field-textarea:focus{border-color:rgba(233,92,37,.6)}
+.field-textarea{font-family:'SF Mono',Consolas,monospace;font-size:11px;line-height:1.55;min-height:120px;resize:vertical;white-space:pre}
+.field-textarea.tall{min-height:280px}
+.field-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.section-divider{height:1px;background:rgba(255,255,255,.07);margin:16px 0}
+.section-title{font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#888;margin-bottom:10px}
+.radio-row{display:flex;gap:6px}
+.radio-btn{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:7px;color:#999;font-size:11px;font-weight:600;padding:8px;cursor:pointer;text-align:center;transition:all .12s}
+.radio-btn.on{background:rgba(233,92,37,.18);border-color:rgba(233,92,37,.5);color:#e95c25}
+.array-list{display:flex;flex-direction:column;gap:6px}
+.array-row{display:flex;gap:6px;align-items:center}
+.array-row .field-input{flex:1}
+.icon-btn{background:none;border:none;color:#555;font-size:15px;cursor:pointer;padding:3px 6px;border-radius:5px;flex-shrink:0;transition:color .12s}
+.icon-btn:hover{color:#ff7070}
+.icon-btn.add{color:#e95c25}
+.add-row-btn{background:rgba(233,92,37,.06);border:1px dashed rgba(233,92,37,.25);border-radius:6px;color:#e95c25;cursor:pointer;font-size:10px;font-weight:700;padding:7px;width:100%;transition:all .12s}
+.add-row-btn:hover{background:rgba(233,92,37,.14)}
+
+.chrome-item-card{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:7px;margin-bottom:8px}
+.chrome-item-head{display:flex;align-items:center;justify-content:space-between}
+.chrome-item-badge{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e95c25}
+.move-btns{display:flex;gap:2px}
+.move-btns button{background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:11px;padding:2px 5px}
+.move-btns button:hover{color:#e95c25}
+.move-btns button:disabled{opacity:.2;cursor:default}
+
+.img-drop{border:1px dashed rgba(255,255,255,.18);border-radius:8px;padding:12px;text-align:center;cursor:pointer;position:relative;transition:all .15s}
+.img-drop:hover{border-color:rgba(233,92,37,.4)}
+.img-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.img-drop img{max-width:100%;max-height:90px;border-radius:6px;display:block;margin:0 auto 6px}
+.img-drop-lbl{font-size:10px;color:#555}
+
+.comp-picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}
+.comp-picker-item{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px;font-size:10px;color:#aaa;cursor:pointer;text-align:left;transition:all .12s}
+.comp-picker-item:hover{background:rgba(233,92,37,.1);border-color:rgba(233,92,37,.35);color:#fff}
+.comp-picker-item strong{display:block;font-size:10px;color:#ddd;margin-bottom:2px}
+
+.insert-target-row{display:flex;gap:6px;margin-top:8px}
+.insert-target-row select{flex:1}
+
+.callout-box{background:rgba(233,92,37,.06);border:1px solid rgba(233,92,37,.2);border-radius:8px;padding:10px 12px;font-size:11px;color:#e0a888;line-height:1.5;margin-bottom:12px}
+.callout-box.warn{background:rgba(255,180,60,.08);border-color:rgba(255,180,60,.25);color:#ffcf8a}
+
+/* ── Preview pane ── */
+#preview-pane{flex:1;display:flex;flex-direction:column;background:#0d0d0d;min-width:0}
+#preview-toolbar{background:#1a1a1a;border-bottom:1px solid rgba(255,255,255,.07);padding:9px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.dots{display:flex;gap:5px}
+.dots span{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.12)}
+.dots span:nth-child(1){background:#ff5f57}.dots span:nth-child(2){background:#febc2e}.dots span:nth-child(3){background:#28c840}
+.url-bar{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:5px;padding:5px 12px;font-size:10.5px;color:#666;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#preview-frame{flex:1;border:none;width:100%;background:#fff}
+#preview-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;text-align:center;padding:40px}
+
+/* ── Login screen ── */
+#login-screen{position:fixed;inset:0;background:#0a0a0a;display:flex;align-items:center;justify-content:center;z-index:500}
+#login-screen.hidden{display:none}
+.login-card{width:400px;background:#141414;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.login-card h1{font-size:15px;font-weight:800;letter-spacing:.02em;margin-bottom:6px}
+.login-card p.sub{font-size:11.5px;color:#777;margin-bottom:20px;line-height:1.5}
+.login-card .field-group{margin-bottom:12px}
+.login-error{font-size:11px;color:#ff8a8a;margin-top:10px;line-height:1.5;display:none}
+.login-note{font-size:10px;color:#555;margin-top:16px;line-height:1.6}
+.login-note a{color:#e95c25;text-decoration:none}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:none;align-items:center;justify-content:center}
+.modal-overlay.visible{display:flex}
+.modal-box{background:#1a1a1a;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:20px;width:380px;max-height:82vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.6)}
+.modal-title{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#ddd;margin-bottom:14px}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+
+.toast{position:fixed;bottom:18px;right:18px;background:#1a1a1a;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:11px 16px;font-size:11.5px;color:#eee;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:2000;max-width:340px;line-height:1.5}
+.toast.error{border-color:rgba(255,90,90,.35);color:#ffb0b0}
+.toast.success{border-color:rgba(120,220,140,.35);color:#a9f0bd}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Blacfox CMS</h1>
+    <p class="sub">Connect a GitHub repo to start editing. Your token stays in this browser only — it's never sent anywhere but api.github.com.</p>
+    <div class="field-group">
+      <label class="field-label">Personal access token</label>
+      <input class="field-input" id="login-token" type="password" placeholder="ghp_… (repo scope, or fine-grained w/ Contents R+W)">
+    </div>
+    <div class="field-row-2">
+      <div class="field-group">
+        <label class="field-label">Repo owner</label>
+        <input class="field-input" id="login-owner" type="text" placeholder="amilio65-spec">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Repo name</label>
+        <input class="field-input" id="login-repo" type="text" placeholder="website-test">
+      </div>
+    </div>
+    <button class="btn btn-primary" id="login-btn" style="width:100%;padding:10px;margin-top:6px;">Connect</button>
+    <p class="login-error" id="login-error"></p>
+    <p class="login-note">Token needs the <b>repo</b> scope (classic) or Contents read/write (fine-grained). Nothing is hardcoded to any one repo — point this at the test repo now, the real one later.</p>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div id="topbar">
+    <div class="brand-row">
+      <div class="brand-badge">BX</div>
+      <span class="brand-title">Blacfox CMS</span>
+    </div>
+    <div class="repo-pill">📁 <b id="repo-label">—</b></div>
+    <select id="branch-select" title="Working branch"></select>
+    <button class="btn btn-ghost btn-sm" id="new-draft-btn">+ New draft</button>
+    <div class="topbar-spacer"></div>
+    <span id="status-line"></span>
+    <button class="btn btn-primary btn-sm" id="publish-btn" style="display:none">Publish to main →</button>
+    <button class="btn btn-ghost btn-sm" id="settings-btn">Settings</button>
+  </div>
+
+  <div id="main-body">
+    <div id="sidebar">
+      <div class="sidebar-label">Pages</div>
+      <div id="page-tree"></div>
+      <div class="add-page-row" id="add-page-btn">+ Add page</div>
+      <div class="sidebar-label" style="margin-top:18px">Site chrome</div>
+      <div class="tree-item" id="nav-tree-item" data-kind="nav">🧭 <span class="tree-item-label">Navigation</span></div>
+      <div class="tree-item" id="footer-tree-item" data-kind="footer">🦶 <span class="tree-item-label">Footer</span></div>
+    </div>
+
+    <div id="editor-panel">
+      <div id="editor-tabs"></div>
+      <div id="editor-scroll"><div id="editor-empty" class="callout-box" style="margin:20px">Pick a page, or Navigation / Footer, from the left to start editing.</div></div>
+    </div>
+
+    <div id="preview-pane">
+      <div id="preview-toolbar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="url-bar" id="preview-url">Select a page to preview</div>
+        <button class="btn btn-ghost btn-sm" id="refresh-preview-btn">↻ Refresh</button>
+      </div>
+      <div id="preview-empty">Live preview renders here — built from this branch's real partials + assets on GitHub.</div>
+      <iframe id="preview-frame" style="display:none" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

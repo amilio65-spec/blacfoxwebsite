@@ -44,10 +44,12 @@ function renderHead(headTemplate, data) {
   const cssLinks = data.cssFiles
     .map(href => `<link rel="stylesheet" href="${href}">`)
     .join('\n');
+  const ogImage = data.ogImage || 'assets/og/default.png';
   return headTemplate
     .replaceAll('{{title}}', data.title)
     .replaceAll('{{description}}', data.description)
     .replaceAll('{{canonical}}', data.canonical)
+    .replaceAll('{{ogImage}}', ogImage)
     .replace('{{cssLinks}}', cssLinks);
 }
 
@@ -122,6 +124,16 @@ function build() {
   }
 
   copyRecursive(path.join(ROOT, 'assets'), path.join(DIST_DIR, 'assets'));
+
+  // Blacfox CMS admin app (static, GitHub-API-backed) -- copied verbatim so
+  // it deploys at /admin/ alongside the public site. Optional: skipped if
+  // the admin/ folder doesn't exist yet (e.g. before the CMS is added to a repo).
+  const adminSrc = path.join(ROOT, 'admin');
+  if (fs.existsSync(adminSrc)) {
+    copyRecursive(adminSrc, path.join(DIST_DIR, 'admin'));
+  } else {
+    console.log('skipped admin/ (not present)');
+  }
   // segment-gate.css/js are an intentional future placeholder and don't exist
   // in this repo yet (see README "Known gaps") -- copy them if/when they land.
   for (const placeholder of ['segment-gate.css', 'segment-gate.js']) {
