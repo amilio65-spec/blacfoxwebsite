@@ -242,6 +242,10 @@ section + section {
 .hero-quote-panel.is-placeholder svg{opacity:0.55}
 .hero-quote-panel.is-placeholder span{font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase}
 
+/* Once a real illustration is uploaded via the CMS (replacing is-placeholder) */
+.hero-quote-panel.has-image{padding:0;overflow:hidden;min-height:320px}
+.hero-quote-panel.has-image img{width:100%;height:100%;object-fit:cover;display:block;border-radius:19px}
+
 /* =========================================================
    STATS BAR
    ========================================================= */

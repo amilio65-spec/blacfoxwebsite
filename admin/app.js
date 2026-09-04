@@ -535,6 +535,13 @@ function collectEditableLeaves(root, out) {
     // with anything in the raw string, silently corrupting an unrelated
     // edit. Skip it entirely, both here and in the block-control wiring.
     if (el.classList && el.classList.contains('cms-generated')) continue;
+    // The hero illustration panel (see renderIllustrationField) is addressed
+    // by its own dedicated scheme, not a leaf index -- and its "leaf-ness"
+    // would otherwise flip depending on state (an <img> has no textContent,
+    // so hasEditableText would drop it the moment an image is uploaded,
+    // silently shifting every later leaf's index). Skip it unconditionally,
+    // in both states, so it never participates in this count at all.
+    if (el.classList && el.classList.contains('hero-quote-panel')) continue;
     if (isPhrasingOnly(el) && hasEditableText(el)) {
       out.push(el);
     } else {
@@ -552,6 +559,7 @@ function collectEditableLeaves(root, out) {
 function leavesForBlock(block) {
   if (SKIP_CONTAINER_TAGS.has(block.tagName.toUpperCase())) return [];
   if (block.classList && block.classList.contains('cms-generated')) return [];
+  if (block.classList && block.classList.contains('hero-quote-panel')) return [];
   if (isPhrasingOnly(block) && hasEditableText(block)) return [block];
   return collectEditableLeaves(block);
 }
@@ -593,16 +601,24 @@ function guessLeafKind(el) {
 // into the raw-HTML textarea if that tab happens to be open). Nothing is
 // committed to GitHub here -- same as typing in the raw box, it's just an
 // in-memory draft until Save.
-function applyInlineEdit(region, index, newInnerHtml) {
+// Re-parses the region fresh, hands the leaf at `index` to `mutate` (which
+// can change attributes/classes, not just innerHTML -- needed for the
+// illustration field to flip is-placeholder/has-image), then re-serializes.
+// Always starting from the canonical stored string (never a cached DOM)
+// keeps this safe to call repeatedly without indices drifting.
+function transformLeaf(region, index, mutate) {
   const raw = getRegionHtml(region);
   if (raw == null) return false;
   const doc = new DOMParser().parseFromString(raw, 'text/html');
   const leaves = collectEditableLeaves(doc.body);
   const el = leaves[index];
   if (!el) return false;
-  el.innerHTML = newInnerHtml;
+  mutate(el);
   setRegionHtml(region, doc.body.innerHTML.trim());
   return true;
+}
+function applyInlineEdit(region, index, newInnerHtml) {
+  return transformLeaf(region, index, el => { el.innerHTML = newInnerHtml; });
 }
 
 // Delete/move act immediately (aside from the confirm on delete); insert
@@ -1489,15 +1505,60 @@ async function savePageMeta() {
    Save (which reads directly from those textareas) keeps working exactly
    as before regardless of which view was used to make the edit.
    ------------------------------------------------------------ */
+// The hand-authored hero illustration placeholder (`<div class=
+// "hero-quote-panel is-placeholder"><svg>...</svg><span>Illustration
+// placeholder</span></div>`, identical across all 9 pages -- see site.css's
+// "stands in for a future custom illustration" comment) is deliberately
+// skipped by collectEditableLeaves/leavesForBlock above (a text-edit box
+// would let someone "edit" an SVG icon as raw HTML, and once it holds a
+// real <img> it wouldn't even qualify as a leaf -- an <img> has no
+// textContent -- so its leaf-ness would depend on state, which would shift
+// every later leaf's index the moment an image got uploaded). It gets its
+// own image-upload field instead, addressed by its position among
+// `.hero-quote-panel` elements rather than a leaf index, so it's stable in
+// both states.
+const PLACEHOLDER_ICON_HTML = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.75"/><path d="M21 15l-5-5L5 21"/></svg>\n      <span>Illustration placeholder</span>';
+function getIllustrationPanels(region) {
+  const html = getRegionHtml(region) || '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return Array.from(doc.body.querySelectorAll('.hero-quote-panel'));
+}
+function transformIllustrationPanel(region, panelIndex, mutate) {
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const panels = Array.from(doc.body.querySelectorAll('.hero-quote-panel'));
+  const el = panels[panelIndex];
+  if (!el) return false;
+  mutate(el);
+  setRegionHtml(region, doc.body.innerHTML.trim());
+  return true;
+}
+function renderIllustrationField(region, panel, panelIndex) {
+  const img = panel.querySelector('img');
+  const src = img ? img.getAttribute('src') : '';
+  return `<div class="content-field">
+    <label class="content-field-label">Illustration</label>
+    <div class="img-drop illustration-drop" data-region="${region}" data-panel-index="${panelIndex}" data-src="${escHtml(src)}">
+      <div class="img-drop-lbl illustration-drop-lbl">${src ? 'Loading preview…' : 'Click or drop a JPG/PNG to replace this placeholder'}</div>
+      <input type="file" class="illustration-file-input" accept="image/*">
+    </div>
+    ${src ? `<button class="btn btn-ghost btn-sm illustration-remove-btn" data-region="${region}" data-panel-index="${panelIndex}" style="margin-top:6px">Remove image</button>` : ''}
+  </div>`;
+}
+function renderContentFieldForLeaf(region, leaf, index) {
+  return `<div class="content-field">
+    <label class="content-field-label">${escHtml(guessLeafKind(leaf))}</label>
+    <div class="content-editable-box" contenteditable="true" data-region="${region}" data-leaf-index="${index}">${leaf.innerHTML}</div>
+  </div>`;
+}
 function renderLeafFieldsHTML(region) {
   const html = getRegionHtml(region) || '';
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const leaves = collectEditableLeaves(doc.body);
-  if (!leaves.length) return '<p class="field-hint">Nothing editable here yet.</p>';
-  return leaves.map((leaf, i) => `<div class="content-field">
-    <label class="content-field-label">${escHtml(guessLeafKind(leaf))}</label>
-    <div class="content-editable-box" contenteditable="true" data-region="${region}" data-leaf-index="${i}">${leaf.innerHTML}</div>
-  </div>`).join('');
+  const textFields = leaves.map((leaf, i) => renderContentFieldForLeaf(region, leaf, i)).join('');
+  const illustrationFields = getIllustrationPanels(region).map((panel, i) => renderIllustrationField(region, panel, i)).join('');
+  return (textFields + illustrationFields) || '<p class="field-hint">Nothing editable here yet.</p>';
 }
 function renderContentBlocksHTML(region) {
   const html = getRegionHtml(region) || '';
@@ -1506,13 +1567,7 @@ function renderContentBlocksHTML(region) {
   if (!blocks.length) return '<p class="field-hint" style="margin:2px 0 10px">Nothing here yet — use the button below to add the first section.</p>';
   let idx = 0;
   return blocks.map((block, blockIdx) => {
-    const fields = leavesForBlock(block).map(leaf => {
-      const i = idx++;
-      return `<div class="content-field">
-        <label class="content-field-label">${escHtml(guessLeafKind(leaf))}</label>
-        <div class="content-editable-box" contenteditable="true" data-region="${region}" data-leaf-index="${i}">${leaf.innerHTML}</div>
-      </div>`;
-    }).join('');
+    const fields = leavesForBlock(block).map(leaf => renderContentFieldForLeaf(region, leaf, idx++)).join('');
     return `<div class="chrome-item-card">
       <div class="chrome-item-head">
         <span class="chrome-item-badge">${escHtml(guessBlockLabel(block))}</span>
@@ -1537,6 +1592,77 @@ function wireEditableBoxes(container) {
     box.addEventListener('input', () => { clearTimeout(sendTimer); sendTimer = setTimeout(commit, 400); });
     box.addEventListener('blur', () => { clearTimeout(sendTimer); commit(); });
   });
+  wireIllustrationFields(container);
+}
+function wireIllustrationFields(container) {
+  container.querySelectorAll('.illustration-drop').forEach(drop => {
+    const region = drop.dataset.region;
+    const panelIndex = parseInt(drop.dataset.panelIndex, 10);
+    const src = drop.dataset.src;
+    if (src) {
+      fetchAssetDataUri(src).then(uri => {
+        const lbl = drop.querySelector('.illustration-drop-lbl');
+        if (!lbl) return; // user navigated away, or the field was re-rendered, before this resolved
+        if (uri) {
+          drop.insertAdjacentHTML('afterbegin', `<img src="${uri}">`);
+          lbl.textContent = src;
+        } else {
+          lbl.textContent = src + ' (file not found in repo)';
+        }
+      });
+    }
+    drop.addEventListener('click', e => { if (e.target.tagName !== 'INPUT') drop.querySelector('.illustration-file-input').click(); });
+    drop.querySelector('.illustration-file-input').addEventListener('change', e => onIllustrationFilePicked(e, region, panelIndex, drop));
+  });
+  container.querySelectorAll('.illustration-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => removeIllustration(btn.dataset.region, parseInt(btn.dataset.panelIndex, 10)));
+  });
+}
+// Uploads immediately (like the article image block) rather than deferring
+// to Save -- there's no good way to preview a not-yet-uploaded blob as part
+// of the panel's real src the way the OG/banner fields preview a single
+// known field, and the dropzone already shows an "Uploading…" state.
+function onIllustrationFilePicked(e, region, panelIndex, drop) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const lbl = drop.querySelector('.illustration-drop-lbl');
+    if (lbl) lbl.textContent = 'Uploading…';
+    try {
+      const slug = App.current.slug;
+      const ext = (file.name.match(/\.\w+$/) || ['.jpg'])[0];
+      const path = `assets/hero/${slug}/illustration${ext}`;
+      const existing = await gh.getFile(gh.owner, gh.repo, path, App.branch);
+      await gh.putFile(gh.owner, gh.repo, path, bytesToB64(new Uint8Array(reader.result)), `Add hero illustration for ${slug} via Blacfox CMS`, App.branch, existing ? existing.sha : undefined);
+      App.assetCache.delete(`datauri:${App.branch}:${path}`);
+      const obj = getCurrentEditable();
+      const alt = escHtml((obj && obj.data && obj.data.title) || 'Illustration');
+      transformIllustrationPanel(region, panelIndex, el => {
+        el.classList.remove('is-placeholder');
+        el.classList.add('has-image');
+        el.innerHTML = `<img src="${path}" alt="${alt}">`;
+      });
+      refreshRegionUI(region);
+      refreshPreview();
+      toast('Illustration uploaded.', 'success');
+    } catch (err) {
+      const lbl2 = drop.querySelector('.illustration-drop-lbl');
+      if (lbl2) lbl2.textContent = 'Upload failed — try again';
+      toast('Upload failed: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function removeIllustration(region, panelIndex) {
+  if (!confirm('Remove this illustration and restore the placeholder? The uploaded image file stays in the repo either way.')) return;
+  transformIllustrationPanel(region, panelIndex, el => {
+    el.classList.remove('has-image');
+    el.classList.add('is-placeholder');
+    el.innerHTML = PLACEHOLDER_ICON_HTML;
+  });
+  refreshRegionUI(region);
+  refreshPreview();
 }
 function refreshLeafFieldsUI(region) {
   const container = document.getElementById('content-blocks-' + region);
