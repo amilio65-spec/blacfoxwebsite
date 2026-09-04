@@ -19,6 +19,8 @@ is a working design environment, not a deployed site.
 │   ├── nav.html                       nav bar, byte-identical on every page
 │   └── footer.html                    footer, byte-identical on every page
 ├── pages/<page>.md                    frontmatter (title, description, cssFiles, bodyClass, layout, canonical, pageScripts) + that page's unique body content
+├── content/articles/<slug>.md         blog posts -- frontmatter (title, description, author, date, banner, ...) + body; each becomes dist/article-<slug>.html, and pages/articles.md's <!--ARTICLES-GRID--> marker is replaced with a generated card grid of all of them
+├── admin/                             Blacfox CMS -- static, GitHub-API-backed page/article editor with a live preview (click-to-edit text, add/move/remove sections); deploys verbatim to /admin/
 ├── assets/
 │   ├── css/
 │   │   ├── fonts.css                  self-hosted Montserrat — shared by every page

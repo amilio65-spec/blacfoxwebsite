@@ -347,6 +347,37 @@ const COMPONENTS = {
   },
 };
 
+/* Curated block vocabulary for article bodies -- narrower than the full
+   marketing COMPONENTS set (no stats/trust-bar/faq/etc., nothing that
+   assumes a landing-page layout) since these are written by non-technical
+   staff composing a blog post. 'image' has no fields/render -- it's
+   special-cased in the insert-section picker to open an upload dialog
+   instead of the generic field-form modal. */
+const BLOG_COMPONENTS = {
+  'heading': {
+    label: 'Heading', hint: 'A section heading within the article.',
+    fields: [{ key: 'html', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'A heading' }],
+    render: f => `<h2>${f.html}</h2>`,
+  },
+  'subheading': {
+    label: 'Subheading', hint: 'A smaller heading within the article.',
+    fields: [{ key: 'html', label: 'Subheading (HTML allowed for <em>)', type: 'text', default: 'A subheading' }],
+    render: f => `<h3>${f.html}</h3>`,
+  },
+  'paragraph': {
+    label: 'Paragraph', hint: '',
+    fields: [{ key: 'html', label: 'Text', type: 'textarea', default: 'Write your paragraph here.' }],
+    render: f => `<p>${f.html}</p>`,
+  },
+  'image': { label: 'Image', hint: 'Upload a JPG or PNG from your computer.', fields: [], render: () => '' },
+  'quote': {
+    label: 'Pull Quote', hint: 'A highlighted quote or callout.',
+    fields: [{ key: 'html', label: 'Quote text', type: 'textarea', default: 'A memorable quote goes here.' }],
+    render: f => `<blockquote>${f.html}</blockquote>`,
+  },
+  'button-row': COMPONENTS['button-row'],
+};
+
 /* ------------------------------------------------------------
    App state
    ------------------------------------------------------------ */
@@ -354,13 +385,108 @@ const App = {
   branch: 'main',
   branches: [],
   pages: {},          // slug -> {path, sha, data, hero, main}
+  articles: {},        // slug -> {path, sha, data, body}
   navDoc: null,        // {sha, doc(DOMParser Document)}
   footerDoc: null,
-  current: null,       // {type:'page', slug} | {type:'nav'} | {type:'footer'}
+  current: null,       // {type:'page'|'article', slug} | {type:'nav'} | {type:'footer'}
   activeTab: 'meta',
   assetCache: new Map(), // `${branch}:${path}` -> text | null
   previewEditMode: false,
 };
+
+const ARTICLE_META_FIELD_ORDER = ['title', 'description', 'author', 'date', 'banner', 'cssFiles', 'bodyClass', 'canonical', 'pageScripts'];
+function serializeArticleFrontmatter(data, body) {
+  const lines = [];
+  for (const key of ARTICLE_META_FIELD_ORDER) {
+    const v = data[key];
+    if (v === undefined || v === null || v === '') continue;
+    lines.push(`${key}: ${JSON.stringify(v)}`);
+  }
+  return `---\n${lines.join('\n')}\n---\n\n\n${body.replace(/^\n+/, '')}\n`;
+}
+
+function formatArticleDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+/* ------------------------------------------------------------
+   Generalized "which content object/region is being edited" --
+   lets inline text-edit and block add/move/delete work the same
+   way whether App.current is a page (hero/main regions) or an
+   article (a single body region), without branching everywhere.
+   ------------------------------------------------------------ */
+function getCurrentEditable() {
+  if (!App.current) return null;
+  if (App.current.type === 'page') return App.pages[App.current.slug];
+  if (App.current.type === 'article') return App.articles[App.current.slug];
+  return null;
+}
+function regionTextareaId(region) {
+  if (region === 'hero') return 'b-hero';
+  if (region === 'main') return 'b-main';
+  if (region === 'body') return 'a-body';
+  return null;
+}
+function getRegionHtml(region) {
+  const obj = getCurrentEditable();
+  return obj ? obj[region] : null;
+}
+// Updates the in-memory draft AND mirrors it into the raw-HTML textarea --
+// for edits that originate somewhere other than that textarea itself
+// (inline preview edits, block add/move/delete). The textarea's own input
+// handler updates the draft directly (see syncBodyDraftAndPreview) without
+// writing back into itself, so typing doesn't fight its own cursor.
+function setRegionHtml(region, html) {
+  const obj = getCurrentEditable();
+  if (!obj) return;
+  obj[region] = html;
+  const ta = document.getElementById(regionTextareaId(region));
+  if (ta) ta.value = html;
+}
+function setRegionData(region, html) {
+  const obj = getCurrentEditable();
+  if (obj) obj[region] = html;
+}
+
+/* ------------------------------------------------------------
+   Block-level structure ops (Elementor-style add/reorder/remove)
+   -- operate on the top-level elements of a region's raw HTML
+   string. Always re-derived fresh from the canonical stored
+   string (never from the iframe's live, toolbar-decorated DOM),
+   so indices can't drift from what's actually saved.
+   ------------------------------------------------------------ */
+function getBlocks(region) {
+  const html = getRegionHtml(region) || '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return Array.from(doc.body.children);
+}
+function setBlocksHtml(region, elements) {
+  setRegionHtml(region, elements.map(el => el.outerHTML).join('\n\n'));
+}
+function deleteBlock(region, index) {
+  const blocks = getBlocks(region);
+  if (index < 0 || index >= blocks.length) return;
+  blocks.splice(index, 1);
+  setBlocksHtml(region, blocks);
+}
+function moveBlock(region, index, dir) {
+  const blocks = getBlocks(region);
+  const j = dir === 'up' ? index - 1 : index + 1;
+  if (index < 0 || index >= blocks.length || j < 0 || j >= blocks.length) return;
+  [blocks[index], blocks[j]] = [blocks[j], blocks[index]];
+  setBlocksHtml(region, blocks);
+}
+function insertBlockAt(region, index, html) {
+  const blocks = getBlocks(region);
+  const tmpDoc = new DOMParser().parseFromString(html, 'text/html');
+  const newEls = Array.from(tmpDoc.body.children);
+  const pos = (index == null || index > blocks.length) ? blocks.length : Math.max(0, index);
+  blocks.splice(pos, 0, ...newEls);
+  setBlocksHtml(region, blocks);
+}
 
 /* ------------------------------------------------------------
    Click-to-edit-text in the live preview.
@@ -402,6 +528,13 @@ function collectEditableLeaves(root, out) {
   if (!root) return out;
   for (const el of root.children) {
     if (SKIP_CONTAINER_TAGS.has(el.tagName.toUpperCase())) continue;
+    // cms-generated content (e.g. the articles grid spliced into the
+    // articles page at preview/build time) has no corresponding element in
+    // the canonical stored HTML -- it's just a marker comment there. Editing
+    // it in the preview would compute a leaf index that doesn't line up
+    // with anything in the raw string, silently corrupting an unrelated
+    // edit. Skip it entirely, both here and in the block-control wiring.
+    if (el.classList && el.classList.contains('cms-generated')) continue;
     if (isPhrasingOnly(el) && hasEditableText(el)) {
       out.push(el);
     } else {
@@ -417,24 +550,44 @@ function collectEditableLeaves(root, out) {
 // committed to GitHub here -- same as typing in the raw box, it's just an
 // in-memory draft until Save.
 function applyInlineEdit(region, index, newInnerHtml) {
-  if (!App.current || App.current.type !== 'page') return false;
-  const p = App.pages[App.current.slug];
-  const raw = region === 'hero' ? p.hero : p.main;
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
   const doc = new DOMParser().parseFromString(raw, 'text/html');
   const leaves = collectEditableLeaves(doc.body);
   const el = leaves[index];
   if (!el) return false;
   el.innerHTML = newInnerHtml;
-  const updated = doc.body.innerHTML.trim();
-  p[region] = updated;
-  const ta = document.getElementById(region === 'hero' ? 'b-hero' : 'b-main');
-  if (ta) ta.value = updated;
+  setRegionHtml(region, doc.body.innerHTML.trim());
   return true;
 }
 
+// Delete/move act immediately (aside from the confirm on delete); insert
+// hands off to the same "+ Insert section" modal the sidebar button opens,
+// just with a specific target index instead of "append at the end".
+function handleBlockMessage(msg) {
+  if (!App.current) return;
+  const { action, region, index } = msg;
+  if (action === 'delete') {
+    if (!confirm('Remove this block? Unsaved until you hit Save, but there is no undo once you do.')) return;
+    deleteBlock(region, index);
+    setStatus('edited (unsaved)', '');
+    refreshPreview();
+  } else if (action === 'move') {
+    moveBlock(region, index, msg.dir);
+    setStatus('edited (unsaved)', '');
+    refreshPreview();
+  } else if (action === 'insert') {
+    openInsertSectionModal(region, index);
+  }
+}
+
 window.addEventListener('message', e => {
-  if (!e.data || e.data.source !== 'blacfox-cms-preview' || e.data.type !== 'edit') return;
-  if (applyInlineEdit(e.data.region, e.data.index, e.data.html)) setStatus('edited (unsaved)', '');
+  if (!e.data || e.data.source !== 'blacfox-cms-preview') return;
+  if (e.data.type === 'edit') {
+    if (applyInlineEdit(e.data.region, e.data.index, e.data.html)) setStatus('edited (unsaved)', '');
+  } else if (e.data.type === 'block') {
+    handleBlockMessage(e.data);
+  }
 });
 
 // Builds the <script> block injected into the preview iframe. Ships the
@@ -469,7 +622,17 @@ function buildPreviewEditScript(editable) {
     '.cms-editable.cms-active{outline:2px solid #e95c25;outline-offset:1px}' +
     '#cms-toolbar{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:4px;gap:2px;box-shadow:0 6px 20px rgba(0,0,0,.4)}' +
     '#cms-toolbar button{background:none;border:none;color:#eee;font-size:11px;font-weight:700;padding:5px 9px;border-radius:5px;cursor:pointer;font-family:inherit}' +
-    '#cms-toolbar button:hover{background:rgba(255,255,255,.12)}';
+    '#cms-toolbar button:hover{background:rgba(255,255,255,.12)}' +
+    '.cms-block{outline:2px dashed transparent;outline-offset:3px;transition:outline-color .1s}' +
+    '.cms-block:hover{outline-color:rgba(80,140,255,.6)}' +
+    '#cms-block-toolbar{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:4px;gap:2px;box-shadow:0 6px 20px rgba(0,0,0,.4)}' +
+    '#cms-block-toolbar button{background:none;border:none;color:#eee;font-size:12px;font-weight:700;padding:5px 8px;border-radius:5px;cursor:pointer;font-family:inherit}' +
+    '#cms-block-toolbar button:hover{background:rgba(255,255,255,.12)}' +
+    '#cms-block-toolbar button:disabled{opacity:.3;cursor:default}' +
+    '#cms-block-toolbar button:disabled:hover{background:none}' +
+    '.cms-block-gap{height:16px;margin:-8px 0;position:relative;z-index:9997;display:flex;align-items:center;justify-content:center}' +
+    '.cms-block-gap button{opacity:0;width:22px;height:22px;border-radius:50%;background:#e95c25;color:#fff;border:none;cursor:pointer;font-size:15px;line-height:1;font-family:inherit;transition:opacity .12s;box-shadow:0 2px 8px rgba(0,0,0,.35)}' +
+    '.cms-block-gap:hover button{opacity:1}';
   document.head.appendChild(style);
 
   function toggleWrap(tagName) {
@@ -555,8 +718,89 @@ function buildPreviewEditScript(editable) {
       });
     });
   }
+
+  // Elementor-style block controls: every TOP-LEVEL element of a region
+  // (one whole "+ Insert section" component, or a hand-written section) can
+  // be reordered or deleted via a floating toolbar, and new ones can be
+  // dropped in between via the "+" gap buttons. Text *inside* a block is
+  // still handled by wireRegion above -- the two layers don't conflict
+  // because block controls never touch a block's own innerHTML, only its
+  // position among siblings (so a leaf-edit's later el.innerHTML send
+  // can't ever pick up toolbar/gap markup).
+  var blockToolbar = document.createElement('div');
+  blockToolbar.id = 'cms-block-toolbar';
+  blockToolbar.innerHTML = '<button data-act="up" title="Move up">↑</button><button data-act="down" title="Move down">↓</button><button data-act="del" title="Remove">\u{1F5D1}</button>';
+  document.body.appendChild(blockToolbar);
+  var blockHideTimer = null;
+  var activeBlock = null;
+  function showBlockToolbar(el) {
+    clearTimeout(blockHideTimer);
+    activeBlock = el;
+    var r = el.getBoundingClientRect();
+    blockToolbar.style.display = 'flex';
+    blockToolbar.style.top = Math.max(4, r.top - 34) + 'px';
+    blockToolbar.style.left = Math.max(4, r.right - 96) + 'px';
+    var buttons = blockToolbar.querySelectorAll('button');
+    var idx = parseInt(el.dataset.cmsIndex, 10);
+    var count = parseInt(el.dataset.cmsCount, 10);
+    buttons[0].disabled = idx <= 0;
+    buttons[1].disabled = idx >= count - 1;
+  }
+  function scheduleHideBlockToolbar() {
+    clearTimeout(blockHideTimer);
+    blockHideTimer = setTimeout(function() { blockToolbar.style.display = 'none'; activeBlock = null; }, 250);
+  }
+  blockToolbar.addEventListener('mouseenter', function() { clearTimeout(blockHideTimer); });
+  blockToolbar.addEventListener('mouseleave', scheduleHideBlockToolbar);
+  blockToolbar.addEventListener('click', function(e) {
+    var btn = e.target.closest('button');
+    if (!btn || btn.disabled || !activeBlock) return;
+    var region = activeBlock.dataset.cmsRegion;
+    var index = parseInt(activeBlock.dataset.cmsIndex, 10);
+    var act = btn.dataset.act;
+    if (act === 'del') parent.postMessage({ source: 'blacfox-cms-preview', type: 'block', action: 'delete', region: region, index: index }, '*');
+    else parent.postMessage({ source: 'blacfox-cms-preview', type: 'block', action: 'move', region: region, index: index, dir: act }, '*');
+  });
+
+  function wireBlocks(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    // cms-generated content (the articles grid) is atomic from the CMS's
+    // point of view -- see the matching skip in collectEditableLeaves.
+    var blocks = Array.from(root.children).filter(function(el) { return !el.classList.contains('cms-generated'); });
+    function makeGap(index) {
+      var g = document.createElement('div');
+      g.className = 'cms-block-gap';
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = '+';
+      b.title = 'Insert here';
+      b.addEventListener('click', function(e) {
+        e.stopPropagation();
+        parent.postMessage({ source: 'blacfox-cms-preview', type: 'block', action: 'insert', region: region, index: index }, '*');
+      });
+      g.appendChild(b);
+      return g;
+    }
+    root.insertBefore(makeGap(0), root.firstChild);
+    blocks.forEach(function(el, i) {
+      el.classList.add('cms-block');
+      el.dataset.cmsRegion = region;
+      el.dataset.cmsIndex = i;
+      el.dataset.cmsCount = blocks.length;
+      el.addEventListener('mouseenter', function() { showBlockToolbar(el); });
+      el.addEventListener('mouseleave', scheduleHideBlockToolbar);
+      var gap = makeGap(i + 1);
+      if (el.nextSibling) el.parentNode.insertBefore(gap, el.nextSibling);
+      else el.parentNode.appendChild(gap);
+    });
+  }
+
   wireRegion('#cms-hero-root', 'hero');
   wireRegion('#page-content, .other-page-content', 'main');
+  wireBlocks('#page-content, .other-page-content', 'main');
+  wireRegion('#cms-article-body-root', 'body');
+  wireBlocks('#cms-article-body-root', 'body');
   ` : ''}
 })();
 <\/script>`;
@@ -724,6 +968,16 @@ async function loadBranchContent() {
       App.pages[slug] = { path: f.path, sha: file.sha, data, hero, main };
     }));
 
+    const artDir = await gh.getFile(gh.owner, gh.repo, 'content/articles', App.branch);
+    const artFiles = (artDir && artDir.dir ? artDir.dir : []).filter(f => f.name.endsWith('.md'));
+    App.articles = {};
+    await Promise.all(artFiles.map(async f => {
+      const file = await gh.getFile(gh.owner, gh.repo, f.path, App.branch);
+      const { data, body } = parseFrontmatter(file.text);
+      const slug = f.name.replace(/\.md$/, '');
+      App.articles[slug] = { path: f.path, sha: file.sha, data, body: body.trim() };
+    }));
+
     const navFile = await gh.getFile(gh.owner, gh.repo, 'partials/nav.html', App.branch);
     App.navDoc = { sha: navFile.sha, doc: new DOMParser().parseFromString(navFile.text, 'text/html') };
 
@@ -751,6 +1005,7 @@ function renderSidebar() {
       ${slug === 'index' ? '<span class="home-star">★</span>' : ''}
       <span class="tree-item-label">${escHtml(p.data.title ? p.data.title.split('|')[0].trim() : slug)}</span>
       <span class="layout-badge">${p.data.layout || '?'}</span>
+      ${slug !== 'index' ? `<button class="icon-btn tree-del-btn" data-del-page="${slug}" title="Delete page">✕</button>` : ''}
     </div>`;
   }).join('');
   tree.querySelectorAll('.tree-item').forEach(el => {
@@ -761,6 +1016,31 @@ function renderSidebar() {
       refreshPreview();
     });
   });
+  tree.querySelectorAll('[data-del-page]').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); deletePage(btn.dataset.delPage); });
+  });
+
+  const artTree = document.getElementById('article-tree');
+  const artSlugs = Object.keys(App.articles).sort((a, b) => (App.articles[b].data.date || '').localeCompare(App.articles[a].data.date || ''));
+  artTree.innerHTML = artSlugs.length ? artSlugs.map(slug => {
+    const a = App.articles[slug];
+    const active = App.current && App.current.type === 'article' && App.current.slug === slug;
+    return `<div class="tree-item${active ? ' active' : ''}" data-art-slug="${slug}">
+      <span class="tree-item-label">${escHtml(a.data.title || slug)}</span>
+      <button class="icon-btn tree-del-btn" data-del-article="${slug}" title="Delete article">✕</button>
+    </div>`;
+  }).join('') : '<p class="field-hint" style="margin:2px 6px">No articles yet.</p>';
+  artTree.querySelectorAll('.tree-item').forEach(el => {
+    el.addEventListener('click', () => {
+      App.current = { type: 'article', slug: el.dataset.artSlug };
+      App.activeTab = 'meta';
+      renderEditor();
+      refreshPreview();
+    });
+  });
+  artTree.querySelectorAll('[data-del-article]').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); deleteArticle(btn.dataset.delArticle); });
+  });
 
   ['nav', 'footer'].forEach(kind => {
     const el = document.getElementById(kind + '-tree-item');
@@ -769,6 +1049,98 @@ function renderSidebar() {
 }
 document.getElementById('nav-tree-item').addEventListener('click', () => { App.current = { type: 'nav' }; renderEditor(); refreshPreview(); });
 document.getElementById('footer-tree-item').addEventListener('click', () => { App.current = { type: 'footer' }; renderEditor(); refreshPreview(); });
+
+document.getElementById('add-article-btn').addEventListener('click', () => {
+  const today = new Date().toISOString().slice(0, 10);
+  openModal(`
+    <div class="modal-title">Add an article</div>
+    <div class="field-group"><label class="field-label">Title</label><input class="field-input" id="na-title" placeholder="How we helped Acme Co. grow pipeline"></div>
+    <div class="field-group"><label class="field-label">Slug (used in the URL)</label><input class="field-input" id="na-slug" placeholder="auto-generated from title"></div>
+    <div class="field-group"><label class="field-label">Author</label><input class="field-input" id="na-author" placeholder="Your name"></div>
+    <p class="field-hint">Creates content/articles/&lt;slug&gt;.md. Add the banner image and write the body after creating it.</p>
+    <div class="modal-actions"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="na-confirm">Create article</button></div>
+  `);
+  const titleInput = document.getElementById('na-title');
+  const slugInput = document.getElementById('na-slug');
+  let slugTouched = false;
+  slugInput.addEventListener('input', () => { slugTouched = true; });
+  titleInput.addEventListener('input', () => {
+    if (slugTouched) return;
+    slugInput.value = titleInput.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '');
+  });
+  document.getElementById('na-confirm').addEventListener('click', async () => {
+    const title = titleInput.value.trim();
+    const slug = slugInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const author = document.getElementById('na-author').value.trim();
+    if (!title || !slug) { toast('Title and slug are required.', 'error'); return; }
+    if (App.articles[slug]) { toast('An article with that slug already exists.', 'error'); return; }
+    closeModal();
+    setStatus('creating article…', 'busy');
+    try {
+      const data = {
+        title, description: '', author, date: today, banner: '',
+        cssFiles: ['assets/css/site.css', 'assets/css/articles.css'],
+        bodyClass: 'theme-hero-dark', canonical: `https://blacfox.com/article-${slug}.html`, pageScripts: [],
+      };
+      const body = '<p>Start writing here, or use "+ Insert block" to add headings, images, and more.</p>';
+      const content = serializeArticleFrontmatter(data, body);
+      const res = await gh.putFile(gh.owner, gh.repo, `content/articles/${slug}.md`, b64EncodeText(content), `Add ${slug} article via Blacfox CMS`, App.branch);
+      App.articles[slug] = { path: `content/articles/${slug}.md`, sha: res.content.sha, data, body };
+      renderSidebar();
+      App.current = { type: 'article', slug };
+      App.activeTab = 'meta';
+      renderEditor();
+      refreshPreview();
+      setStatus('created', 'ok');
+      toast(`Article "${slug}" created.`, 'success');
+    } catch (e) {
+      setStatus('error', 'error');
+      toast('Could not create article: ' + e.message, 'error');
+    }
+  });
+});
+
+async function deletePage(slug) {
+  if (slug === 'index') { toast('The home page can’t be deleted.', 'error'); return; }
+  if (!confirm(`Delete page "${slug}"? This removes pages/${slug}.md and its nav link from ${App.branch}.`)) return;
+  setStatus('deleting…', 'busy');
+  try {
+    const p = App.pages[slug];
+    await gh.deleteFile(gh.owner, gh.repo, p.path, `Delete ${slug} page via Blacfox CMS`, App.branch, p.sha);
+    delete App.pages[slug];
+    const navEl = App.navDoc.doc.querySelector('.nav-links-pill');
+    const link = Array.from(navEl.querySelectorAll('a')).find(a => a.getAttribute('href') === `${slug}.html`);
+    if (link) { link.remove(); await saveNav(`Remove ${slug} from nav via Blacfox CMS`); }
+    if (App.current && App.current.type === 'page' && App.current.slug === slug) App.current = null;
+    renderSidebar();
+    renderEditor();
+    refreshPreview();
+    setStatus('deleted', 'ok');
+    toast(`Page "${slug}" deleted.`, 'success');
+  } catch (e) {
+    setStatus('error', 'error');
+    toast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+async function deleteArticle(slug) {
+  if (!confirm(`Delete article "${slug}"? This removes content/articles/${slug}.md from ${App.branch}.`)) return;
+  setStatus('deleting…', 'busy');
+  try {
+    const a = App.articles[slug];
+    await gh.deleteFile(gh.owner, gh.repo, a.path, `Delete ${slug} article via Blacfox CMS`, App.branch, a.sha);
+    delete App.articles[slug];
+    if (App.current && App.current.type === 'article' && App.current.slug === slug) App.current = null;
+    renderSidebar();
+    renderEditor();
+    refreshPreview();
+    setStatus('deleted', 'ok');
+    toast(`Article "${slug}" deleted.`, 'success');
+  } catch (e) {
+    setStatus('error', 'error');
+    toast('Delete failed: ' + e.message, 'error');
+  }
+}
 
 document.getElementById('add-page-btn').addEventListener('click', () => {
   openModal(`
@@ -861,6 +1233,11 @@ function renderEditor() {
     tabsEl.querySelectorAll('.editor-tab').forEach(t => t.addEventListener('click', () => { App.activeTab = t.dataset.tab; renderEditor(); }));
     scroll.innerHTML = App.activeTab === 'meta' ? renderMetaTab() : renderBodyTab();
     wireTabHandlers();
+  } else if (App.current.type === 'article') {
+    tabsEl.innerHTML = `<div class="editor-tab${App.activeTab === 'meta' ? ' active' : ''}" data-tab="meta">Details</div><div class="editor-tab${App.activeTab === 'body' ? ' active' : ''}" data-tab="body">Body</div>`;
+    tabsEl.querySelectorAll('.editor-tab').forEach(t => t.addEventListener('click', () => { App.activeTab = t.dataset.tab; renderEditor(); }));
+    scroll.innerHTML = App.activeTab === 'meta' ? renderArticleDetailsTab() : renderArticleBodyTab();
+    wireArticleTabHandlers();
   } else if (App.current.type === 'nav') {
     tabsEl.innerHTML = '';
     scroll.innerHTML = renderNavTab();
@@ -951,22 +1328,26 @@ function wireTabHandlers() {
     loadOgThumbnail();
   } else {
     document.getElementById('save-body-btn').addEventListener('click', savePageBody);
-    document.getElementById('insert-section-btn').addEventListener('click', openInsertSectionModal);
+    document.getElementById('insert-section-btn').addEventListener('click', () => openInsertSectionModal('main', null));
     document.getElementById('b-hero').addEventListener('input', syncBodyDraftAndPreview);
     document.getElementById('b-main').addEventListener('input', syncBodyDraftAndPreview);
   }
 }
 
-// The preview renders whatever's in App.pages[slug].hero/main -- so typing
-// into the boxes has to update that in-memory draft immediately (not just on
-// Save) for the preview to feel live, the way the Landing Page Builder does.
-// Nothing is committed to GitHub until "Save" is clicked; this only updates
-// the browser's own copy.
+// The preview renders whatever's in the current draft (page hero/main, or
+// an article's body) -- so typing into a raw-HTML box has to update that
+// in-memory draft immediately (not just on Save) for the preview to feel
+// live. Nothing is committed to GitHub until "Save" is clicked; this only
+// updates the browser's own copy. Uses setRegionData (not setRegionHtml) so
+// it doesn't write back into the very textarea the user is typing in.
 function syncBodyDraftAndPreview() {
-  if (!App.current || App.current.type !== 'page') return;
-  const p = App.pages[App.current.slug];
-  p.hero = document.getElementById('b-hero').value;
-  p.main = document.getElementById('b-main').value;
+  if (!App.current) return;
+  if (App.current.type === 'page') {
+    setRegionData('hero', document.getElementById('b-hero').value);
+    setRegionData('main', document.getElementById('b-main').value);
+  } else if (App.current.type === 'article') {
+    setRegionData('body', document.getElementById('a-body').value);
+  }
   refreshPreview();
 }
 function wireArrayRemove() {
@@ -1086,14 +1467,163 @@ async function commitPage(slug, data, hero, main, message) {
   renderSidebar();
 }
 
-function openInsertSectionModal() {
-  const items = Object.entries(COMPONENTS).map(([key, c]) => `<div class="comp-picker-item" data-comp="${key}"><strong>${c.label}</strong>${c.hint}</div>`).join('');
-  openModal(`<div class="modal-title">Insert section</div><div class="comp-picker-grid">${items}</div><div class="modal-actions"><button class="btn btn-ghost" data-close>Cancel</button></div>`);
-  document.querySelectorAll('.comp-picker-item').forEach(el => el.addEventListener('click', () => openComponentForm(el.dataset.comp)));
+/* ---------- Article tabs ---------- */
+function renderArticleDetailsTab() {
+  const slug = App.current.slug;
+  const d = App.articles[slug].data;
+  return `
+    <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>.</div>
+
+    <div class="field-group"><label class="field-label">Title</label><input class="field-input" id="a-title" value="${escHtml(d.title || '')}"></div>
+    <div class="field-group"><label class="field-label">Author</label><input class="field-input" id="a-author" value="${escHtml(d.author || '')}"></div>
+    <div class="field-group"><label class="field-label">Date</label><input class="field-input" id="a-date" type="date" value="${escHtml(d.date || '')}"></div>
+    <div class="field-group"><label class="field-label">Excerpt <span style="color:#444">(shown on the articles list)</span></label><textarea class="field-textarea" id="a-description" style="min-height:70px">${escHtml(d.description || '')}</textarea></div>
+
+    <div class="section-divider"></div>
+    <div class="section-title">Banner image</div>
+    <div class="img-drop" id="banner-drop">
+      <div class="img-drop-lbl" id="banner-drop-lbl">${d.banner ? d.banner + ' (loading preview…)' : 'Click or drop a JPG — shown at the top of the article and on the articles list'}</div>
+      <input type="file" id="banner-file" accept="image/*">
+    </div>
+
+    <div class="section-divider"></div>
+    <button class="btn btn-primary" id="save-article-meta-btn" style="width:100%;padding:10px">Save to ${App.branch}</button>
+    <button class="btn btn-danger" id="delete-article-btn" style="width:100%;padding:10px;margin-top:8px">Delete article</button>
+  `;
+}
+function renderArticleBodyTab() {
+  const slug = App.current.slug;
+  const a = App.articles[slug];
+  return `
+    <div class="callout-box">The article body — click text directly in the live preview to edit it, or edit the raw source here. Use “+ Insert block” to add headings, images, quotes, or buttons.</div>
+    <div class="field-group">
+      <label class="field-label">Body</label>
+      <textarea class="field-textarea tall" id="a-body" style="min-height:420px">${escHtml(a.body)}</textarea>
+    </div>
+    <button class="btn btn-ghost" id="insert-block-btn" style="width:100%;margin-bottom:10px">+ Insert block</button>
+    <button class="btn btn-primary" id="save-article-body-btn" style="width:100%;padding:10px">Save to ${App.branch}</button>
+  `;
+}
+function wireArticleTabHandlers() {
+  if (App.activeTab === 'meta') {
+    document.getElementById('a-title').addEventListener('input', e => { App.articles[App.current.slug].data.title = e.target.value; refreshPreview(); });
+    document.getElementById('a-author').addEventListener('input', e => { App.articles[App.current.slug].data.author = e.target.value; refreshPreview(); });
+    document.getElementById('a-date').addEventListener('input', e => { App.articles[App.current.slug].data.date = e.target.value; refreshPreview(); });
+    document.getElementById('a-description').addEventListener('input', e => { App.articles[App.current.slug].data.description = e.target.value; });
+    document.getElementById('banner-drop').addEventListener('click', e => { if (e.target.tagName !== 'INPUT') document.getElementById('banner-file').click(); });
+    document.getElementById('banner-file').addEventListener('change', onBannerFilePicked);
+    document.getElementById('save-article-meta-btn').addEventListener('click', saveArticleMeta);
+    document.getElementById('delete-article-btn').addEventListener('click', () => deleteArticle(App.current.slug));
+    loadBannerThumbnail();
+  } else {
+    document.getElementById('save-article-body-btn').addEventListener('click', saveArticleBody);
+    document.getElementById('insert-block-btn').addEventListener('click', () => openInsertSectionModal('body', null));
+    document.getElementById('a-body').addEventListener('input', syncBodyDraftAndPreview);
+  }
 }
 
-function openComponentForm(key) {
-  const c = COMPONENTS[key];
+async function loadBannerThumbnail() {
+  const a = App.articles[App.current.slug];
+  if (!a.data.banner) return;
+  const uri = await fetchAssetDataUri(a.data.banner);
+  const drop = document.getElementById('banner-drop');
+  if (!drop) return; // user navigated away before this resolved
+  const lbl = document.getElementById('banner-drop-lbl');
+  if (uri) {
+    drop.insertAdjacentHTML('afterbegin', `<img src="${uri}">`);
+    if (lbl) lbl.textContent = a.data.banner;
+  } else if (lbl) {
+    lbl.textContent = a.data.banner + ' (file not found in repo)';
+  }
+}
+
+let pendingBannerUpload = null;
+function onBannerFilePicked(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingBannerUpload = { name: file.name, bytes: new Uint8Array(reader.result) };
+    const blobUrl = URL.createObjectURL(file);
+    document.querySelector('#banner-drop img')?.remove();
+    document.getElementById('banner-drop').insertAdjacentHTML('afterbegin', `<img src="${blobUrl}">`);
+    document.querySelector('#banner-drop-lbl').textContent = file.name + ' (will upload on save)';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function commitArticle(slug, data, body, message) {
+  const a = App.articles[slug];
+  const content = serializeArticleFrontmatter(data, body);
+  const res = await gh.putFile(gh.owner, gh.repo, a.path, b64EncodeText(content), message, App.branch, a.sha);
+  App.articles[slug] = { path: a.path, sha: res.content.sha, data, body };
+  renderSidebar();
+}
+
+async function saveArticleMeta() {
+  const slug = App.current.slug;
+  const a = App.articles[slug];
+  const newData = {
+    ...a.data,
+    title: document.getElementById('a-title').value.trim(),
+    author: document.getElementById('a-author').value.trim(),
+    date: document.getElementById('a-date').value.trim(),
+    description: document.getElementById('a-description').value.trim(),
+  };
+  setStatus('saving…', 'busy');
+  try {
+    if (pendingBannerUpload) {
+      const ext = (pendingBannerUpload.name.match(/\.\w+$/) || ['.jpg'])[0];
+      const bannerPath = `assets/articles/${slug}/banner${ext}`;
+      const existing = await gh.getFile(gh.owner, gh.repo, bannerPath, App.branch);
+      await gh.putFile(gh.owner, gh.repo, bannerPath, bytesToB64(pendingBannerUpload.bytes), `Update banner for ${slug} via Blacfox CMS`, App.branch, existing ? existing.sha : undefined);
+      newData.banner = bannerPath;
+      App.assetCache.delete(`datauri:${App.branch}:${bannerPath}`);
+      pendingBannerUpload = null;
+    }
+    await commitArticle(slug, newData, a.body, `Update ${slug} details via Blacfox CMS`);
+    toast(`Saved ${slug}.md`, 'success');
+    setStatus('saved', 'ok');
+    refreshPreview();
+  } catch (e) {
+    setStatus('error', 'error');
+    toast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function saveArticleBody() {
+  const slug = App.current.slug;
+  const a = App.articles[slug];
+  const body = document.getElementById('a-body').value;
+  setStatus('saving…', 'busy');
+  try {
+    await commitArticle(slug, a.data, body, `Update ${slug} body via Blacfox CMS`);
+    toast(`Saved ${slug}.md`, 'success');
+    setStatus('saved', 'ok');
+    refreshPreview();
+  } catch (e) {
+    setStatus('error', 'error');
+    toast('Save failed: ' + e.message, 'error');
+  }
+}
+
+// region: 'main' (pages) or 'body' (articles). insertIndex: a specific
+// block position (from a preview "+" gap click) or null to append at the
+// end (from the sidebar "+ Insert section"/"+ Insert block" button).
+function openInsertSectionModal(region, insertIndex) {
+  const isArticle = App.current.type === 'article';
+  const compSet = isArticle ? BLOG_COMPONENTS : COMPONENTS;
+  const items = Object.entries(compSet).map(([key, c]) => `<div class="comp-picker-item" data-comp="${key}"><strong>${c.label}</strong>${c.hint}</div>`).join('');
+  openModal(`<div class="modal-title">Insert ${isArticle ? 'block' : 'section'}</div><div class="comp-picker-grid">${items}</div><div class="modal-actions"><button class="btn btn-ghost" data-close>Cancel</button></div>`);
+  document.querySelectorAll('.comp-picker-item').forEach(el => el.addEventListener('click', () => {
+    const key = el.dataset.comp;
+    if (key === 'image') { openArticleImageModal(region, insertIndex); return; }
+    openComponentForm(compSet, key, region, insertIndex);
+  }));
+}
+
+function openComponentForm(compSet, key, region, insertIndex) {
+  const c = compSet[key];
   const fieldsHtml = c.fields.map(f => {
     if (f.type === 'textarea') return `<div class="field-group"><label class="field-label">${f.label}</label><textarea class="field-textarea" id="cf-${f.key}" style="min-height:90px">${escHtml(f.default)}</textarea></div>`;
     if (f.type === 'select') return `<div class="field-group"><label class="field-label">${f.label}</label><select class="field-select" id="cf-${f.key}">${f.options.map(o => `<option${o === f.default ? ' selected' : ''}>${o}</option>`).join('')}</select></div>`;
@@ -1104,12 +1634,69 @@ function openComponentForm(key) {
     const values = {};
     c.fields.forEach(f => { values[f.key] = document.getElementById('cf-' + f.key).value; });
     const html = c.render(values);
-    const textarea = document.getElementById('b-main');
-    const pos = textarea.selectionStart ?? textarea.value.length;
-    textarea.value = textarea.value.slice(0, pos) + (pos > 0 ? '\n\n' : '') + html + '\n\n' + textarea.value.slice(pos);
-    syncBodyDraftAndPreview();
+    insertBlockAt(region, insertIndex, html);
     closeModal();
+    refreshPreview();
     toast(`${c.label} inserted — check the preview, then Save when you're happy with it.`, 'success');
+  });
+}
+
+// Images upload straight away (unlike the OG-image field, which defers
+// until Save) so the picker's "Insert" step can drop a real, already-live
+// <img src> into the block -- there's no good way to preview a not-yet-
+// uploaded blob inline as part of arbitrary HTML the way the OG dropzone
+// previews a single known field.
+function openArticleImageModal(region, insertIndex) {
+  openModal(`
+    <div class="modal-title">Insert image</div>
+    <div class="img-drop" id="ai-drop">
+      <div class="img-drop-lbl" id="ai-drop-lbl">Click or drop a JPG/PNG</div>
+      <input type="file" id="ai-file" accept="image/*">
+    </div>
+    <div class="field-group" style="margin-top:10px"><label class="field-label">Alt text</label><input class="field-input" id="ai-alt" placeholder="Describe the image"></div>
+    <div class="field-group"><label class="field-label">Caption (optional)</label><input class="field-input" id="ai-caption" placeholder="Shown under the image"></div>
+    <div class="modal-actions"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ai-insert" disabled>Insert image</button></div>
+  `);
+  let picked = null;
+  document.getElementById('ai-drop').addEventListener('click', e => { if (e.target.tagName !== 'INPUT') document.getElementById('ai-file').click(); });
+  document.getElementById('ai-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      picked = { name: file.name, bytes: new Uint8Array(reader.result) };
+      const blobUrl = URL.createObjectURL(file);
+      document.querySelector('#ai-drop img')?.remove();
+      document.getElementById('ai-drop').insertAdjacentHTML('afterbegin', `<img src="${blobUrl}">`);
+      document.getElementById('ai-drop-lbl').textContent = file.name;
+      document.getElementById('ai-insert').disabled = false;
+    };
+    reader.readAsArrayBuffer(file);
+  });
+  document.getElementById('ai-insert').addEventListener('click', async () => {
+    if (!picked) return;
+    const btn = document.getElementById('ai-insert');
+    btn.disabled = true; btn.textContent = 'Uploading…';
+    try {
+      const slug = App.current.slug;
+      const ext = (picked.name.match(/\.\w+$/) || ['.jpg'])[0];
+      const safeName = 'img-' + Date.now() + ext;
+      const path = `assets/articles/${slug}/${safeName}`;
+      await gh.putFile(gh.owner, gh.repo, path, bytesToB64(picked.bytes), `Add image to ${slug} via Blacfox CMS`, App.branch);
+      App.assetCache.delete(`datauri:${App.branch}:${path}`);
+      const alt = escHtml(document.getElementById('ai-alt').value.trim());
+      const caption = document.getElementById('ai-caption').value.trim();
+      const html = caption
+        ? `<figure><img src="${path}" alt="${alt}" loading="lazy">\n  <figcaption>${escHtml(caption)}</figcaption></figure>`
+        : `<img src="${path}" alt="${alt}" loading="lazy">`;
+      insertBlockAt(region, insertIndex, html);
+      closeModal();
+      refreshPreview();
+      toast('Image inserted — Save when you\'re happy with it.', 'success');
+    } catch (e) {
+      toast('Image upload failed: ' + e.message, 'error');
+      btn.disabled = false; btn.textContent = 'Insert image';
+    }
   });
 }
 
@@ -1361,6 +1948,96 @@ async function inlineAssetRefs(html) {
   return html;
 }
 
+// Shared by both buildPreviewHTML and buildArticlePreviewHTML: inlines local
+// stylesheets/scripts as text, then every remaining relative asset reference
+// (images, fonts, SVG backgrounds) as a data: URI fetched through the
+// authenticated API rather than a public raw-content URL -- this is what
+// makes the preview work against a private repo.
+async function inlineLocalAssets(html) {
+  const linkRe = /<link rel="stylesheet" href="([^"]+)">/g;
+  const linkMatches = [...html.matchAll(linkRe)];
+  for (const m of linkMatches) {
+    const href = m[1];
+    if (/^https?:/.test(href)) continue; // external (Google Fonts) — leave as-is, real MIME type
+    const text = await fetchAssetText(href);
+    html = html.replace(m[0], text != null ? `<style>/* ${href} */\n${text}\n</style>` : '');
+  }
+  const scriptRe = /<script src="([^"]+)"[^>]*><\/script>/g;
+  const scriptMatches = [...html.matchAll(scriptRe)];
+  for (const m of scriptMatches) {
+    const src = m[1];
+    if (/^https?:/.test(src)) continue;
+    const text = await fetchAssetText(src);
+    html = html.replace(m[0], text != null ? `<script>${text}</script>` : '');
+  }
+  html = await inlineAssetRefs(html);
+  return html;
+}
+
+/* ------------------------------------------------------------
+   Article rendering -- must match build.js's renderArticleHero /
+   renderArticlePage / renderArticlesGrid exactly, same reasoning
+   as the page LAYOUTS/renderHead/renderPage mirror above.
+   ------------------------------------------------------------ */
+function renderArticleHeroClient(data) {
+  const metaLine = [data.author, formatArticleDate(data.date)].filter(Boolean).join(' — ');
+  return `<section class="hero-section article-hero">
+  <canvas class="hero-bg-grid"></canvas>
+  <div class="section-inner">
+    <p class="section-tag reveal">Article</p>
+    <h1 class="hero-title">${escHtml(data.title || 'Untitled')}</h1>
+    ${metaLine ? `<p class="article-meta reveal">${escHtml(metaLine)}</p>` : ''}
+  </div>
+</section>
+${data.banner ? `<div class="article-banner-wrap"><img class="article-banner" src="${data.banner}" alt="${escHtml(data.title || '')}"></div>` : ''}`;
+}
+function renderArticlePageClient(data, bodyHtml, partials) {
+  const layout = LAYOUTS.inner;
+  const bodyClassAttr = data.bodyClass ? ` class="${data.bodyClass}"` : '';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+${renderHeadClient(partials.head, data)}
+</head>
+<body${bodyClassAttr}>
+<div aria-hidden="true" style="position:fixed;top:0;left:0;width:100%;height:8px;z-index:1001;pointer-events:none;background-image:url('assets/icons/accent-strip.svg');background-size:100% 100%;background-repeat:no-repeat;"></div>
+
+${partials.nav}
+${renderArticleHeroClient(data)}
+<div id="${layout.spacerId}"></div>
+${layout.wrapOpen}
+
+<div class="article-body" id="cms-article-body-root">
+${bodyHtml}
+</div>
+
+${partials.footer}
+
+${layout.wrapClose}
+<script src="assets/js/hero-bg-grid.js"></script>
+<script src="segment-gate.js" defer></script>
+</body>
+</html>`;
+}
+// The one piece of "cms-generated" content that gets spliced into a real
+// page (pages/articles.md, at its <!--ARTICLES-GRID--> marker) rather than
+// rendered as its own page -- see the cms-generated skip in
+// collectEditableLeaves/wireBlocks for why it's marked as such.
+function renderArticlesGridClient(articles) {
+  const sorted = articles.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (!sorted.length) {
+    return `<p class="section-p cms-generated" style="text-align:center">No articles published yet — check back soon.</p>`;
+  }
+  return `<div class="card-grid-3 stagger article-grid cms-generated">
+${sorted.map(a => `  <a class="dark-card article-card" href="article-${a.slug}.html">
+    <div class="article-card-thumb">${a.banner ? `<img src="${a.banner}" alt="${escHtml(a.title || '')}" loading="lazy">` : ''}</div>
+    <p class="card-num">${escHtml(formatArticleDate(a.date))}</p>
+    <p class="card-title">${escHtml(a.title || 'Untitled')}</p>
+    <p class="card-body">${escHtml(a.description || '')}</p>
+  </a>`).join('\n')}
+</div>`;
+}
+
 async function buildPreviewHTML(slug) {
   const p = App.pages[slug];
   const [headText, navFile, footerFile] = await Promise.all([
@@ -1373,31 +2050,26 @@ async function buildPreviewHTML(slug) {
   // stable root to address hero content by, without affecting the real
   // build.js output at all (this wrapping never happens there).
   const heroWrapped = `<div id="cms-hero-root" style="display:contents">${p.hero}</div>`;
-  let html = renderPageClient(p.data, heroWrapped, p.main, { head: headText, nav: navFile.text.trim(), footer: footerFile.text.trim() });
+  let mainHtml = p.main;
+  if (mainHtml.includes('<!--ARTICLES-GRID-->')) {
+    const list = Object.entries(App.articles).map(([slug, a]) => ({ slug, ...a.data }));
+    mainHtml = mainHtml.replace('<!--ARTICLES-GRID-->', renderArticlesGridClient(list));
+  }
+  let html = renderPageClient(p.data, heroWrapped, mainHtml, { head: headText, nav: navFile.text.trim(), footer: footerFile.text.trim() });
+  html = await inlineLocalAssets(html);
+  html = html.replace('</body>', `${buildPreviewEditScript(App.previewEditMode)}</body>`);
+  return html;
+}
 
-  // Inline local stylesheets (text)
-  const linkRe = /<link rel="stylesheet" href="([^"]+)">/g;
-  const linkMatches = [...html.matchAll(linkRe)];
-  for (const m of linkMatches) {
-    const href = m[1];
-    if (/^https?:/.test(href)) continue; // external (Google Fonts) — leave as-is, real MIME type
-    const text = await fetchAssetText(href);
-    html = html.replace(m[0], text != null ? `<style>/* ${href} */\n${text}\n</style>` : '');
-  }
-  // Inline local scripts (text)
-  const scriptRe = /<script src="([^"]+)"[^>]*><\/script>/g;
-  const scriptMatches = [...html.matchAll(scriptRe)];
-  for (const m of scriptMatches) {
-    const src = m[1];
-    if (/^https?:/.test(src)) continue;
-    const text = await fetchAssetText(src);
-    html = html.replace(m[0], text != null ? `<script>${text}</script>` : '');
-  }
-  // Inline every remaining relative asset reference (images, fonts, SVG
-  // backgrounds — in the markup AND inside the CSS just inlined above) as a
-  // data: URI, fetched through the authenticated API rather than a public
-  // raw-content URL.
-  html = await inlineAssetRefs(html);
+async function buildArticlePreviewHTML(slug) {
+  const a = App.articles[slug];
+  const [headText, navFile, footerFile] = await Promise.all([
+    fetchAssetText('partials/head.html'),
+    gh.getFile(gh.owner, gh.repo, 'partials/nav.html', App.branch),
+    gh.getFile(gh.owner, gh.repo, 'partials/footer.html', App.branch),
+  ]);
+  let html = renderArticlePageClient(a.data, a.body, { head: headText, nav: navFile.text.trim(), footer: footerFile.text.trim() });
+  html = await inlineLocalAssets(html);
   html = html.replace('</body>', `${buildPreviewEditScript(App.previewEditMode)}</body>`);
   return html;
 }
@@ -1408,16 +2080,18 @@ function refreshPreview() {
   previewTimer = setTimeout(doRefreshPreview, 250);
 }
 async function doRefreshPreview() {
-  if (!App.current || App.current.type !== 'page') {
+  const isPreviewable = App.current && (App.current.type === 'page' || App.current.type === 'article');
+  if (!isPreviewable) {
     document.getElementById('preview-empty').style.display = 'flex';
     document.getElementById('preview-frame').style.display = 'none';
     document.getElementById('preview-url').textContent = App.current ? `${App.current.type} (no page preview)` : 'Select a page to preview';
     return;
   }
   const slug = App.current.slug;
-  document.getElementById('preview-url').textContent = `${slug}.html — ${App.branch}`;
+  const isArticle = App.current.type === 'article';
+  document.getElementById('preview-url').textContent = `${isArticle ? 'article-' + slug : slug}.html — ${App.branch}`;
   try {
-    const html = await buildPreviewHTML(slug);
+    const html = isArticle ? await buildArticlePreviewHTML(slug) : await buildPreviewHTML(slug);
     const frame = document.getElementById('preview-frame');
     frame.srcdoc = html;
     frame.style.display = '';
