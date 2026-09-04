@@ -86,6 +86,7 @@ ${partials.footer}
 ${pageScripts}
 ${layout.wrapClose}
 <script src="assets/js/hero-bg-grid.js"></script>
+<script src="assets/js/nav.js"></script>
 <script src="segment-gate.js" defer></script>
 </body>
 </html>
@@ -143,6 +144,7 @@ ${partials.footer}
 
 ${layout.wrapClose}
 <script src="assets/js/hero-bg-grid.js"></script>
+<script src="assets/js/nav.js"></script>
 <script src="segment-gate.js" defer></script>
 </body>
 </html>

@@ -298,6 +298,7 @@ ${partials.footer}
 ${pageScripts}
 ${layout.wrapClose}
 <script src="assets/js/hero-bg-grid.js"></script>
+<script src="assets/js/nav.js"></script>
 <script src="segment-gate.js" defer></script>
 </body>
 </html>`;
@@ -1229,7 +1230,7 @@ async function deletePage(slug) {
     const p = App.pages[slug];
     await gh.deleteFile(gh.owner, gh.repo, p.path, `Delete ${slug} page via Blacfox CMS`, App.branch, p.sha);
     delete App.pages[slug];
-    const navEl = App.navDoc.doc.querySelector('.nav-links-pill');
+    const navEl = App.navDoc.doc.querySelector('.nav-links-list');
     const link = Array.from(navEl.querySelectorAll('a')).find(a => a.getAttribute('href') === `${slug}.html`);
     if (link) { link.remove(); await saveNav(`Remove ${slug} from nav via Blacfox CMS`); }
     if (App.current && App.current.type === 'page' && App.current.slug === slug) App.current = null;
@@ -1304,7 +1305,7 @@ document.getElementById('add-page-btn').addEventListener('click', () => {
       App.pages[slug] = { path: `pages/${slug}.md`, sha: res.content.sha, data, hero, main };
 
       // Append nav link
-      const navList = App.navDoc.doc.querySelector('.nav-links-pill');
+      const navList = App.navDoc.doc.querySelector('.nav-links-list');
       const a = App.navDoc.doc.createElement('a');
       a.setAttribute('href', `${slug}.html`);
       a.setAttribute('data-page', slug);
@@ -2090,7 +2091,7 @@ function openArticleImageModal(region, insertIndex) {
 
 /* ---------- Nav tab ---------- */
 function getNavLinks() {
-  const navEl = App.navDoc.doc.querySelector('.nav-links-pill');
+  const navEl = App.navDoc.doc.querySelector('.nav-links-list');
   return Array.from(navEl.querySelectorAll('a')).map(a => ({ label: a.textContent, href: a.getAttribute('href') }));
 }
 function renderNavTab() {
@@ -2144,7 +2145,7 @@ async function saveNavFromForm() {
     label: c.querySelector('.nav-label').value.trim(),
     href: c.querySelector('.nav-href').value.trim(),
   }));
-  const navEl = App.navDoc.doc.querySelector('.nav-links-pill');
+  const navEl = App.navDoc.doc.querySelector('.nav-links-list');
   navEl.innerHTML = '';
   rows.forEach(r => {
     const a = App.navDoc.doc.createElement('a');
@@ -2403,6 +2404,7 @@ ${partials.footer}
 
 ${layout.wrapClose}
 <script src="assets/js/hero-bg-grid.js"></script>
+<script src="assets/js/nav.js"></script>
 <script src="segment-gate.js" defer></script>
 </body>
 </html>`;
