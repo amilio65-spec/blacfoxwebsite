@@ -667,6 +667,15 @@ function collectEditableLeaves(root, out) {
     // this function's source is toString()'d into the preview iframe, which
     // can't see any function/const defined outside this template literal.)
     if (el.classList && (el.classList.contains('hero-quote-panel') || el.classList.contains('section-split-img'))) continue;
+    // A chart-stat-row's own inner "label + big number" row is a flex div
+    // whose only children are <span>s (an INLINE_PASSENGER_TAGS entry), so
+    // without this it reads as one "phrasing-only" leaf below and both
+    // spans get flattened into a single garbled editable box (the number's
+    // own font-size/color inline styles collide visually with the label's).
+    // Skip the whole row -- it gets its own Description/Value field pair
+    // instead (see renderChartStatRowField), addressed by row position, not
+    // a leaf index.
+    if (el.classList && el.classList.contains('chart-stat-row')) continue;
     if (isPhrasingOnly(el) && hasEditableText(el)) {
       out.push(el);
     } else {
@@ -686,6 +695,7 @@ function leavesForBlock(block) {
   if (typeof SVGElement !== 'undefined' && block instanceof SVGElement) return [];
   if (block.classList && block.classList.contains('cms-generated')) return [];
   if (block.classList && (block.classList.contains('hero-quote-panel') || block.classList.contains('section-split-img'))) return [];
+  if (block.classList && block.classList.contains('chart-stat-row')) return [];
   if (isPhrasingOnly(block) && hasEditableText(block)) return [block];
   return collectEditableLeaves(block);
 }
@@ -719,7 +729,9 @@ function guessBlockLabel(el) {
   return 'Section';
 }
 function guessLeafKind(el) {
-  const cls = el.getAttribute('class') || '';
+  // Exact class-token match (not a substring check) -- "stat-num" must not
+  // also match "case-stat-num" (the Case Study Card's own, unrelated field).
+  const cls = (el.getAttribute('class') || '').split(/\s+/);
   const tag = el.tagName.toLowerCase();
   if (tag === 'h1' || tag === 'h2') return 'Heading';
   if (tag === 'h3') return 'Subheading';
@@ -727,6 +739,12 @@ function guessLeafKind(el) {
   if (tag === 'blockquote') return 'Quote';
   if (tag === 'figcaption') return 'Caption';
   if (cls.includes('section-tag')) return 'Label';
+  if (cls.includes('stat-num')) return 'Heading';
+  if (cls.includes('stat-label')) return 'Subheading';
+  // The Callout Box component's text is a plain <p> with no class of its
+  // own (see COMPONENTS['callout-box'].render) -- only its parent carries
+  // the ".callout-box" class -- so this has to check up one level.
+  if (tag === 'p' && el.parentElement && el.parentElement.classList.contains('callout-box')) return 'Callout';
   return 'Text';
 }
 
@@ -1654,11 +1672,6 @@ async function savePageMeta() {
 // stable in both states.
 const PLACEHOLDER_ICON_HTML = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.75"/><path d="M21 15l-5-5L5 21"/></svg>\n      <span>Illustration placeholder</span>';
 const ILLUSTRATION_PANEL_SELECTOR = ILLUSTRATION_PANEL_CLASSES.map(c => '.' + c).join(', ');
-function getIllustrationPanels(region) {
-  const html = getRegionHtml(region) || '';
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return Array.from(doc.body.querySelectorAll(ILLUSTRATION_PANEL_SELECTOR));
-}
 function transformIllustrationPanel(region, panelIndex, mutate) {
   const raw = getRegionHtml(region);
   if (raw == null) return false;
@@ -1688,6 +1701,116 @@ function renderIllustrationField(region, panel, panelIndex, totalPanels) {
       <div class="radio-btn illustration-size-btn${size === 'lg' ? ' on' : ''}" data-size="lg">Large</div>
     </div>
     <button class="btn btn-ghost btn-sm illustration-remove-btn" data-region="${region}" data-panel-index="${panelIndex}" style="margin-top:6px">Remove image</button>` : ''}
+  </div>`;
+}
+
+/* ------------------------------------------------------------
+   Index.html's hand-built "chart-pair" (S01 The Proof) -- the bar/line
+   ratio chart and the doughnut/arc chart are pure inline CSS/SVG, not
+   Chart.js, with their animation targets originally hardcoded in
+   index.css's @keyframes (see barGrow/benchGrow/arcGrow, now driven by a
+   --bar-target/--arc-target custom property instead so a value typed here
+   actually redraws the chart). Addressed by DOM position (like the
+   illustration panels above), not a leaf index, since editing a value here
+   also needs to rewrite a sibling bar's width/dot position or the arc's
+   dashoffset/dot coordinates -- structured state a plain text leaf can't
+   carry.
+   ------------------------------------------------------------ */
+// Pulls the leading number out of a ratio string like "10:1" or a percent
+// like "70%" -- parseFloat naturally stops at the first non-numeric
+// character, so both forms work without a bespoke parser.
+function parseRatioValue(text) {
+  const n = parseFloat(String(text == null ? '' : text).replace(/,/g, ''));
+  return Number.isFinite(n) ? n : null;
+}
+// Recomputes every row's bar width (and its endpoint dot's position) as a
+// percentage of the largest value among the rows sharing this container --
+// i.e. the biggest number always draws a full-width bar, and the rest scale
+// relative to it, matching the page's original hand-tuned 100%/30% split
+// for 10:1 vs 3:1 (3/10 = 30%). Recalculated from both rows every time
+// either one changes, since either edit can shift the relative proportions.
+function recalcChartStatBars(container) {
+  const rows = Array.from(container.querySelectorAll('.chart-stat-row'));
+  const values = rows.map(row => {
+    const numEl = row.querySelector('.chart-stat-num');
+    return parseRatioValue(numEl ? numEl.textContent : '');
+  });
+  const maxVal = values.reduce((m, v) => (v != null && v > m ? v : m), 0);
+  rows.forEach((row, i) => {
+    const v = values[i];
+    const pct = (maxVal > 0 && v != null) ? Math.max(0, Math.min(100, (v / maxVal) * 100)) : 0;
+    const fill = row.querySelector('.chart-stat-fill');
+    const dot = row.querySelector('.chart-stat-dot');
+    if (fill) fill.style.setProperty('--bar-target', pct + '%');
+    if (dot) dot.style.left = pct + '%';
+  });
+}
+function updateChartStatRow(region, rowIndex, field, value) {
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const rows = Array.from(doc.body.querySelectorAll('.chart-stat-row'));
+  const row = rows[rowIndex];
+  if (!row) return false;
+  const target = row.querySelector(field === 'desc' ? '.chart-stat-desc' : '.chart-stat-num');
+  if (target) target.innerHTML = value;
+  const container = row.closest('.glass-card') || row.parentElement;
+  if (container) recalcChartStatBars(container);
+  setRegionHtml(region, doc.body.innerHTML.trim());
+  return true;
+}
+function renderChartStatRowField(region, row, rowIndex) {
+  const desc = row.querySelector('.chart-stat-desc');
+  const num = row.querySelector('.chart-stat-num');
+  return `<div class="content-field-group">
+    <div class="content-field">
+      <label class="content-field-label">Description</label>
+      <div class="content-editable-box chart-stat-field" contenteditable="true" data-region="${region}" data-chart-row-index="${rowIndex}" data-chart-field="desc">${desc ? desc.innerHTML : ''}</div>
+    </div>
+    <div class="content-field">
+      <label class="content-field-label">Value</label>
+      <div class="content-editable-box chart-stat-field" contenteditable="true" data-region="${region}" data-chart-row-index="${rowIndex}" data-chart-field="num">${num ? num.innerHTML : ''}</div>
+    </div>
+  </div>`;
+}
+// Circle circumference matching the fixed stroke-dasharray already on
+// .arc-fill in index.md (2*pi*78 ~= 489.85, rounded to the same 490 the
+// page already hardcodes there, so a 100% value draws a fully closed ring).
+const CHART_ARC_CIRCUMFERENCE = 490;
+const CHART_ARC_RADIUS = 78;
+const CHART_ARC_CENTER = 100;
+function updateChartArcPanel(region, panelIndex, value) {
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const panels = Array.from(doc.body.querySelectorAll('.chart-arc-panel'));
+  const panel = panels[panelIndex];
+  if (!panel) return false;
+  const pct = Math.max(0, Math.min(100, parseRatioValue(value) || 0));
+  const textEl = panel.querySelector('.chart-arc-text');
+  if (textEl) textEl.textContent = pct + '%';
+  const fillEl = panel.querySelector('.arc-fill');
+  if (fillEl) fillEl.style.setProperty('--arc-target', String(Math.round(CHART_ARC_CIRCUMFERENCE * (1 - pct / 100))));
+  const dotEl = panel.querySelector('#arcDotEnd');
+  if (dotEl) {
+    // The arc-fill circle itself starts at 3 o'clock and is rotated -90deg
+    // (see index.md) so it visually starts at 12 o'clock; arcDotEnd is a
+    // separate, unrotated circle, so its cx/cy must be computed in that
+    // same rotated frame directly: -90deg (12 o'clock) plus the swept
+    // fraction of a full 360deg turn.
+    const angleRad = (-90 + (pct / 100) * 360) * Math.PI / 180;
+    dotEl.setAttribute('cx', (CHART_ARC_CENTER + CHART_ARC_RADIUS * Math.cos(angleRad)).toFixed(1));
+    dotEl.setAttribute('cy', (CHART_ARC_CENTER + CHART_ARC_RADIUS * Math.sin(angleRad)).toFixed(1));
+  }
+  setRegionHtml(region, doc.body.innerHTML.trim());
+  return true;
+}
+function renderChartArcField(region, panel, panelIndex) {
+  const textEl = panel.querySelector('.chart-arc-text');
+  const pct = textEl ? parseRatioValue(textEl.textContent) : null;
+  return `<div class="content-field">
+    <label class="content-field-label">Percentage</label>
+    <div class="content-editable-box chart-arc-field" contenteditable="true" data-region="${region}" data-chart-arc-index="${panelIndex}">${pct != null ? pct : ''}</div>
   </div>`;
 }
 function renderContentFieldForLeaf(region, leaf, index) {
@@ -1720,23 +1843,57 @@ function groupLeafFieldsHTML(region, leaves, nextIndex) {
   }
   return out.join('');
 }
+// Shared by renderLeafFieldsHTML (hero -- flat) and renderContentBlocksHTML
+// (main/body -- grouped per block) so both regions get illustration/chart
+// fields wherever those panels actually live, not just wherever the feature
+// happened to be wired in first. Returns them still tagged with their
+// GLOBAL region-wide index (matching what a fresh, independent re-parse via
+// updateChartStatRow/updateChartArcPanel/transformIllustrationPanel would
+// enumerate), since that's what those transform functions address by -- a
+// per-block-local index would silently target the wrong panel the moment a
+// page has more than one block containing one.
+function renderNonLeafFieldsHTML(doc) {
+  const panels = Array.from(doc.body.querySelectorAll(ILLUSTRATION_PANEL_SELECTOR));
+  const chartRows = Array.from(doc.body.querySelectorAll('.chart-stat-row'));
+  const chartArcs = Array.from(doc.body.querySelectorAll('.chart-arc-panel'));
+  return { panels, chartRows, chartArcs };
+}
 function renderLeafFieldsHTML(region) {
   const html = getRegionHtml(region) || '';
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const leaves = collectEditableLeaves(doc.body);
   const textFields = leaves.map((leaf, i) => renderContentFieldForLeaf(region, leaf, i)).join('');
-  const panels = getIllustrationPanels(region);
+  const { panels, chartRows, chartArcs } = renderNonLeafFieldsHTML(doc);
   const illustrationFields = panels.map((panel, i) => renderIllustrationField(region, panel, i, panels.length)).join('');
-  return (textFields + illustrationFields) || '<p class="field-hint">Nothing editable here yet.</p>';
+  const chartStatFields = chartRows.map((row, i) => renderChartStatRowField(region, row, i)).join('');
+  const chartArcFields = chartArcs.map((panel, i) => renderChartArcField(region, panel, i)).join('');
+  return (textFields + illustrationFields + chartStatFields + chartArcFields) || '<p class="field-hint">Nothing editable here yet.</p>';
 }
 function renderContentBlocksHTML(region) {
   const html = getRegionHtml(region) || '';
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const blocks = Array.from(doc.body.children);
   if (!blocks.length) return '<p class="field-hint" style="margin:2px 0 10px">Nothing here yet — use the button below to add the first section.</p>';
+  const { panels, chartRows, chartArcs } = renderNonLeafFieldsHTML(doc);
   let idx = 0;
   return blocks.map((block, blockIdx) => {
-    const fields = groupLeafFieldsHTML(region, leavesForBlock(block), () => idx++);
+    const textFields = groupLeafFieldsHTML(region, leavesForBlock(block), () => idx++);
+    const illustrationFields = panels
+      .map((panel, gi) => [panel, gi])
+      .filter(([panel]) => block.contains(panel))
+      .map(([panel, gi]) => renderIllustrationField(region, panel, gi, panels.length))
+      .join('');
+    const chartStatFields = chartRows
+      .map((row, gi) => [row, gi])
+      .filter(([row]) => block.contains(row))
+      .map(([row, gi]) => renderChartStatRowField(region, row, gi))
+      .join('');
+    const chartArcFields = chartArcs
+      .map((panel, gi) => [panel, gi])
+      .filter(([panel]) => block.contains(panel))
+      .map(([panel, gi]) => renderChartArcField(region, panel, gi))
+      .join('');
+    const fields = textFields + illustrationFields + chartStatFields + chartArcFields;
     return `<div class="chrome-item-card">
       <div class="chrome-item-head">
         <span class="chrome-item-badge">${escHtml(guessBlockLabel(block))}</span>
@@ -1752,7 +1909,10 @@ function renderContentBlocksHTML(region) {
 }
 function wireEditableBoxes(container) {
   if (!container) return;
-  container.querySelectorAll('.content-editable-box').forEach(box => {
+  // :not(...) here because chart-stat-field/chart-arc-field are also
+  // .content-editable-box (for shared styling) but carry no data-leaf-index
+  // -- they're wired separately below, addressed by row/panel position.
+  container.querySelectorAll('.content-editable-box:not(.chart-stat-field):not(.chart-arc-field)').forEach(box => {
     let sendTimer = null;
     const commit = () => {
       applyInlineEdit(box.dataset.region, parseInt(box.dataset.leafIndex, 10), box.innerHTML);
@@ -1762,6 +1922,27 @@ function wireEditableBoxes(container) {
     box.addEventListener('blur', () => { clearTimeout(sendTimer); commit(); });
   });
   wireIllustrationFields(container);
+  wireChartFields(container);
+}
+function wireChartFields(container) {
+  container.querySelectorAll('.chart-stat-field').forEach(box => {
+    let sendTimer = null;
+    const commit = () => {
+      updateChartStatRow(box.dataset.region, parseInt(box.dataset.chartRowIndex, 10), box.dataset.chartField, box.innerHTML);
+      refreshPreview();
+    };
+    box.addEventListener('input', () => { clearTimeout(sendTimer); sendTimer = setTimeout(commit, 400); });
+    box.addEventListener('blur', () => { clearTimeout(sendTimer); commit(); });
+  });
+  container.querySelectorAll('.chart-arc-field').forEach(box => {
+    let sendTimer = null;
+    const commit = () => {
+      updateChartArcPanel(box.dataset.region, parseInt(box.dataset.chartArcIndex, 10), box.textContent);
+      refreshPreview();
+    };
+    box.addEventListener('input', () => { clearTimeout(sendTimer); sendTimer = setTimeout(commit, 400); });
+    box.addEventListener('blur', () => { clearTimeout(sendTimer); commit(); });
+  });
 }
 function wireIllustrationFields(container) {
   container.querySelectorAll('.illustration-drop').forEach(drop => {

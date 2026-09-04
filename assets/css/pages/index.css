@@ -1344,9 +1344,13 @@ footer { padding-left: var(--site-px); padding-right: var(--site-px); }
   
 
 
-      /* Bar chart wave-line animations */
-      @keyframes barGrow   { to { width: 100%; } }
-      @keyframes benchGrow { to { width: 30%;  } }
+      /* Bar chart wave-line animations -- the "to" target is a custom
+         property so the CMS can drive it per-instance (see chart-stat-fill
+         in admin/app.js); the literal fallback matches this page's original
+         static values so the animation still works if the property is ever
+         missing. */
+      @keyframes barGrow   { to { width: var(--bar-target, 100%); } }
+      @keyframes benchGrow { to { width: var(--bar-target, 30%);  } }
       @keyframes dotFade   { to { opacity: 1;  } }
       .bar-blacfox {
         position:absolute;left:0;top:0;height:100%;width:0;border-radius:2px;
@@ -1370,8 +1374,9 @@ footer { padding-left: var(--site-px); padding-right: var(--site-px); }
         width:7px;height:7px;border-radius:50%;background:rgba(10,10,10,0.28);
         opacity:0;animation:dotFade 0.2s ease 1.75s forwards;
       }
-      /* Radial chart — same wave-line style */
-      @keyframes arcGrow    { to { stroke-dashoffset: 147; } }
+      /* Radial chart — same wave-line style. --arc-target is unitless, same
+         as stroke-dashoffset itself; see chart-arc-fill wiring in app.js. */
+      @keyframes arcGrow    { to { stroke-dashoffset: var(--arc-target, 147); } }
       @keyframes arcDotFade { to { opacity: 1; } }
       .arc-fill {
         stroke-dasharray: 490;

@@ -63,17 +63,6 @@ pageScripts: ["assets/js/pages/index.js"]
   <p class="trust-label">— Trusted by B2B tech companies across the Microsoft &amp; SAP ecosystem</p>
 </div>
 
-<!-- FALLBACK: shown only for visitors who told the segment quiz "none of the above" -->
-<section data-seg-show="other" hidden>
-  <div class="section-inner">
-    <div class="callout-box reveal" style="margin-top:0;">
-      <p style="font-weight:800;font-size:20px;margin-bottom:10px;">We should be straight with you.</p>
-      <p>Blacfox works with three kinds of B2B technology companies: Microsoft and SAP partners, ISVs and software vendors, and the distributors who supply their channel. If none of those describe you, we&#39;re probably not the right fit, and we&#39;d rather tell you now than waste twenty minutes of your time.</p>
-      <p style="margin-top:14px;"><button type="button" onclick="window.BlacfoxSegment &amp;&amp; window.BlacfoxSegment.clear()" style="background:none;border:none;color:var(--orange);font-weight:700;cursor:pointer;padding:0;font-family:inherit;font-size:inherit;">Think we&#39;ve got you wrong? Go back and try again →</button></p>
-    </div>
-  </div>
-</section>
-
 <!-- S01 THE PROOF -->
 <section class="bg-white">
   <div class="section-inner">
@@ -95,26 +84,26 @@ pageScripts: ["assets/js/pages/index.js"]
         <p style="font-size:15px;font-weight:700;color:var(--light);margin-bottom:36px;line-height:1.3;">Pipeline ACV return on campaign spend</p>
 
         <!-- Blacfox row -->
-        <div style="margin-bottom:36px;">
+        <div class="chart-stat-row" data-chart-stat="blacfox" style="margin-bottom:36px;">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
-            <span style="font-size:11px;color:#38352f;font-weight:500;letter-spacing:0.01em;">Blacfox portfolio average (n=11)</span>
-            <span style="font-size:34px;font-weight:900;color:var(--orange);letter-spacing:-0.03em;line-height:1;text-shadow:0 0 24px rgba(233,92,37,0.45);">10:1</span>
+            <span class="chart-stat-desc" style="font-size:11px;color:#38352f;font-weight:500;letter-spacing:0.01em;">Blacfox portfolio average (n=11)</span>
+            <span class="chart-stat-num" style="font-size:34px;font-weight:900;color:var(--orange);letter-spacing:-0.03em;line-height:1;text-shadow:0 0 24px rgba(233,92,37,0.45);">10:1</span>
           </div>
           <div style="position:relative;height:2px;background:rgba(10,10,10,0.07);border-radius:2px;overflow:visible;">
-            <div class="bar-blacfox"></div>
-            <div class="bar-dot-blacfox"></div>
+            <div class="bar-blacfox chart-stat-fill" style="--bar-target:100%;"></div>
+            <div class="bar-dot-blacfox chart-stat-dot"></div>
           </div>
         </div>
 
         <!-- Benchmark row -->
-        <div>
+        <div class="chart-stat-row" data-chart-stat="benchmark">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
-            <span style="font-size:11px;color:#38352f;font-weight:500;letter-spacing:0.01em;">B2B industry benchmark (Gartner, 2026)</span>
-            <span style="font-size:24px;font-weight:700;color:rgba(10,10,10,0.62);letter-spacing:-0.03em;line-height:1;">3:1</span>
+            <span class="chart-stat-desc" style="font-size:11px;color:#38352f;font-weight:500;letter-spacing:0.01em;">B2B industry benchmark (Gartner, 2026)</span>
+            <span class="chart-stat-num" style="font-size:24px;font-weight:700;color:rgba(10,10,10,0.62);letter-spacing:-0.03em;line-height:1;">3:1</span>
           </div>
           <div style="position:relative;height:1px;background:rgba(10,10,10,0.07);border-radius:1px;overflow:visible;">
-            <div class="bar-bench"></div>
-            <div class="bar-dot-bench"></div>
+            <div class="bar-bench chart-stat-fill" style="--bar-target:30%;"></div>
+            <div class="bar-dot-bench chart-stat-dot" style="left:30%;"></div>
           </div>
         </div>
 
@@ -125,7 +114,7 @@ pageScripts: ["assets/js/pages/index.js"]
       <div class="glass-card" style="border-radius:20px;padding:32px;">
         <p style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--orange);margin-bottom:6px;">B2B Buyer Behaviour</p>
         <p style="font-size:15px;font-weight:700;color:var(--light);margin-bottom:20px;line-height:1.3;">Research completed before first vendor contact</p>
-        <svg viewBox="0 0 200 200" height="190" style="display:block;margin:0 auto;overflow:visible;">
+        <svg class="chart-arc-panel" viewBox="0 0 200 200" height="190" style="display:block;margin:0 auto;overflow:visible;">
           <defs>
             <linearGradient id="arcGrad" x1="50%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stop-color="#e95c25" stop-opacity="0.95"/>
@@ -136,11 +125,11 @@ pageScripts: ["assets/js/pages/index.js"]
           <circle cx="100" cy="100" r="78" fill="none" stroke="rgba(10,10,10,0.08)" stroke-width="2"/>
           <!-- Animated arc -->
           <circle cx="100" cy="100" r="78" fill="none" stroke="url(#arcGrad)" stroke-width="2.5"
-            stroke-linecap="round" transform="rotate(-90 100 100)" class="arc-fill"/>
+            stroke-linecap="round" transform="rotate(-90 100 100)" class="arc-fill" style="--arc-target:147;"/>
           <!-- Endpoint dot at 70% (162° in standard coords) -->
           <circle id="arcDotEnd" cx="25.8" cy="124.1" r="6" fill="#e95c25"/>
           <!-- Centre label -->
-          <text x="100" y="100" text-anchor="middle" dominant-baseline="central"
+          <text x="100" y="100" text-anchor="middle" dominant-baseline="central" class="chart-arc-text"
             style="font-size:32px;font-weight:900;fill:#e95c25;font-family:'Montserrat',sans-serif;filter:drop-shadow(0 0 22px rgba(233,92,37,0.5));">70%</text>
         </svg>
         <div style="display:flex;gap:20px;justify-content:center;margin-top:14px;">
