@@ -270,8 +270,8 @@ section + section {
    Medium (320px) matches the placeholder's own height so switching to/from
    it doesn't jump the layout; small/large scale from that. */
 .hero-quote-panel.has-image{padding:0;background:transparent;border:none;display:flex;align-items:center;justify-content:center;height:320px}
-.hero-quote-panel.has-image.size-sm{height:200px}
-.hero-quote-panel.has-image.size-lg{height:460px}
+.hero-quote-panel.has-image.size-sm{height:180px}
+.hero-quote-panel.has-image.size-lg{height:480px}
 .hero-quote-panel.has-image img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block}
 
 /* =========================================================
