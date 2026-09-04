@@ -2488,7 +2488,18 @@ async function doRefreshPreview() {
     toast('Preview failed: ' + e.message, 'error');
   }
 }
-document.getElementById('refresh-preview-btn').addEventListener('click', refreshPreview);
+// Stylesheets/scripts/images referenced by a page are cached in memory for
+// the life of this browser tab (App.assetCache) so typing doesn't re-fetch
+// heavy CSS/image blobs on every keystroke -- but that means if the
+// underlying file changes on this branch *outside* the CMS (another editor
+// saving it, or a code change pushed directly) while this tab stays open,
+// the preview keeps rendering the stale cached copy indefinitely. The
+// Refresh button is the one place that should always mean "no really, get
+// me the current content," so it clears the cache first.
+document.getElementById('refresh-preview-btn').addEventListener('click', () => {
+  App.assetCache.clear();
+  refreshPreview();
+});
 
 function updateEditModeBtn() {
   const btn = document.getElementById('edit-mode-btn');
