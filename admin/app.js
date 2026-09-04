@@ -1616,6 +1616,30 @@ function renderContentFieldForLeaf(region, leaf, index) {
     <div class="content-editable-box" contenteditable="true" data-region="${region}" data-leaf-index="${index}">${leaf.innerHTML}</div>
   </div>`;
 }
+// leavesForBlock flattens a block down to one leaf per editable text node,
+// in document order, with no memory of which ones were siblings in the
+// source markup -- e.g. a stats row's 4x (number, caption) pairs all come
+// back as 8 leaves in a row. That's fine for indexing (applyInlineEdit just
+// needs the flat order), but rendering them flat makes the panel read as 8
+// unrelated fields instead of the 4 grouped stats the live preview shows.
+// This re-groups the panel view only: consecutive leaves that share the
+// same immediate parent element (and there's more than one of them, so a
+// lone paragraph directly under the block isn't boxed for no reason) get
+// wrapped in one bordered .content-field-group, mirroring how the parent
+// markup (e.g. .stat-item) groups them visually on the page.
+function groupLeafFieldsHTML(region, leaves, nextIndex) {
+  const out = [];
+  let i = 0;
+  while (i < leaves.length) {
+    const parent = leaves[i].parentElement;
+    let j = i + 1;
+    while (j < leaves.length && leaves[j].parentElement === parent) j++;
+    const group = leaves.slice(i, j).map(leaf => renderContentFieldForLeaf(region, leaf, nextIndex())).join('');
+    out.push(j - i > 1 ? `<div class="content-field-group">${group}</div>` : group);
+    i = j;
+  }
+  return out.join('');
+}
 function renderLeafFieldsHTML(region) {
   const html = getRegionHtml(region) || '';
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -1631,7 +1655,7 @@ function renderContentBlocksHTML(region) {
   if (!blocks.length) return '<p class="field-hint" style="margin:2px 0 10px">Nothing here yet — use the button below to add the first section.</p>';
   let idx = 0;
   return blocks.map((block, blockIdx) => {
-    const fields = leavesForBlock(block).map(leaf => renderContentFieldForLeaf(region, leaf, idx++)).join('');
+    const fields = groupLeafFieldsHTML(region, leavesForBlock(block), () => idx++);
     return `<div class="chrome-item-card">
       <div class="chrome-item-head">
         <span class="chrome-item-badge">${escHtml(guessBlockLabel(block))}</span>
