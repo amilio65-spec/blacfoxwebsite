@@ -102,6 +102,14 @@ a{color:inherit}
 .content-editable-box:focus{border-color:rgba(233,92,37,.6);background:rgba(255,255,255,.06)}
 .content-editable-box em{color:#e95c25;font-style:italic}
 .content-editable-box strong,.content-editable-box b{font-weight:800}
+/* Decorative inline SVGs (the hand-drawn "strike through pixels" line, tiny
+   button-arrow icons, etc.) rely on the site's own CSS to sit positioned
+   over/beside the text -- this box has none of that loaded, so they render
+   unpositioned and look like stray broken squiggles. Hiding them here only
+   affects this editor view; the underlying HTML (and the live site's
+   actual effect) is untouched, since we're hiding a rendering, not
+   deleting a node. */
+.content-editable-box svg{display:none}
 #editor-scroll details{margin:6px 0 14px;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:2px 12px}
 #editor-scroll details summary{cursor:pointer;padding:9px 0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#777}
 #editor-scroll details[open] summary{color:#aaa}

@@ -117,13 +117,56 @@ const gh = {
     }
   },
 
+  // The Contents API's single-shot PUT below can't reliably take inline
+  // base64 content much above ~1MB -- the same real ceiling already noted
+  // on the read side in getFileBytesB64 (fonts.css, ~1.7MB, needed the Git
+  // Blob API there too). An uncompressed PNG clears this constantly, which
+  // is why an image upload can fail with no useful error while a smaller
+  // JPG of the same photo works fine. ~1,400,000 base64 chars ≈ 1MB raw.
+  LARGE_FILE_B64_THRESHOLD: 1400000,
+
   async putFile(owner, repo, path, contentB64, message, branch, sha) {
+    if (contentB64.length > this.LARGE_FILE_B64_THRESHOLD) {
+      return this.putLargeFile(owner, repo, path, contentB64, message, branch);
+    }
     const body = { message, content: contentB64, branch };
     if (sha) body.sha = sha;
     return this.req(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path).replace(/%2F/g, '/')}`, {
       method: 'PUT',
       body: JSON.stringify(body),
     });
+  },
+
+  // Assembles the same result by hand via the lower-level Git Data API:
+  // create a blob for the content, graft it into a new tree off the
+  // branch's current commit, commit that tree, then fast-forward the
+  // branch ref to it. Returns {content:{sha}} to match putFile's normal
+  // shape -- callers use that sha as the "sha" param on the *next* update
+  // to the same file (optimistic concurrency), same as the Contents API's
+  // response would give them.
+  async putLargeFile(owner, repo, path, contentB64, message, branch) {
+    const blob = await this.req(`/repos/${owner}/${repo}/git/blobs`, {
+      method: 'POST',
+      body: JSON.stringify({ content: contentB64, encoding: 'base64' }),
+    });
+    const ref = await this.getRef(owner, repo, branch);
+    const baseCommit = await this.req(`/repos/${owner}/${repo}/git/commits/${ref.object.sha}`);
+    const tree = await this.req(`/repos/${owner}/${repo}/git/trees`, {
+      method: 'POST',
+      body: JSON.stringify({
+        base_tree: baseCommit.tree.sha,
+        tree: [{ path, mode: '100644', type: 'blob', sha: blob.sha }],
+      }),
+    });
+    const newCommit = await this.req(`/repos/${owner}/${repo}/git/commits`, {
+      method: 'POST',
+      body: JSON.stringify({ message, tree: tree.sha, parents: [ref.object.sha] }),
+    });
+    await this.req(`/repos/${owner}/${repo}/git/refs/${encodeURIComponent('heads/' + branch)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ sha: newCommit.sha }),
+    });
+    return { content: { sha: blob.sha } };
   },
 
   async deleteFile(owner, repo, path, message, branch, sha) {
