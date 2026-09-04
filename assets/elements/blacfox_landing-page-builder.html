@@ -1,0 +1,2263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blacfox Landing Page Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:'Montserrat',sans-serif;background:#0a0a0a;color:#fff;-webkit-font-smoothing:antialiased}
+#app{display:flex;height:100vh}
+
+/* ── Editor Panel ── */
+#editor-panel{width:390px;flex-shrink:0;background:#111;border-right:1px solid rgba(255,255,255,0.07);display:flex;flex-direction:column;height:100vh}
+#editor-header{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;background:#1a1a1a;flex-shrink:0;gap:12px}
+.editor-brand-row{display:flex;align-items:center;gap:10px}
+.editor-brand{width:28px;height:28px;border-radius:6px;background:#e95c25;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;letter-spacing:0.02em;color:#000;flex-shrink:0}
+.editor-title{font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#888}
+#export-btn{background:#e95c25;color:#fff;border:none;border-radius:9999px;padding:7px 16px;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;font-family:'Montserrat',sans-serif;transition:background 0.15s;flex-shrink:0;white-space:nowrap}
+#export-btn:hover{background:#f07040}
+#editor-subtitle{padding:8px 18px;font-size:10px;line-height:1.5;color:#666;background:#161616;border-bottom:1px solid rgba(255,255,255,0.07);flex-shrink:0}
+#editor-body{flex:1;min-height:0;overflow-y:auto;padding:12px 10px;background:#0a0a0a;display:flex;flex-direction:column;gap:12px}
+#editor-body::-webkit-scrollbar{width:3px}
+#editor-body::-webkit-scrollbar-track{background:transparent}
+#editor-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+
+/* ── Page Blocks (sections) ── */
+.page-block{border:1px solid rgba(255,255,255,0.12);border-radius:12px;background:#161616;box-shadow:0 3px 14px rgba(0,0,0,0.35);overflow:hidden;flex-shrink:0}
+.page-header{display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;user-select:none;background:#1e1e1e;transition:background 0.1s;border-bottom:1px solid rgba(255,255,255,0.09)}
+.page-header:hover{background:#242424}
+.page-num-badge{font-size:9px;font-weight:800;letter-spacing:0.10em;text-transform:uppercase;color:#888;background:rgba(255,255,255,0.09);border-radius:3px;padding:2px 6px;flex-shrink:0;min-width:26px;text-align:center}
+.page-type-badge{font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e95c25;background:rgba(233,92,37,0.14);border-radius:3px;padding:2px 6px;flex-shrink:0}
+.page-type-badge.neutral{color:#888;background:rgba(255,255,255,0.08)}
+.page-label{flex:1;font-size:12px;font-weight:700;color:rgba(255,255,255,0.9)}
+.page-fixed-badge{font-size:8px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#555;padding:2px 5px;border-radius:2px;flex-shrink:0}
+.page-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.page-move-btn{background:none;border:none;color:rgba(255,255,255,0.3);font-size:11px;cursor:pointer;padding:2px 4px;line-height:1;border-radius:3px;transition:color 0.12s,background 0.12s;font-family:inherit}
+.page-move-btn:hover{color:#e95c25;background:rgba(233,92,37,0.1)}
+.page-move-btn:disabled{opacity:0.2;cursor:default;pointer-events:none}
+.page-remove-btn{background:none;border:none;color:rgba(255,255,255,0.25);font-size:14px;cursor:pointer;padding:1px 4px;line-height:1;border-radius:3px;transition:color 0.12s;font-family:inherit}
+.page-remove-btn:hover{color:#ff7070}
+.chevron{font-size:9px;color:#555;flex-shrink:0;transition:transform 0.15s;margin-left:2px}
+.chevron.open{transform:rotate(90deg)}
+.page-header[draggable="true"],.comp-header[draggable="true"]{cursor:grab}
+.page-header[draggable="true"]:active,.comp-header[draggable="true"]:active{cursor:grabbing}
+.drag-handle{color:rgba(255,255,255,0.22);font-size:11px;letter-spacing:-1px;flex-shrink:0;line-height:1;padding-right:1px}
+.drag-over-top{box-shadow:inset 0 2px 0 0 #e95c25}
+.drag-over-bottom{box-shadow:inset 0 -2px 0 0 #e95c25}
+.page-fields{padding:14px 14px 14px;display:flex;flex-direction:column;gap:10px;background:#131313}
+.page-fields.collapsed{display:none}
+.page-fields>*{flex-shrink:0}
+.comps-section-label{font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#666;margin:2px 0 -2px;display:block}
+
+/* ── Variant selector ── */
+.variant-row{display:flex;gap:4px;flex-wrap:wrap}
+.variant-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:rgba(255,255,255,0.5);font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:4px 8px;cursor:pointer;font-family:inherit;transition:all 0.12s}
+.variant-btn:hover{background:rgba(255,255,255,0.1);color:#fff}
+.variant-btn.on{background:rgba(233,92,37,0.2);border-color:rgba(233,92,37,0.5);color:#e95c25}
+.icon-pick-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.icon-pick-btn{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.7);cursor:pointer;transition:all 0.12s}
+.icon-pick-btn:hover{background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.25)}
+.icon-pick-btn.on{background:rgba(233,92,37,0.2);border-color:rgba(233,92,37,0.5);color:#e95c25}
+.icon-pick-btn svg{width:18px;height:18px}
+.icon-trigger-btn{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.8);font-size:11px;font-weight:600;padding:7px 10px;cursor:pointer;font-family:inherit;transition:all 0.12s;width:100%}
+.icon-trigger-btn:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2)}
+.icon-trigger-btn svg{width:16px;height:16px;color:#e95c25;flex-shrink:0}
+#icon-picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:none;align-items:center;justify-content:center}
+#icon-picker-overlay.visible{display:flex}
+#icon-picker-modal{background:#1a1a1a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:18px;width:360px;max-height:80vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,0.6)}
+#icon-picker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+#icon-picker-header span{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#888}
+#icon-picker-close{background:none;border:none;color:#888;font-size:18px;cursor:pointer;line-height:1;padding:0 4px}
+#icon-picker-close:hover{color:#fff}
+
+/* ── Fields ── */
+.field-group{display:flex;flex-direction:column;gap:4px}
+.field-label{font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#555}
+.field-input{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#fff;font-family:'Montserrat',sans-serif;font-size:12px;padding:7px 10px;width:100%;transition:border-color 0.2s;outline:none}
+.field-input:focus{border-color:rgba(233,92,37,0.6)}
+.field-rta{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#fff;font-family:'Montserrat',sans-serif;font-size:12px;padding:7px 10px;width:100%;min-height:52px;line-height:1.6;cursor:text;word-break:break-word;white-space:pre-wrap;outline:none;transition:border-color 0.2s}
+.field-rta:focus{border-color:rgba(233,92,37,0.6)}
+.field-rta:empty::before{content:'Type here…';color:#444;pointer-events:none}
+.field-hint{font-size:9px;color:#444;font-style:italic}
+.field-sep{height:1px;background:rgba(255,255,255,0.05);margin:2px 0}
+.field-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* ── Cards / list-style sub-editors (cards, plans, testimonials, faq, stats) ── */
+.cards-list,.steps-list-edit{display:flex;flex-direction:column;gap:7px}
+.card-item,.step-item-edit{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.card-item-head{display:flex;align-items:center;justify-content:space-between}
+.card-badge{font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e95c25}
+.card-rm{background:none;border:none;color:#444;cursor:pointer;font-size:14px;line-height:1;padding:2px 5px;border-radius:4px;font-family:inherit;transition:color 0.12s}
+.card-rm:hover{color:#ff7070}
+.add-card-btn,.add-step-btn,.add-item-btn{background:rgba(233,92,37,0.06);border:1px dashed rgba(233,92,37,0.25);border-radius:6px;color:#e95c25;cursor:pointer;font-size:10px;font-weight:700;letter-spacing:0.04em;padding:6px;width:100%;font-family:inherit;transition:all 0.12s;margin-top:2px}
+.add-card-btn:hover,.add-step-btn:hover,.add-item-btn:hover{background:rgba(233,92,37,0.12);border-color:rgba(233,92,37,0.45)}
+
+/* ── List item row ── */
+.item-edit-row{display:flex;align-items:flex-start;gap:6px}
+.item-edit-row .field-rta{flex:1;min-height:44px}
+.item-rm{background:none;border:none;color:#444;cursor:pointer;font-size:15px;line-height:1;padding:3px 4px;border-radius:4px;flex-shrink:0;margin-top:3px;transition:color 0.12s}
+.item-rm:hover{color:#ff7070}
+
+/* ── Image upload ── */
+.img-upload-wrap{border:1px dashed rgba(255,255,255,0.18);border-radius:8px;padding:14px;text-align:center;cursor:pointer;position:relative;transition:border-color 0.15s,background 0.15s;overflow:hidden}
+.img-upload-wrap:hover{border-color:rgba(233,92,37,0.4);background:rgba(233,92,37,0.03)}
+.img-upload-wrap input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.img-upload-lbl{font-size:10px;color:#555;pointer-events:none}
+.img-upload-preview{max-width:100%;border-radius:6px;max-height:110px;object-fit:cover;display:block;margin:0 auto 8px;pointer-events:none}
+.img-clear-btn{background:rgba(255,80,80,0.1);border:1px solid rgba(255,80,80,0.2);border-radius:4px;color:#ff9999;cursor:pointer;font-size:9px;font-weight:700;padding:3px 8px;font-family:inherit;margin-top:6px;position:relative;z-index:2}
+
+/* ── Component blocks ── */
+.comps-list{display:flex;flex-direction:column;gap:10px;margin-bottom:4px;padding-left:10px;border-left:2px solid rgba(233,92,37,0.15)}
+.comp-block{background:#1c1c1c;border:1px solid rgba(255,255,255,0.13);border-radius:8px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+.comp-header{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(233,92,37,0.08);border-bottom:1px solid rgba(255,255,255,0.08);border-left:2px solid rgba(233,92,37,0.5)}
+.comp-type-label{font-size:9.5px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.65)}
+.comp-actions{display:flex;align-items:center;gap:2px}
+.comp-move{background:none;border:none;color:rgba(255,255,255,0.2);font-size:11px;cursor:pointer;padding:2px 4px;line-height:1;border-radius:3px;transition:color 0.12s,background 0.12s;font-family:inherit}
+.comp-move:hover{color:#e95c25;background:rgba(233,92,37,0.1)}
+.comp-move:disabled{opacity:0.2;cursor:default;pointer-events:none}
+.comp-remove{background:none;border:none;color:rgba(255,255,255,0.2);font-size:13px;cursor:pointer;padding:1px 4px;line-height:1;border-radius:3px;transition:color 0.12s;font-family:inherit}
+.comp-remove:hover{color:#ff7070}
+.comp-fields{padding:8px 10px 10px;display:flex;flex-direction:column;gap:7px}
+.empty-page-hint{text-align:center;padding:20px 12px;font-size:11px;color:#444;font-style:italic;border:1px dashed rgba(255,255,255,0.07);border-radius:6px}
+
+/* ── Add component ── */
+.add-comp-trigger{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 12px;background:rgba(233,92,37,0.06);border:1px dashed rgba(233,92,37,0.22);border-radius:6px;color:#e95c25;font-size:10px;font-weight:600;cursor:pointer;width:100%;font-family:'Montserrat',sans-serif;transition:all 0.15s;letter-spacing:.02em}
+.add-comp-trigger:hover{background:rgba(233,92,37,0.14);border-color:rgba(233,92,37,0.5)}
+.add-comp-panel{padding:6px 0 2px}
+.add-comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.add-comp-item{display:flex;align-items:flex-start;gap:7px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:rgba(255,255,255,0.6);font-size:9px;padding:7px 8px;text-align:left;cursor:pointer;transition:all 0.12s;font-family:'Montserrat',sans-serif;line-height:1.3}
+.add-comp-item:hover{background:rgba(233,92,37,0.1);border-color:rgba(233,92,37,0.3);color:#fff}
+.add-comp-item:hover .add-comp-glyph{background:rgba(233,92,37,0.35);color:#fff}
+.add-comp-item strong{display:block;font-size:9px;font-weight:700;color:rgba(255,255,255,0.8);margin-bottom:2px}
+.add-comp-item span:not(.add-comp-glyph){font-size:8px;color:#555}
+.add-comp-glyph{flex-shrink:0;width:20px;height:20px;border-radius:5px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;transition:all 0.12s}
+
+/* ── Add page ── */
+.add-page-trigger{display:flex;align-items:center;justify-content:center;gap:6px;margin:10px 12px 8px;padding:9px 14px;background:rgba(233,92,37,0.10);border:1px dashed rgba(233,92,37,0.35);border-radius:7px;color:#e95c25;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;letter-spacing:.02em;width:calc(100% - 24px)}
+.add-page-trigger:hover{background:rgba(233,92,37,0.18);border-color:rgba(233,92,37,0.6)}
+
+/* ── Preview Pane ── */
+#preview-pane{flex:1;background:#0d0d0d;display:flex;flex-direction:column;overflow:hidden}
+#preview-toolbar{background:#1a1a1a;border-bottom:1px solid rgba(255,255,255,0.07);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.preview-dots{display:flex;gap:5px}
+.preview-dots span{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.12)}
+.preview-dots span:first-child{background:#ff5f57}
+.preview-dots span:nth-child(2){background:#febc2e}
+.preview-dots span:last-child{background:#28c840}
+.preview-url-bar{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:5px;padding:5px 12px;font-size:11px;color:#555;font-family:'Montserrat',sans-serif;text-align:center}
+#preview-frame{flex:1;border:none;width:100%;background:#0d0d0d}
+
+/* ── RTA Toolbar ── */
+#rta-toolbar{position:fixed;z-index:9999;background:#1a1a1a;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:4px 6px;display:flex;align-items:center;gap:2px;box-shadow:0 4px 24px rgba(0,0,0,0.7);opacity:0;pointer-events:none;transition:opacity 0.12s;white-space:nowrap}
+#rta-toolbar.visible{opacity:1;pointer-events:all}
+.rta-btn{background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:11px;font-weight:700;font-family:'Montserrat',sans-serif;padding:4px 7px;border-radius:4px;line-height:1;transition:all 0.1s}
+.rta-btn:hover{background:rgba(255,255,255,0.1);color:#fff}
+.rta-sep{width:1px;height:16px;background:rgba(255,255,255,0.1);margin:0 3px;flex-shrink:0}
+.rta-color{width:14px;height:14px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0;transition:border-color 0.1s;outline:none;display:inline-block}
+.rta-color:hover{border-color:rgba(255,255,255,0.5)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="editor-panel">
+    <div id="editor-header">
+      <div class="editor-brand-row">
+        <div class="editor-brand"><svg viewBox="140 150 800 800" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path fill="none" stroke="#000" stroke-width="38" stroke-linejoin="round" d="M672.2,800.5c-9.9,0-18.9-5.3-23.9-14.5-21.9-40.6-67.9-99.4-98.3-96.9-17.1,1.5-35.2,27.5-49.8,71.5-4.6,16.6-21.1,28-38.9,26.7h-1.5c-20.5-1.7-36-19.7-34.5-40.2.7-9.8,3-23.7,5.6-39.7,6.3-38.5,15.7-95.4,9.5-140.7l-7.1-1.3c-55.8-10.5-132.2-24.8-183.8-81.1-41-44.8-63.4-85.1-63.6-85.5l-19.6-34.9,39.8-5.6c78.3-11.1,141.8,6.9,188.8,53.4,31.6,31.3,54.9,74.8,69.4,129.4h.2c43.8,0,88.1-17.9,131.8-53.2,71-57.4,112.7-140.7,130.5-176.3,9.8-19.6,18.3-36.5,40.4-31.2,10.6,2.5,21.5,12.1,21.5,28.1s4.6,107.2,96.3,107.9,24.6,8.7,27.7,21.1c5.3,21.6-11.7,30.7-26.7,38.6-125,66-188.3,148.6-188.3,245.5l2.1,50.2c.5,13.1-7.6,24.2-20.2,27.6-2.5.7-5.1,1-7.6,1Z"/></svg></div>
+        <span class="editor-title">Landing Page Builder</span>
+      </div>
+      <button id="export-btn" title="Downloads a self-contained HTML file">↓ Export HTML</button>
+    </div>
+    <div id="editor-subtitle">Add and arrange sections — the preview on the right updates automatically. Click Export HTML when you're ready to publish.</div>
+    <div id="editor-body"></div>
+  </div>
+  <div id="preview-pane">
+    <div id="preview-toolbar">
+      <div class="preview-dots"><span></span><span></span><span></span></div>
+      <div class="preview-url-bar">landing-page-export.html — Live Preview</div>
+    </div>
+    <iframe id="preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+</div>
+
+<div id="rta-toolbar">
+  <button class="rta-btn" data-fmt="bold" title="Bold"><b>B</b></button>
+  <button class="rta-btn" data-fmt="italic" title="Italic"><i>I</i></button>
+  <button class="rta-btn" data-fmt="clear" title="Clear formatting">R</button>
+  <div class="rta-sep"></div>
+  <button class="rta-color" data-fmt="color" data-color="#ffffff" style="background:#fff" title="White"></button>
+  <button class="rta-color" data-fmt="color" data-color="#e95c25" style="background:#e95c25" title="Orange"></button>
+  <button class="rta-color" data-fmt="color" data-color="#888888" style="background:#888" title="Muted"></button>
+  <button class="rta-color" data-fmt="color" data-color="#000000" style="background:#111;border:2px solid rgba(255,255,255,0.15)" title="Black"></button>
+</div>
+
+<div id="icon-picker-overlay">
+  <div id="icon-picker-modal">
+    <div id="icon-picker-header">
+      <span>Choose an Icon</span>
+      <button id="icon-picker-close" type="button">×</button>
+    </div>
+    <div id="icon-picker-grid" class="icon-pick-grid"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SVG CONSTANTS
+   ============================================================ */
+
+const NAV_LOGO_SVG = `<svg width="32" height="32" id="Logo_Artwork" data-name="Logo Artwork" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #f05d2d;
+        stroke-width: 0px;
+      }
+    </style>
+  </defs>
+  <g id="No_Tag_FullColour" data-name="No Tag FullColour">
+    <g id="Layer_1-2" data-name="Layer 1-2">
+      <g>
+        <path class="cls-1" d="M457.44,439.25l-19.67-36.47c-11.69-21.67-48.84-77.39-80.14-74.64-21.38,1.87-35.91,32.6-44.36,58.07l-14.8-4.91c-.79,10.87-1.64,17.51-1.73,18.2l-18.95-2.49c.13-1.08,8.71-69.95-4.48-137.65-1.18-.2-2.32-.39-3.5-.62-40.62-7.79-81.77-33.39-118.93-74.01-27.76-30.35-43.5-58.1-44.16-59.28l-6.84-12.18,13.85-1.96c52.74-7.46,95.36,4.42,126.65,35.39,22.75,22.52,39.09,54.44,48.84,95.32,36.4,2.36,72.93-11.06,108.81-40.1,52.44-42.39,83.08-103.51,96.14-129.6,6.71-13.39,9.49-18.95,17.58-17.02,3.54.82,7.63,4.03,7.63,10.31,0,8.94,2.23,87.4,79.06,87.4,5.63,0,9.1,3.76,10.02,7.46,1.93,7.82-3.73,10.84-14.04,16.3-93.03,49.17-140.2,111.33-140.2,184.72l3.24,77.75h0ZM293.24,261.3c2.32,13.16,4.06,27.14,5.17,41.9,1.93,25.34,1.64,48.35.82,65.5,14.47-37.55,33.55-57.61,56.76-59.61,21.77-1.87,45.14,12.18,69.56,41.8,3.47,4.19,6.68,8.41,9.62,12.47l-.07-1.51c0-77.03,45.24-141.87,134.57-193.3-39.87-10.57-58.69-43.11-65.83-73.13-16.37,31.36-46.52,83.08-93.82,121.35-38.1,30.8-77.25,45.73-116.8,44.52h0ZM131.33,128.62c18.76,28.12,69.4,94.7,137.32,110.32-8.02-29.95-21.02-58.27-41.7-78.73-23.9-23.63-56.04-34.24-95.62-31.59h0Z"/>
+        <path class="cls-1" d="M434.46,701.26l.59,24.68-.95,4.09c-1.73,9.23-3.96,17.87-6.68,25.99s-7.37,15.97-13.88,23.6c-10.41,11.78-18.79,17.74-25.14,17.87-.46.03-.92-.03-1.37-.13-6.35-.65-10.77-5.47-13.22-14.5-1.6-5.99-2.49-12.7-2.65-20.2-.07-3.76,0-7.66.26-11.75.75-12.7,3.34-24.52,7.82-35.45,4.45-10.93,11.2-18.27,20.2-21.97,2.46-1.08,5.17-1.64,8.12-1.7h0c7.59-.16,16.56,2.98,26.91,9.46ZM191.4,709.54c-3.27-9.33-8.54-14.44-15.81-15.32-.56-.1-1.21-.13-1.87-.13-7.04.16-15.75,6.06-26.16,17.74-6.51,7.63-11.2,15.48-13.95,23.6-2.78,8.12-4.98,16.73-6.58,25.83-.33,1.37-.65,2.78-.95,4.29l.52,24.49c10.44,6.58,19.71,9.79,27.76,9.62,2.85-.07,5.53-.56,8.12-1.54,9.79-3.5,17.35-10.54,22.69-21.15,5.34-10.61,8.48-22.19,9.46-34.83.26-3.73.36-7.33.29-10.74-.16-8.05-1.34-15.32-3.54-21.87h0ZM652.02,699.07c0,180.05-145.96,326.01-326.01,326.01S0,879.12,0,699.07s145.96-326.01,326.01-326.01,326.01,145.96,326.01,326.01ZM217.62,747.94c1.08-7.17,1.54-14.11,1.41-20.79-.16-7.82-1.18-15.32-3.04-22.55-5.14-18-13.81-28.64-26.02-31.92-3.63-.95-7.46-1.37-11.42-1.28-9.17.2-19.25,3.18-30.25,8.97-9.75,5.53-17.58,12.57-23.54,21.08-.2-9.17-.43-18.4-.75-27.69-.29-7.37-.49-14.67-.65-21.93-.29-14.6-.39-26.29-.23-35.03.07-2.49.16-5.27.33-8.35.23-4.68.29-9.43.2-14.31-.07-2.85-.2-5.79-.36-8.84-.52-8.15-2.52-15.12-5.99-20.95s-9.46-9-17.97-9.49h-.52c-6.58.16-11.29,2.13-14.17,5.93-2.98,3.8-4.75,8.54-5.3,14.24-.39,3.73-.52,7.43-.46,11.06.03,1.83.13,3.57.29,5.27,1.21,19.02,2.13,40.92,2.82,65.76l.75,27.89.43,27.89c.43,25.76.59,51.43.46,77.06l.03,1.54c.13,5.89.88,11.2,2.23,15.94,1.47,5.07,3.93,9.03,7.4,11.92s8.15,4.26,14.04,4.12c1.7-.07,3.44-.59,5.24-1.57,1.8-1.01,3.63-2.19,5.53-3.6l2.36-1.77c.56-.36,1.18-.56,1.87-.56.46-.03.92.03,1.37.13,1.28.29,2.59.79,3.96,1.44.36.23.75.39,1.21.49,9.36,3.63,18.07,5.37,26.12,5.2,6.35-.13,12.28-1.47,17.78-3.96,12.44-5.7,22.49-15.09,30.08-28.19,7.59-13.09,12.54-27.5,14.8-43.18h0ZM328.46,804.41c-.16-2.85-1.28-4.45-3.34-4.88-1.01-.2-2.1-.29-3.24-.26s-2.32.16-3.57.43c-1.01.13-1.93.2-2.72.23l-1.01.03c-5.34-.56-9.49-4.78-12.44-12.67-2.98-7.89-5.01-17.35-6.15-28.45-1.11-9.95-1.77-19.51-1.96-28.71l-.07-3.08c-.2-10.08-.26-17.64-.13-22.62l-.03-1.54c.13-10.31.46-20.62,1.05-30.97.46-10.57.72-21.05.85-31.49,0-15.75.43-28.05,1.24-36.93.26-3.54.36-7.1.29-10.74-.03-2.95-.23-5.99-.52-9.17-.49-6.91-2.32-12.93-5.5-18.07-3.14-5.14-8.61-8.15-16.33-9l-2.32.03c-9.85.79-15.88,4.94-18.1,12.47-1.8,6.02-2.62,12.34-2.49,18.92.59,11.46,1.05,24.68,1.37,39.77l.72,32.8c.26,11.92.59,23.8.95,35.71.03,1.9.13,3.83.29,5.76.26,12.01.85,24.16,1.8,36.43.95,12.28,2.75,24.16,5.37,35.68,1.51,6.09,3.8,12.5,6.87,19.25,3.11,6.71,7.1,12.6,12.05,17.68,4.94,5.07,10.87,8.09,17.81,9.07.79.1,1.64.16,2.55.13,2.72-.03,5.83-.52,9.33-1.37,4.48-1.21,8.48-3.08,11.95-5.6h0c3.47-2.52,5.27-5.47,5.43-8.87ZM477.93,807.29l-.07-2.72-1.47-4.75c-.85-1.8-1.77-7.46-2.75-16.96,0-5.76-.1-12.01-.23-18.69l-.23-10.38c-.36-10.77-.69-20.49-.98-29.23-.29-7.04-.46-12.24-.52-15.65.03-3.08.07-6.09.13-9.03-.07-2.49-.07-4.91,0-7.3-.23-10.41-2.65-17.91-7.3-22.46-2.68-2.52-6.29-3.76-10.8-3.67-3.5.1-7.56.92-12.18,2.49-.56.26-1.31.62-2.26,1.08s-1.9.95-2.78,1.41c-.56.36-1.01.65-1.41.88s-.65.36-.75.36h-.33c-1.24,0-3.31-.39-6.15-1.24-3.76-1.15-8.48-2.13-14.17-2.91-2.39-.39-4.91-.59-7.5-.52-3.54.1-7.14.56-10.87,1.44-14.76,4.29-26.35,13.23-34.8,26.78-8.45,13.59-13.88,28.71-16.37,45.44-1.31,8.31-1.87,16.27-1.7,23.86.16,7.59,1.05,14.83,2.68,21.7,5.17,17.91,13.78,28.45,25.86,31.59,3.63.95,7.46,1.37,11.42,1.28,9.26-.2,19.41-3.21,30.41-9,5.04-2.85,9.4-5.89,13-9.13s7.14-7.23,10.54-11.95c3.83,9,7.69,14.96,11.69,17.94,4.06,4.55,9.56,7.37,16.5,8.48l4.75-.1h0c4.42-.1,7.3-3.11,8.64-9.03ZM615.19,768.53c.07-1.01.13-1.96.1-2.88-.1-4.65-2.03-8.12-5.83-10.41-1.51-.62-2.95-.95-4.29-.92-2.59.07-4.88,1.41-6.87,4.06-2.98,4.03-5.34,8.28-7.04,12.73-.46.92-.82,1.8-1.15,2.59-.13.1-.16.23-.16.33-1.41,2.85-2.88,5.6-4.42,8.25-2.19,3.67-4.84,6.51-7.99,8.51-1.9,1.28-3.99,1.96-6.25,2-1.37.03-2.85-.16-4.45-.59-7.66-2.65-13.42-8.74-17.32-18.17-3.9-9.46-6.29-19.71-7.2-30.8-.29-3.5-.49-6.87-.56-10.18-.13-6.91.23-13.03,1.15-18.4,1.47-5.47,3.76-10.54,6.91-15.19,3.14-4.68,7.23-7.95,12.31-9.89,2.03-.62,3.93-.95,5.76-.98,2.85-.07,5.53.62,8.05,2.03,4.16,2.39,7.5,6.12,10.12,11.16,4.48,7.63,8.74,11.39,12.83,11.29.79,0,1.57-.2,2.36-.56,4.03-1.57,5.99-5.96,5.83-13.23-.03-1.37-.13-2.82-.26-4.42-2.06-11.75-6.42-19.94-13.03-24.55-6.61-4.62-14.93-7.17-24.91-7.63-2.19-.07-4.32-.07-6.48-.03-16.56.33-29.4,5.04-38.5,14.08-10.21,10.31-16.43,26.35-18.69,48.19-.23,4.09-.33,8.18-.23,12.31.16,8.38,1.05,16.99,2.59,25.8,2.42,13.19,6.87,24.71,13.32,34.57,6.32,8.94,14.34,14.83,24.03,17.68,5.6,1.7,11.23,2.49,16.89,2.36,4.32-.1,8.54-.69,12.73-1.8,10.02-2.62,18.66-7.63,25.86-15.03,2.65-2.98,5.6-7.59,8.81-13.78h0c3.21-6.19,5.2-12.34,5.99-18.5Z"/>
+        <path class="cls-1" d="M1000.81,695.33c3.01,3.47,5.63,6.45,7.86,9,1.67-2.19,3.7-4.88,6.12-8.12,4.94-6.68,10.31-13.62,16.04-20.75,5.73-7.14,10.74-12.08,14.99-14.76,5.14-2.95,10.61-4.48,16.4-4.62l2.55.13c6.81.43,11.52,2.95,14.11,7.53.72,1.24,1.08,2.68,1.11,4.39.1,4.42-2.29,10.21-7.1,17.35-6.38,8.77-13.45,17.71-21.21,26.81-4.65,5.53-9,10.97-13.09,16.27l-1.51,1.73-2.98,3.8c1.51,1.77,3.24,3.8,5.24,6.02,6.84,8.02,17.32,20.26,31.39,36.73,2.32,2.55,3.5,5.43,3.5,8.61s-1.15,5.99-3.47,8.41c-1.34,1.18-2.75,2.03-4.19,2.65-1.8,1.18-4.22,2-7.27,2.55l-3.4.07c-5.66.13-12.86-7.43-21.57-22.65-4.81-7.27-8.15-12.93-10.05-16.96l-5.24-6.02c-1.87,2.65-4.03,5.63-6.45,8.97-5.6,8.28-11.98,16.66-19.12,25.08-7.14,8.45-14.31,14.04-21.51,16.79-4.19,1.21-7.86,1.87-11,1.93-5.79.13-9.89-1.67-12.37-5.34-1.41-2.13-2.13-4.55-2.19-7.27-.1-4.88,2-10.77,6.25-17.64,4.62-6.68,9.92-13.52,15.88-20.59,3.31-3.8,6.35-7.5,9.13-11.1,5.3-6.91,10.61-13.78,15.88-20.59l-38.66-45.11c-2.42-2.32-3.67-5.14-3.76-8.41v-.52c-.07-2.95.95-5.63,3.04-8.05,1.01-.92,2-1.67,3.01-2.29,2.32-2.55,5.2-3.86,8.58-3.93,7.23-.16,12.54,3.8,15.91,11.92,2.88,6.42,9.23,15.75,19.15,27.99h0ZM684.49,689.9h0c.98,2.49,1.67,5.37,2.1,8.87.46,3.34.82,6.32,1.11,8.9,1.93,21.74,3.14,43.54,3.6,65.4.13,5.47.2,10.9.2,16.33-.07,2.62-.1,5.83-.13,9.69-.23,5.89-.26,11.95-.13,18.2.13,6.12.65,10.8,1.51,14.08,2.03,5.4,5.63,9.07,10.77,11,3.34,1.18,6.68,1.73,10.08,1.67,1.8-.03,3.63-.23,5.43-.62,5.3-1.15,9.26-3.5,11.92-7.07,2.72-4.71,4.09-11.95,4.12-21.7.03-3.31.03-6.45-.03-9.53-.13-6.12-.43-11.95-.88-17.51-.29-2.95-.46-5.5-.49-7.66-.59-11.23-1.34-22.59-2.26-34.14-1.34-14.5-2.16-28.71-2.46-42.65-.1-5.47-.16-10.84-.16-16.17,4.62-.92,9.33-1.41,14.08-1.51,1.47-.03,2.98,0,4.58.07l4.26-.1c3.27-.07,6.06-1.31,8.35-3.67,2.26-2.36,3.37-5.2,3.31-8.48-.07-3.4-1.31-6.25-3.67-8.51-2.36-2.26-5.2-3.37-8.48-3.31l-17.51.36c-1.34-.1-2.55-.26-3.57-.52s-1.77-1.01-2.26-2.26c-.85-2.39-1.34-5.99-1.44-10.87-.03-1.9-.03-4.03.03-6.29.29-8.05.92-16.17,1.87-24.29.95-8.12,2-14.08,3.18-17.84,2.23-8.09,5.4-13.62,9.53-16.53,3.11-2.23,7.3-3.4,12.5-3.5,1.83-.03,3.76.03,5.79.23,2.03.29,4.32.43,6.81.36l1.87-.03c3.18-.16,5.89-1.01,8.12-2.55,2-1.41,2.98-3.63,2.91-6.71l-.03-1.01c-1.28-6.32-5.6-10.15-13-11.46-3.99-.72-8.18-1.01-12.6-.92-3.6.07-7.4.43-11.36,1.08-8.71,1.34-15.55,2.95-20.49,4.88-9.2,3.7-16.43,10.41-21.67,20.1-5.24,9.69-8.94,20.2-11.06,31.46-2.13,11.26-3.11,21.28-2.91,29.99l.1,3.93c.07,3.63-.33,6.55-1.18,8.71-.95,2.65-3.99,4.39-9.07,5.3-4.06.52-7.63,1.8-10.64,3.8-2.46,1.64-3.63,4.39-3.57,8.25.03.65.1,1.41.23,2.19.88,3.96,2.59,6.48,5.11,7.63,2.52,1.11,5.3,1.77,8.38,1.93,1.11.07,2.26.23,3.4.43h.33c.92.2,1.8.43,2.65.62.85.2,1.64.65,2.32,1.31l.52.65h0ZM810.55,667.28h0c-14.14,7.01-24.19,17.32-30.02,30.9-4.98,11.56-7.33,23.8-7.04,36.73.03,2.39.2,4.75.49,7.14,1.47,15.61,6.19,29.69,14.17,42.23,7.95,12.5,18.69,21.08,32.18,25.66,8.41,2.65,16.86,3.86,25.24,3.7,3.4-.07,6.74-.36,10.02-.88,11.75-1.83,22.88-5.83,33.42-11.95,14.31-9.26,24.13-21.74,29.46-37.38,3.31-9.95,4.84-20,4.62-30.21-.13-5.89-.85-11.78-2.1-17.64-3.4-16.37-11.13-30.21-23.18-41.51-11.42-8.94-25.53-13.62-42.33-14.04-2.52-.03-5.01-.07-7.5,0-13.95.29-26.45,2.72-37.45,7.27h0ZM856.87,788.6h0c-11.95-1.44-21.21-7.07-27.79-16.92-6.61-9.82-10.84-20.3-12.67-31.36-.65-3.5-1.01-6.87-1.08-10.18-.2-9.07,1.67-17.38,5.6-24.94,5.2-10.31,14.53-17.19,27.96-20.66,3.37-.75,6.58-1.18,9.66-1.24,7.27-.16,13.49,1.54,18.66,5.04,7.37,4.94,12.77,12.01,16.27,21.25,2.98,7.99,4.58,16.37,4.78,25.08l-.1,3.73c-.43,12.28-4.22,23.47-11.36,33.59-7.17,10.15-17.12,15.68-29.92,16.63h0Z"/>
+      </g>
+    </g>
+  </g>
+</svg>`;
+
+const FOOTER_WORDMARK_SVG = `<svg class="brand-logo" width="150" height="150" id="Logo_Artwork" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1080 1080">
+  <defs>
+    <style>
+      .st0 {
+        fill: #f05d2d;
+      }
+    </style>
+  </defs>
+  <path class="st0" d="M186.7,704.8h0c-3.2-9.1-8.3-14-15.4-14.9-.5,0-1.2-.1-1.8-.1-6.8.2-15.3,5.9-25.4,17.2-6.3,7.4-10.9,15.1-13.6,22.9-2.7,7.9-4.8,16.3-6.4,25.1-.3,1.3-.6,2.7-.9,4.2l.5,23.8c10.2,6.4,19.2,9.5,27,9.4,2.8,0,5.4-.5,7.9-1.5,9.5-3.4,16.9-10.2,22.1-20.6,5.2-10.3,8.2-21.6,9.2-33.9.3-3.6.4-7.1.3-10.4-.2-7.8-1.3-14.9-3.4-21.3Z"/>
+  <path class="st0" d="M396.8,687.6h0c-2.9,0-5.5.6-7.9,1.7-8.8,3.6-15.3,10.7-19.6,21.4-4.4,10.6-6.9,22.1-7.6,34.5-.3,4-.3,7.8-.3,11.4.2,7.3,1,13.8,2.6,19.6,2.4,8.8,6.7,13.5,12.9,14.1.4,0,.9.2,1.3.1,6.2-.1,14.3-5.9,24.4-17.4,6.3-7.4,10.9-15.1,13.5-22.9,2.6-7.9,4.8-16.3,6.5-25.3l.9-4-.6-24c-10.1-6.3-18.8-9.4-26.2-9.2Z"/>
+  <path class="st0" d="M443.7,403.8l-1.6-37.4c0-71.3,45.9-131.8,136.3-179.6,10-5.3,15.5-8.2,13.7-15.8-.9-3.6-4.3-7.3-9.7-7.3-74.7,0-76.9-76.3-76.9-85s-4-9.2-7.4-10c-7.9-1.9-10.6,3.5-17.1,16.5-12.7,25.4-42.5,84.8-93.5,126-34.9,28.2-70.4,41.3-105.8,39-9.5-39.7-25.4-70.8-47.5-92.7-30.4-30.1-71.9-41.7-123.1-34.4l-13.5,1.9,6.7,11.8c.6,1.1,15.9,28.1,42.9,57.6,36.1,39.5,76.1,64.4,115.6,72,1.1.2,2.3.4,3.4.6,8.6,44.1,7.7,88.8,6.1,113.7C118.7,402.8.6,534.9.6,694.6s141.9,316.9,316.9,316.9,316.9-141.9,316.9-316.9-78.5-242-190.8-290.8ZM128.3,140.1c38.5-2.6,69.7,7.7,93,30.7,20.1,19.9,32.7,47.4,40.5,76.5-66-15.2-115.3-79.9-133.5-107.2ZM399.2,225.8c46-37.2,75.3-87.5,91.2-118,6.9,29.2,25.2,60.8,64,71.1-86.8,50-130.8,113-130.8,187.9v1.5c-2.8-3.9-5.9-8.1-9.3-12.1-23.7-28.8-46.5-42.5-67.6-40.6-22.6,1.9-41.1,21.4-55.2,58,.8-16.7,1.1-39-.8-63.7-1.1-14.4-2.8-27.9-5-40.7,38.4,1.2,76.5-13.3,113.5-43.3ZM348.3,334c25.5-2.2,55.1,35.6,70.6,60.2-31.8-10.7-65.9-16.6-101.4-16.6s-5.2,0-7.8,0c8.5-21.3,21.2-42.2,38.5-43.8ZM212.2,742.1c-2.2,15.2-7,29.2-14.4,42-7.4,12.7-17.2,21.9-29.2,27.4-5.3,2.4-11.1,3.7-17.3,3.9-7.8.2-16.3-1.5-25.4-5.1-.4,0-.8-.3-1.2-.5-1.3-.6-2.6-1.1-3.9-1.4-.4,0-.9-.2-1.3-.1-.7,0-1.3.2-1.8.5l-2.3,1.7c-1.8,1.4-3.6,2.5-5.4,3.5-1.8,1-3.4,1.5-5.1,1.5-5.7.1-10.3-1.2-13.7-4-3.4-2.8-5.8-6.7-7.2-11.6-1.3-4.6-2-9.8-2.2-15.5v-1.5c0-24.9,0-49.9-.5-74.9l-.4-27.1-.7-27.1c-.7-24.2-1.6-45.4-2.7-63.9-.2-1.7-.3-3.3-.3-5.1,0-3.5,0-7.1.4-10.8.5-5.5,2.3-10.2,5.2-13.8,2.8-3.7,7.4-5.6,13.8-5.8h.5c8.3.5,14.1,3.6,17.5,9.2s5.3,12.4,5.8,20.4c.2,3,.3,5.8.4,8.6,0,4.7,0,9.4-.2,13.9-.2,3-.3,5.7-.3,8.1-.2,8.5,0,19.9.2,34.1.2,7.1.4,14.2.6,21.3.3,9,.5,18,.7,26.9,5.8-8.3,13.4-15.1,22.9-20.5,10.7-5.6,20.5-8.5,29.4-8.7,3.9,0,7.6.3,11.1,1.2,11.9,3.2,20.3,13.5,25.3,31,1.8,7,2.8,14.3,3,21.9.1,6.5-.3,13.2-1.4,20.2h0ZM314.6,805.7h0c-3.4,2.5-7.3,4.3-11.6,5.4-3.4.8-6.4,1.3-9.1,1.3-.9,0-1.7,0-2.5-.1-6.7-1-12.5-3.9-17.3-8.8-4.8-4.9-8.7-10.7-11.7-17.2-3-6.6-5.2-12.8-6.7-18.7-2.5-11.2-4.3-22.8-5.2-34.7-.9-11.9-1.5-23.7-1.8-35.4-.2-1.9-.3-3.8-.3-5.6-.4-11.6-.7-23.1-.9-34.7l-.7-31.9c-.3-14.7-.8-27.5-1.3-38.7-.1-6.4.7-12.5,2.4-18.4,2.2-7.3,8-11.4,17.6-12.1h2.3c7.5.8,12.8,3.7,15.9,8.7,3.1,5,4.9,10.9,5.3,17.6.3,3.1.5,6,.5,8.9,0,3.5,0,7-.3,10.4-.8,8.6-1.2,20.6-1.2,35.9-.1,10.2-.4,20.3-.8,30.6-.6,10.1-.9,20.1-1,30.1v1.5c0,4.8,0,12.2.2,22v3c.3,8.9.9,18.2,2,27.9,1.1,10.8,3.1,20,6,27.7,2.9,7.7,6.9,11.8,12.1,12.3h1c.8,0,1.7-.1,2.6-.3,1.2-.3,2.4-.4,3.5-.4,1.1,0,2.2,0,3.2.3,2,.4,3.1,2,3.2,4.7-.2,3.3-1.9,6.2-5.3,8.6ZM456.8,808.6h0s-4.6,0-4.6,0c-6.7-1.1-12.1-3.8-16-8.2-3.9-2.9-7.6-8.7-11.4-17.4-3.3,4.6-6.7,8.5-10.2,11.6-3.5,3.2-7.7,6.1-12.6,8.9-10.7,5.6-20.6,8.6-29.6,8.8-3.9,0-7.6-.3-11.1-1.2-11.7-3.1-20.1-13.3-25.1-30.7-1.6-6.7-2.5-13.7-2.6-21.1-.2-7.4.4-15.1,1.7-23.2,2.4-16.3,7.7-31,15.9-44.2,8.2-13.2,19.5-21.9,33.8-26,3.6-.9,7.1-1.3,10.6-1.4,2.5,0,5,.1,7.3.5,5.5.8,10.1,1.7,13.8,2.8,2.8.8,4.8,1.2,6,1.2h.3c0,0,.4-.1.7-.3.4-.2.8-.5,1.4-.9.9-.4,1.8-.9,2.7-1.4.9-.4,1.7-.8,2.2-1.1,4.5-1.5,8.4-2.3,11.8-2.4,4.4,0,7.9,1.1,10.5,3.6,4.5,4.4,6.9,11.7,7.1,21.8,0,2.3,0,4.7,0,7.1,0,2.9,0,5.8-.1,8.8,0,3.3.2,8.4.5,15.2.3,8.5.6,17.9,1,28.4l.2,10.1c.1,6.5.2,12.6.2,18.2,1,9.2,1.8,14.7,2.7,16.5l1.4,4.6v2.6c-1.2,5.8-4,8.7-8.3,8.8ZM553.6,659.3c9.7.4,17.8,2.9,24.2,7.4,6.4,4.5,10.7,12.4,12.7,23.9.1,1.6.2,3,.3,4.3.2,7.1-1.8,11.3-5.7,12.9-.8.3-1.5.5-2.3.5-4,0-8.1-3.6-12.5-11-2.5-4.9-5.8-8.5-9.8-10.9-2.5-1.4-5.1-2-7.8-2-1.8,0-3.6.3-5.6,1-4.9,1.9-8.9,5.1-12,9.6-3.1,4.5-5.3,9.5-6.7,14.8-.9,5.2-1.2,11.2-1.1,17.9,0,3.2.3,6.5.5,9.9.9,10.8,3.2,20.7,7,29.9,3.8,9.2,9.4,15.1,16.8,17.7,1.6.4,3,.6,4.3.6,2.2,0,4.2-.7,6.1-1.9,3.1-1.9,5.6-4.7,7.8-8.3,1.5-2.6,2.9-5.3,4.3-8,0,0,0-.2.2-.3.3-.8.7-1.6,1.1-2.5,1.7-4.3,3.9-8.5,6.8-12.4,1.9-2.6,4.2-3.9,6.7-3.9,1.3,0,2.7.3,4.2.9,3.7,2.2,5.6,5.6,5.7,10.1,0,.9,0,1.8,0,2.8-.8,6-2.7,12-5.8,18h0c-3.1,6-6,10.5-8.6,13.4-7,7.2-15.4,12.1-25.1,14.6-4.1,1.1-8.2,1.7-12.4,1.8-5.5.1-11-.6-16.4-2.3-9.4-2.8-17.2-8.5-23.4-17.2-6.3-9.6-10.6-20.8-13-33.6-1.5-8.6-2.4-16.9-2.5-25.1,0-4,0-8,.2-12,2.2-21.2,8.2-36.8,18.2-46.8,8.8-8.8,21.3-13.4,37.4-13.7,2.1,0,4.2,0,6.3,0Z"/>
+  <path class="st0" d="M1041.5,770.2c-13.7-16-23.9-27.9-30.5-35.7-1.9-2.2-3.6-4.1-5.1-5.9l2.9-3.7,1.5-1.7c4-5.2,8.2-10.4,12.7-15.8,7.5-8.8,14.4-17.5,20.6-26.1,4.7-6.9,7-12.6,6.9-16.9,0-1.7-.4-3.1-1.1-4.3-2.5-4.5-7.1-6.9-13.7-7.3h-2.5c-5.6,0-10.9,1.5-15.9,4.4-4.1,2.6-9,7.4-14.6,14.4-5.6,6.9-10.8,13.7-15.6,20.2-2.4,3.2-4.3,5.8-6,7.9-2.2-2.5-4.7-5.4-7.6-8.8h0c-9.6-11.9-15.8-21-18.6-27.2-3.3-7.9-8.4-11.7-15.5-11.6-3.3,0-6.1,1.3-8.3,3.8-1,.6-1.9,1.3-2.9,2.2-2,2.4-3,5-3,7.8v.5c0,3.2,1.3,5.9,3.7,8.2l37.6,43.9c-5.1,6.6-10.3,13.3-15.4,20-2.7,3.5-5.7,7.1-8.9,10.8-5.8,6.9-10.9,13.5-15.4,20-4.1,6.7-6.2,12.4-6.1,17.2,0,2.6.8,5,2.1,7.1,2.4,3.6,6.4,5.3,12,5.2,3.1,0,6.6-.7,10.7-1.9,7-2.7,14-8.1,20.9-16.3,6.9-8.2,13.1-16.3,18.6-24.4,2.4-3.2,4.5-6.1,6.3-8.7l5.1,5.9c1.8,3.9,5.1,9.4,9.8,16.5,8.5,14.8,15.5,22.1,21,22h3.3c3-.6,5.3-1.4,7.1-2.5,1.4-.6,2.8-1.4,4.1-2.6,2.3-2.4,3.4-5.1,3.4-8.2s-1.1-5.9-3.4-8.4Z"/>
+  <path class="st0" d="M660.4,683.2h.3c.9.2,1.8.4,2.6.6s1.6.6,2.3,1.3l.5.6h0c1,2.4,1.6,5.2,2,8.6.4,3.2.8,6.1,1.1,8.7,1.9,21.1,3.1,42.3,3.5,63.6.1,5.3.2,10.6.2,15.9,0,2.5,0,5.7-.1,9.4-.2,5.7-.3,11.6-.1,17.7.1,6,.6,10.5,1.5,13.7,2,5.3,5.5,8.8,10.5,10.7,3.2,1.1,6.5,1.7,9.8,1.6,1.8,0,3.5-.2,5.3-.6,5.2-1.1,9-3.4,11.6-6.9,2.6-4.6,4-11.6,4-21.1,0-3.2,0-6.3,0-9.3-.1-6-.4-11.6-.9-17-.3-2.9-.4-5.3-.5-7.4-.6-10.9-1.3-22-2.2-33.2-1.3-14.1-2.1-27.9-2.4-41.5,0-5.3-.2-10.5-.2-15.7,4.5-.9,9.1-1.4,13.7-1.5,1.4,0,2.9,0,4.5,0h4.1c3.2-.2,5.9-1.4,8.1-3.7,2.2-2.3,3.3-5.1,3.2-8.2,0-3.3-1.3-6.1-3.6-8.3s-5.1-3.3-8.2-3.2l-17,.4c-1.3,0-2.5-.3-3.5-.5-1-.3-1.7-1-2.2-2.2-.8-2.3-1.3-5.8-1.4-10.6,0-1.8,0-3.9,0-6.1.3-7.8.9-15.7,1.8-23.6.9-7.9,1.9-13.7,3.1-17.3,2.2-7.9,5.3-13.2,9.3-16.1,3-2.2,7.1-3.3,12.2-3.4,1.8,0,3.7,0,5.6.2,2,.3,4.2.4,6.6.4h1.8c3.1-.2,5.7-1,7.9-2.5,1.9-1.4,2.9-3.5,2.8-6.5v-1c-1.3-6.1-5.5-9.9-12.7-11.1-3.9-.7-8-1-12.3-.9-3.5,0-7.2.4-11,1.1-8.5,1.3-15.1,2.9-19.9,4.7-8.9,3.6-16,10.1-21.1,19.5s-8.7,19.6-10.8,30.6c-2.1,10.9-3,20.7-2.8,29.2v3.8c.2,3.5-.2,6.4-1.1,8.5-.9,2.6-3.9,4.3-8.8,5.2-3.9.5-7.4,1.8-10.3,3.7-2.4,1.6-3.5,4.3-3.5,8,0,.6,0,1.4.2,2.1.9,3.9,2.5,6.3,5,7.4,2.5,1.1,5.2,1.7,8.1,1.9,1.1,0,2.2.2,3.3.4Z"/>
+  <path class="st0" d="M752.5,729.5c0,2.3.2,4.6.5,6.9,1.4,15.2,6,28.9,13.8,41.1,7.7,12.2,18.2,20.5,31.3,24.9,8.2,2.6,16.4,3.8,24.5,3.6,3.3,0,6.6-.4,9.7-.9,11.4-1.8,22.2-5.7,32.5-11.6,13.9-9,23.5-21.1,28.6-36.3,3.2-9.7,4.7-19.4,4.5-29.4-.1-5.7-.8-11.5-2-17.2-3.3-15.9-10.8-29.4-22.5-40.4-11.1-8.7-24.8-13.2-41.1-13.7-2.5,0-4.9,0-7.3,0-13.6.3-25.7,2.6-36.4,7.1h0c-13.7,6.8-23.5,16.8-29.2,30-4.8,11.2-7.1,23.1-6.8,35.7ZM798.7,700.6c5.1-10,14.1-16.7,27.2-20.1,3.3-.7,6.4-1.1,9.4-1.2,7.1-.2,13.1,1.5,18.1,4.9,7.2,4.8,12.4,11.7,15.8,20.7,2.9,7.8,4.5,15.9,4.6,24.4v3.6c-.5,11.9-4.2,22.8-11.1,32.7-7,9.9-16.6,15.2-29.1,16.2h0c-11.6-1.4-20.6-6.9-27-16.5-6.4-9.5-10.5-19.7-12.3-30.5-.6-3.4-1-6.7-1.1-9.9-.2-8.8,1.6-16.9,5.4-24.2Z"/>
+  <polygon class="st0" points="798.3 873.2 798.3 865.1 765.2 865.1 765.2 908.6 799 908.6 799 900.4 775 900.4 775 890.8 796 890.8 796 882.6 775 882.6 775 873.2 798.3 873.2"/>
+  <polygon class="st0" points="1079.4 865.1 1043.1 865.1 1043.1 873.4 1056.3 873.4 1056.3 908.5 1066.1 908.5 1066.1 873.4 1079.4 873.4 1079.4 865.1 1079.4 865.1"/>
+  <rect class="st0" x="882.1" y="865.1" width="9.8" height="43.5"/>
+  <polygon class="st0" points="1026.2 893 1005.1 865.1 996.2 865.1 996.2 908.6 1005.5 908.6 1005.5 880.7 1026.6 908.6 1035.5 908.6 1035.5 865.1 1026.2 865.1 1026.2 893"/>
+  <polygon class="st0" points="855.4 865 845.5 865 845.5 908.5 874 908.5 874 900 855.4 900 855.4 865.1 855.4 865"/>
+  <path class="st0" d="M941.5,903.3v-16.7h-8.5v11.4c-2.9,1.4-6,2.4-8.6,2.4-7.7,0-13.7-6-13.7-13.6s6-13.5,13.7-13.5,8.7,1.8,11.9,4.8l5.5-7c-4.4-3.9-11-6.3-17.4-6.3-13.5,0-23.7,9.5-23.7,22.1s10,22.1,23.2,22.1,13-2.3,17.6-5.7Z"/>
+  <polygon class="st0" points="757.7 865.1 757.7 865.1 721.3 865.1 721.3 873.4 734.6 873.4 734.6 908.5 744.4 908.5 744.4 873.4 757.7 873.4 757.7 865.1"/>
+  <polygon class="st0" points="704.5 893 683.4 865.1 674.4 865.1 674.4 908.6 683.8 908.6 683.8 880.7 704.8 908.6 713.8 908.6 713.8 865.1 704.5 865.1 704.5 893"/>
+  <polygon class="st0" points="962.2 890.8 983.1 890.8 983.1 882.6 962.2 882.6 962.2 873.2 985.5 873.2 985.5 865.1 952.4 865.1 952.4 908.6 986.2 908.6 986.2 900.4 962.2 900.4 962.2 890.8"/>
+  <rect class="st0" x="652.7" y="865.1" width="9.8" height="43.5"/>
+  <polygon class="st0" points="818.8 865 809 865 809 908.5 837.4 908.5 837.4 900 818.8 900 818.8 865.1 818.8 865"/>
+  <polygon class="st0" points="864.4 930.1 864.4 938.4 877.6 938.4 877.6 973.5 887.4 973.5 887.4 938.4 900.7 938.4 900.7 930.1 900.7 930.1 864.4 930.1"/>
+  <path class="st0" d="M673.3,938.3c4.2,0,8.7,1.8,11.9,4.8l5.5-7c-4.4-3.9-11-6.3-17.4-6.3-13.5,0-23.7,9.5-23.7,22.1s10,22.1,23.2,22.1,13-2.3,17.6-5.7v-16.7h-8.5v11.5c-2.9,1.4-6,2.4-8.6,2.4-7.7,0-13.7-6-13.7-13.6s6-13.5,13.7-13.5Z"/>
+  <polygon class="st0" points="937.8 948.2 918.1 948.2 918.1 930.1 908.3 930.1 908.3 973.6 918.1 973.6 918.1 956.4 937.8 956.4 937.8 973.6 947.6 973.6 947.6 930.1 937.8 930.1 937.8 948.2"/>
+  <polygon class="st0" points="843 962.9 833.8 930.1 824.2 930.1 815.1 962.9 806 930.1 806 930.1 795.4 930.1 809.8 973.6 819.9 973.6 828.8 942.6 837.6 973.6 847.7 973.6 862.1 930.1 852.1 930.1 843 962.9"/>
+  <path class="st0" d="M737.9,945.2c0-9.6-6.5-15.1-17.8-15.1h-18.9v43.5h9.8v-12.4h10l6.9,12.4h11.1l-9.3-14.4c5.3-2.5,8.1-7.3,8.1-14ZM720.1,952.9h-9.1v-14.7h9.1c5.4,0,8.5,2.3,8.5,7.3s-3.1,7.4-8.5,7.4Z"/>
+  <path class="st0" d="M768.7,929.8c-13.3,0-23.4,9.5-23.4,22.1s10.1,22.1,23.4,22.1,23.4-9.6,23.4-22.1-10.1-22.1-23.4-22.1ZM768.8,965.4c-7.3,0-13.4-6-13.4-13.6s6.1-13.5,13.4-13.5,13.2,5.8,13.2,13.5-5.9,13.6-13.2,13.6Z"/>
+</svg>`;
+
+const FONTS_HTML = `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&display=swap" rel="stylesheet">`;
+
+const HEADER_FOOTER_STRIP_SVG = `<svg viewBox="0 0 1920 89.9" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto"><rect x="0" y="0" width="1920" height="89.9" fill="#ef5d2d"/></svg>`;
+
+/* ============================================================
+   LANDING PAGE CSS
+   ============================================================ */
+
+const PAGE_CSS = `
+:root {
+  --color-black:#000000;--color-grey-950:#0a0a0a;--color-grey-900:#111111;--color-grey-800:#1a1a1a;
+  --color-grey-700:#262626;--color-grey-500:#555555;--color-grey-400:#888888;--color-grey-200:#cccccc;--color-grey-100:#e0e0e0;
+  --color-white:#ffffff;--color-orange-600:#c44d1c;--color-orange-500:#e95c25;--color-orange-400:#f07040;
+  --color-orange-300:#f9a07a;--color-orange-glow:rgba(233,92,37,0.45);
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;
+  --space-8:32px;--space-10:40px;--space-12:48px;--space-16:64px;--space-20:80px;--space-24:96px;
+  --radius-sm:4px;--radius-md:10px;--radius-lg:14px;--radius-xl:20px;--radius-2xl:24px;--radius-full:9999px;
+  --font-family-base:'Montserrat',sans-serif;
+  --font-size-2xs:9px;--font-size-xs:10px;--font-size-sm:11px;--font-size-base:12px;--font-size-md:13px;
+  --font-size-lg:14px;--font-size-xl:15px;--font-size-2xl:16px;--font-size-3xl:17px;--font-size-4xl:18px;
+  --font-size-5xl:clamp(18px,2.2vw,28px);--font-size-6xl:clamp(26px,3.2vw,44px);
+  --font-size-7xl:clamp(32px,4vw,54px);--font-size-8xl:clamp(36px,4.5vw,64px);
+  --font-size-hero:clamp(40px,5.5vw,80px);
+  --font-weight-regular:400;--font-weight-medium:500;--font-weight-semibold:600;
+  --font-weight-bold:700;--font-weight-extrabold:800;--font-weight-black:900;
+  --leading-tight:1.0;--leading-snug:1.1;--leading-normal:1.3;--leading-relaxed:1.65;--leading-loose:1.75;
+  --tracking-tighter:-0.04em;--tracking-tight:-0.03em;--tracking-snug:-0.02em;--tracking-normal:-0.01em;
+  --tracking-wide:0.08em;--tracking-wider:0.10em;--tracking-widest:0.14em;--tracking-label:0.18em;
+  --border-subtle:rgba(255,255,255,0.06);--border-default:rgba(255,255,255,0.10);
+  --border-moderate:rgba(255,255,255,0.18);--border-strong:rgba(255,255,255,0.28);
+  --border-accent:rgba(233,92,37,0.30);--border-accent-strong:rgba(233,92,37,0.50);
+  --shadow-btn-primary:0 4px 22px rgba(233,92,37,0.32),inset 0 1.5px 0 rgba(255,185,110,0.45),inset 0 -1px 0 rgba(100,28,0,0.22);
+  --shadow-btn-ghost:0 2px 14px rgba(0,0,0,0.22),inset 0 1.5px 0 rgba(255,255,255,0.14),inset 0 -1px 0 rgba(0,0,0,0.08);
+  --shadow-btn-white:0 4px 20px rgba(0,0,0,0.16),inset 0 1.5px 0 rgba(255,255,255,0.95),inset 0 -1px 0 rgba(0,0,0,0.06);
+  --pattern-orange-grid:linear-gradient(rgba(233,92,37,0.08) 1px,transparent 1px),linear-gradient(90deg,rgba(233,92,37,0.08) 1px,transparent 1px);
+  --pattern-black-grid:linear-gradient(rgba(0,0,0,0.10) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.10) 1px,transparent 1px);
+  --pattern-grid-size:64px 64px;
+  --color-beige-cta:#e5e2dc;
+  --surface-page:var(--color-black);--surface-card:transparent;--surface-hero:var(--color-grey-950);--surface-cta:var(--color-beige-cta);
+  --text-primary:var(--color-white);--text-heading:var(--color-white);--text-body:var(--color-grey-100);
+  --text-muted:var(--color-grey-400);--text-faint:rgba(255,255,255,0.3);
+  --text-accent:var(--color-orange-500);--text-on-accent:var(--color-black);--text-on-hero:var(--color-white);
+  --border-ui:var(--border-default);--border-card:var(--border-moderate);--border-card-hover:var(--border-accent-strong);
+  --border-section:var(--border-subtle);
+  --accent:var(--color-orange-500);--accent-dim:rgba(233,92,37,0.06);--accent-mid:rgba(233,92,37,0.12);
+  --type-hero-size:var(--font-size-hero);--type-hero-weight:var(--font-weight-black);
+  --type-hero-tracking:var(--tracking-tighter);--type-hero-leading:var(--leading-tight);
+  --type-h2-size:var(--font-size-6xl);--type-h2-weight:var(--font-weight-extrabold);
+  --type-h2-tracking:var(--tracking-tight);--type-h2-leading:var(--leading-tight);
+  --type-body-lg-size:var(--font-size-3xl);--type-body-size:var(--font-size-2xl);--type-body-sm-size:var(--font-size-lg);
+  --type-label-size:var(--font-size-sm);--type-label-weight:var(--font-weight-bold);
+  --type-label-tracking:var(--tracking-widest);--type-label-transform:uppercase;
+  --space-section-y:var(--space-16);--space-section-x:56px;
+  --transition-btn:transform 0.2s ease,box-shadow 0.2s ease;--transition-card:border-color 0.3s ease,transform 0.3s cubic-bezier(0.22,0.61,0.36,1);
+  --transition-reveal:opacity 0.7s ease,transform 0.7s ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:var(--font-family-base);background:var(--surface-page);color:var(--text-body);-webkit-font-smoothing:antialiased;background-image:var(--pattern-orange-grid);background-size:var(--pattern-grid-size);background-attachment:fixed}
+p,li,blockquote{orphans:3;widows:3;text-wrap:balance}
+.site-container{max-width:1100px;margin:0 auto;padding:0 var(--space-section-x)}
+@media(max-width:1024px){.site-container{max-width:900px}}
+@media(max-width:768px){.site-container{max-width:100%;padding:0 var(--space-5)}}
+.page-section{padding:var(--space-section-y) 0;border-top:1px solid var(--border-section)}
+.page-section:first-of-type{border-top:none}
+.section-tag{display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--type-label-size);font-weight:var(--type-label-weight);letter-spacing:var(--type-label-tracking);text-transform:var(--type-label-transform);color:var(--text-accent);margin-bottom:var(--space-5)}
+.section-tag::before{content:'';display:block;width:20px;height:1.5px;background:var(--accent)}
+.section-h{font-size:var(--type-h2-size);font-weight:var(--type-h2-weight);letter-spacing:var(--type-h2-tracking);line-height:var(--type-h2-leading);margin-bottom:18px;text-wrap:pretty}
+.section-h em{font-style:italic;font-weight:var(--font-weight-extrabold);color:var(--text-accent)}
+.section-sub{font-size:var(--font-size-4xl);font-weight:var(--font-weight-medium);margin-bottom:18px;text-wrap:pretty}
+.section-sub em{font-style:italic;color:var(--text-accent)}
+.section-p{font-size:var(--type-body-size);color:var(--text-muted);line-height:var(--leading-loose);text-wrap:pretty}
+.section-p+.section-p{margin-top:var(--space-3)}
+.callout-box{border:1px solid var(--border-accent);border-radius:14px;padding:28px 32px;background:var(--accent-dim);margin-top:var(--space-3)}
+.callout-box p{font-size:var(--font-size-4xl);font-weight:700;color:var(--text-body);line-height:var(--leading-relaxed)}
+.btn-primary{text-decoration:none;background:var(--color-orange-500);border:1px solid var(--color-orange-500);box-shadow:var(--shadow-btn-primary);color:var(--color-white);font-size:var(--type-body-sm-size);font-weight:var(--font-weight-bold);padding:var(--space-4) var(--space-8);border-radius:var(--radius-full);display:inline-flex;align-items:center;gap:var(--space-2);cursor:pointer;font-family:var(--font-family-base);transition:var(--transition-btn)}
+.btn-primary:hover{background:var(--color-orange-400);border-color:var(--color-orange-400);transform:translateY(-2px)}
+.btn-ghost{text-decoration:none;background:linear-gradient(135deg,rgba(255,255,255,0.10) 0%,rgba(255,255,255,0.03) 50%,rgba(255,255,255,0.08) 100%);border:1px solid var(--border-moderate);box-shadow:var(--shadow-btn-ghost);color:rgba(255,255,255,0.72);font-size:var(--type-body-sm-size);font-weight:var(--font-weight-medium);padding:var(--space-4) var(--space-8);border-radius:var(--radius-full);display:inline-flex;align-items:center;gap:var(--space-2);cursor:pointer;font-family:var(--font-family-base);transition:color 0.2s ease,border-color 0.2s ease,transform 0.2s ease}
+.btn-ghost:hover{border-color:var(--border-strong);color:var(--text-primary);transform:translateY(-2px)}
+.btn-white{text-decoration:none;background:linear-gradient(135deg,rgba(255,255,255,0.82) 0%,rgba(255,255,255,0.64) 50%,rgba(255,255,255,0.76) 100%);border:1px solid rgba(255,255,255,0.70);box-shadow:var(--shadow-btn-white);color:var(--text-accent);font-size:var(--type-body-size);font-weight:var(--font-weight-bold);padding:var(--space-4) var(--space-10);border-radius:var(--radius-full);display:inline-flex;align-items:center;gap:var(--space-3);cursor:pointer;font-family:var(--font-family-base);transition:var(--transition-btn)}
+.btn-white:hover{box-shadow:0 8px 32px rgba(0,0,0,0.22),inset 0 1.5px 0 rgba(255,255,255,1),inset 0 -1px 0 rgba(0,0,0,0.08);transform:translateY(-3px)}
+.site-header{padding:var(--space-5) 0}
+.nav-row{display:flex;align-items:center;justify-content:space-between}
+.nav-cta-btn{padding:10px 24px;font-size:13px}
+.hero-section{padding-top:var(--space-8);background-color:var(--surface-hero);position:relative;overflow:hidden}
+.hero-bg-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.hero-bg-glow{position:absolute;top:-10%;left:50%;transform:translateX(-50%);width:900px;height:600px;background:radial-gradient(ellipse,rgba(233,92,37,0.22) 0%,transparent 65%);pointer-events:none;z-index:0;animation:heroPulseGlow 6s ease-in-out infinite}
+@keyframes heroPulseGlow{0%,100%{opacity:0.7;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.1)}}
+.hero-inner{position:relative;z-index:1}
+.hero-inner{padding:70px 0 80px;max-width:720px}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:var(--space-2);background:rgba(233,92,37,0.12);border:1px solid rgba(233,92,37,0.35);border-radius:var(--radius-full);padding:7px 16px;font-size:var(--type-label-size);font-weight:var(--type-label-weight);letter-spacing:var(--type-label-tracking);text-transform:uppercase;color:var(--color-orange-400);margin-bottom:var(--space-5)}
+.hero-eyebrow::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--color-orange-500);flex-shrink:0}
+.hero-title{font-size:clamp(32px,4.5vw,64px);font-weight:var(--font-weight-black);line-height:0.98;letter-spacing:var(--tracking-tighter);color:var(--text-on-hero)}
+.hero-title em{font-style:italic;color:var(--color-orange-500)}
+.hero-sub{font-size:var(--type-body-size);color:rgba(255,255,255,0.68);line-height:var(--leading-loose);margin:var(--space-5) 0 var(--space-4)}
+.hero-body{font-size:var(--type-body-size);color:rgba(255,255,255,0.68);line-height:var(--leading-loose);margin:0 0 var(--space-8)}
+.hero-ctas{display:flex;gap:var(--space-3);flex-wrap:wrap}
+.hero-section.bg-light{background-color:var(--color-white)}
+.hero-section.bg-light .hero-eyebrow{background:rgba(233,92,37,0.10);border-color:rgba(233,92,37,0.35);color:var(--color-orange-600)}
+.hero-section.bg-light .hero-title{color:var(--color-black)}
+.hero-section.bg-light .hero-sub,.hero-section.bg-light .hero-body{color:rgba(0,0,0,0.65)}
+.hero-section.bg-light .btn-ghost{color:rgba(0,0,0,0.65);border-color:rgba(0,0,0,0.25);background:rgba(0,0,0,0.06)}
+.hero-section.bg-light .btn-ghost:hover{color:rgba(0,0,0,0.85);border-color:rgba(0,0,0,0.4)}
+.trust-bar{padding:var(--space-6) 0;border-bottom:1px solid var(--border-ui);display:flex;align-items:center;justify-content:center;gap:var(--space-8);flex-wrap:wrap;background:linear-gradient(90deg,rgba(255,255,255,0.03) 0%,rgba(255,255,255,0.06) 50%,rgba(255,255,255,0.03) 100%)}
+.trust-label{font-size:var(--font-size-base);font-weight:var(--font-weight-semibold);letter-spacing:var(--tracking-wider);color:var(--text-muted);text-transform:uppercase}
+.trust-logo{font-size:var(--font-size-md);font-weight:var(--font-weight-bold);color:rgba(255,255,255,0.25);letter-spacing:0.05em}
+.card-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-5)}
+.card-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-5)}
+.card-grid-1{display:flex;flex-direction:column;gap:var(--space-5)}
+@media(max-width:768px){.card-grid-2,.card-grid-3{grid-template-columns:1fr}}
+.heading-text-block .section-h{margin-bottom:var(--space-3)}
+.heading-text-block .section-p{margin-bottom:0}
+.pull-quote{padding:var(--space-6) 0}
+.pull-quote-eyebrow{display:block;font-size:var(--type-label-size);font-weight:var(--type-label-weight);letter-spacing:var(--type-label-tracking);text-transform:var(--type-label-transform);color:var(--text-accent);margin-bottom:var(--space-4)}
+.pull-quote-text{font-size:var(--type-h2-size);font-weight:700;font-style:italic;line-height:var(--type-h2-leading);color:var(--text-body);text-wrap:pretty}
+.pull-quote-band{display:flex;gap:4px;margin-top:var(--space-6);height:4px}
+.pull-quote-band span{flex:1;border-radius:2px;background:var(--accent)}
+.pull-quote-band span:nth-child(1){opacity:1}
+.pull-quote-band span:nth-child(2){opacity:0.82}
+.pull-quote-band span:nth-child(3){opacity:0.64}
+.pull-quote-band span:nth-child(4){opacity:0.46}
+.pull-quote-band span:nth-child(5){opacity:0.28}
+.pull-quote-band span:nth-child(6){opacity:0.14}
+.dark-card{background:var(--surface-card);border:1px solid var(--border-card);border-radius:var(--radius-card,20px);padding:var(--space-8) 28px;cursor:default;transition:var(--transition-card);position:relative;overflow:hidden}
+.dark-card:hover{border-color:var(--border-card-hover);transform:translateY(-4px)}
+.card-num{font-size:var(--type-label-size);font-weight:var(--type-label-weight);letter-spacing:var(--tracking-widest);text-transform:uppercase;color:var(--text-accent);margin-bottom:18px;min-height:22px;display:flex;align-items:center}
+.card-title{font-size:var(--font-size-4xl);font-weight:var(--font-weight-bold);letter-spacing:var(--tracking-normal);margin-bottom:var(--space-3);color:var(--text-body)}
+.card-body{font-size:var(--type-body-sm-size);color:var(--text-muted);line-height:var(--leading-relaxed)}
+.steps-list{display:flex;flex-direction:column;gap:4px}
+.step-item{display:grid;grid-template-columns:100px 1fr;align-items:start;gap:32px;padding:22px 32px;border:1px solid var(--border-card);border-radius:16px}
+@media(max-width:768px){.step-item{grid-template-columns:1fr;gap:8px}}
+.step-num{font-size:var(--type-label-size);font-weight:700;letter-spacing:var(--tracking-widest);text-transform:uppercase;color:var(--text-accent);padding-top:4px}
+.step-label{font-size:17px;font-weight:700;color:var(--text-body);margin-bottom:8px}
+.step-body{font-size:var(--type-body-sm-size);color:var(--text-muted);line-height:var(--leading-relaxed)}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-8);text-align:center}
+.stat-value{font-size:clamp(30px,4vw,48px);font-weight:var(--font-weight-black);color:var(--text-accent);letter-spacing:var(--tracking-tight);line-height:1}
+.stat-label{margin-top:var(--space-2);font-size:var(--type-label-size);font-weight:var(--type-label-weight);letter-spacing:var(--tracking-wider);text-transform:uppercase;color:var(--text-muted)}
+.testimonial-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-5)}
+.testimonial-card{background:var(--surface-card);border:1px solid var(--border-card);border-radius:20px;padding:32px 28px}
+.quote-mark{font-size:40px;font-weight:900;color:var(--text-accent);line-height:0.6;display:block;margin-bottom:12px;font-family:Georgia,serif}
+.testimonial-quote{font-size:var(--type-body-sm-size);color:var(--text-body);line-height:var(--leading-relaxed);margin-bottom:20px}
+.testimonial-name{font-size:var(--font-size-base);font-weight:700;color:var(--text-body)}
+.testimonial-role{font-size:var(--font-size-sm);color:var(--text-muted);margin-top:2px}
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--space-5);align-items:start}
+.pricing-card{border:1px solid var(--border-card);border-radius:20px;padding:36px 30px;display:flex;flex-direction:column;gap:18px;transition:var(--transition-card)}
+.pricing-card.featured{border-color:var(--border-accent-strong);background:var(--accent-dim);position:relative}
+.pricing-card.featured::before{content:'Most Popular';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--accent);color:var(--color-black);font-size:9px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:4px 12px;border-radius:9999px}
+.pricing-name{font-size:var(--font-size-sm);font-weight:700;letter-spacing:var(--tracking-widest);text-transform:uppercase;color:var(--text-accent)}
+.pricing-price{font-size:44px;font-weight:900;letter-spacing:var(--tracking-tight);color:var(--text-body)}
+.pricing-period{font-size:var(--font-size-md);color:var(--text-muted);font-weight:500;margin-left:4px}
+.pricing-features{list-style:none;display:flex;flex-direction:column;gap:10px}
+.pricing-features li{display:flex;align-items:flex-start;gap:10px;font-size:var(--type-body-sm-size);color:var(--text-muted);line-height:1.5}
+.pricing-features li::before{content:'✓';color:var(--accent);font-weight:700;flex-shrink:0}
+.faq-list{display:flex;flex-direction:column;gap:10px}
+.faq-item{border:1px solid var(--border-card);border-radius:12px;padding:20px 24px}
+.faq-q{font-size:var(--font-size-4xl);font-weight:700;color:var(--text-body);cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.faq-q::-webkit-details-marker{display:none}
+.faq-q::after{content:'+';font-size:22px;font-weight:400;color:var(--text-accent);flex-shrink:0;transition:transform 0.2s ease}
+details[open] .faq-q::after{transform:rotate(45deg)}
+.faq-a{font-size:var(--type-body-sm-size);color:var(--text-muted);line-height:var(--leading-relaxed);margin-top:14px}
+.image-block img{width:100%;border-radius:20px;object-fit:cover;display:block}
+.image-block .placeholder{border:1px dashed var(--border-moderate);border-radius:20px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02)}
+.image-block .placeholder span{font-size:var(--type-label-size);font-weight:var(--type-label-weight);letter-spacing:var(--tracking-widest);text-transform:uppercase;color:var(--text-faint)}
+.button-row{display:flex;gap:var(--space-3);flex-wrap:wrap}
+.cta-wrapper{background:var(--surface-cta);position:relative;overflow:hidden}
+.cta-wrapper .hero-bg-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.cta-section{padding:var(--space-20) 0;text-align:center;position:relative;z-index:1}
+.cta-h{font-size:var(--font-size-7xl);font-weight:var(--font-weight-black);letter-spacing:var(--tracking-tight);color:var(--text-on-accent);line-height:var(--leading-tight);margin-bottom:var(--space-5);position:relative;z-index:1}
+.cta-h em{font-style:italic;font-weight:var(--font-weight-black);color:var(--color-orange-500)}
+.cta-p{font-size:17px;color:rgba(0,0,0,0.65);margin-bottom:var(--space-10);position:relative;z-index:1;max-width:520px;margin-left:auto;margin-right:auto}
+.cta-ctas{display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;position:relative;z-index:1}
+.cta-section .btn-white{background:var(--color-black);border-color:var(--color-black);color:var(--color-white);box-shadow:none}
+.cta-section .btn-white:hover{background:var(--color-grey-800);border-color:var(--color-grey-800);box-shadow:none;transform:translateY(-2px)}
+.cta-section .btn-ghost{color:rgba(0,0,0,0.65);border-color:rgba(0,0,0,0.25);background:rgba(0,0,0,0.06)}
+.cta-section .btn-ghost:hover{color:rgba(0,0,0,0.85);border-color:rgba(0,0,0,0.4)}
+.cta-wrapper.bg-dark{background:var(--color-grey-950)}
+.cta-wrapper.bg-dark .cta-h{color:var(--color-white)}
+.cta-wrapper.bg-dark .cta-p{color:rgba(255,255,255,0.68)}
+.cta-wrapper.bg-dark .cta-section .btn-ghost{color:rgba(255,255,255,0.72);border-color:var(--border-moderate);background:linear-gradient(135deg,rgba(255,255,255,0.10) 0%,rgba(255,255,255,0.03) 50%,rgba(255,255,255,0.08) 100%)}
+.cta-wrapper.bg-dark .cta-section .btn-ghost:hover{color:var(--text-primary);border-color:var(--border-strong)}
+.lead-form{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.lead-form-row{display:flex;gap:14px;flex-wrap:wrap}
+.lead-form-field{flex:1;min-width:180px;display:flex;flex-direction:column;gap:6px}
+.lead-form-label{font-size:var(--type-label-size);font-weight:700;letter-spacing:var(--tracking-wider);text-transform:uppercase;color:var(--text-muted)}
+.lead-form-input{background:rgba(255,255,255,0.04);border:1px solid var(--border-card);border-radius:10px;color:var(--text-body);font-family:var(--font-family-base);font-size:15px;padding:14px 16px}
+.footer-demo{padding:var(--space-16) 0 var(--space-6)}
+.footer-socials{display:flex;gap:var(--space-3);justify-content:center}
+.soc{width:38px;height:38px;border-radius:var(--radius-md);border:1px solid var(--border-ui);background:rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--text-muted);font-size:var(--font-size-md);transition:background 0.2s ease,border-color 0.2s ease,color 0.2s ease,transform 0.2s ease}
+.soc:hover{background:var(--accent);border-color:var(--accent);color:var(--color-white);transform:translateY(-2px)}
+.footer-bottom{display:flex;align-items:center;justify-content:space-between;padding-top:28px;border-top:1px solid var(--border-ui);font-size:var(--font-size-md);color:var(--text-muted)}
+.footer-legal-link{color:var(--text-muted);text-decoration:none}
+.reveal{opacity:0;transform:translateY(40px);transition:var(--transition-reveal)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+`;
+
+/* ============================================================
+   ICONS
+   ============================================================ */
+
+const ICONS = [
+  `<path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 12 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.5"/><path d="M12 8V12L14.5 14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<path d="M3 17L9 11L13 15L21 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7H21V13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  `<path d="M12 2L4 6V12C4 16.4183 7.41828 20.5 12 22C16.5817 20.5 20 16.4183 20 12V6L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  `<circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20C4 17.7909 7.58172 16 12 16C16.4183 16 20 17.7909 20 20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<path d="M21 16V8C21 6.89543 20.1046 6 19 6H5C3.89543 6 3 6.89543 3 8V16C3 17.1046 3.89543 18 5 18H19C20.1046 18 21 17.1046 21 16Z" stroke="currentColor" stroke-width="1.5"/><path d="M8 12H16M12 8V16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="none"/>`,
+  `<path d="M13 2L4 14H11L10 22L20 9H13L13 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>`,
+  `<path d="M12 20.5C12 20.5 3 15 3 9C3 5.5 5.5 3.5 8.5 3.5C10.2 3.5 11.4 4.3 12 5.3C12.6 4.3 13.8 3.5 15.5 3.5C18.5 3.5 21 5.5 21 9C21 15 12 20.5 12 20.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>`,
+  `<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 7V12L16 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  `<rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M4 7L12 13L20 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  `<path d="M12 2C15 4 17 8 16 14L12 18L8 14C7 8 9 4 12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 15L6 18M15 15L18 18M10 14L12 20L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  `<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>`,
+  `<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 2V5M12 19V22M22 12H19M5 12H2M19.07 4.93L16.95 7.05M7.05 16.95L4.93 19.07M19.07 19.07L16.95 16.95M7.05 7.05L4.93 4.93" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<path d="M7 18H17C19.2091 18 21 16.2091 21 14C21 11.9698 19.5085 10.2966 17.5605 10.0287C17.0522 7.1993 14.5321 5 11.5 5C8.18629 5 5.5 7.68629 5.5 11C5.5 11.1516 5.5058 11.3018 5.5171 11.4504C3.98003 11.9224 3 13.3231 3 15C3 16.6569 4.34315 18 6 18H7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>`,
+  `<ellipse cx="12" cy="6" rx="8" ry="3" stroke="currentColor" stroke-width="1.5"/><path d="M4 6V18C4 19.6569 7.58172 21 12 21C16.4183 21 20 19.6569 20 18V6" stroke="currentColor" stroke-width="1.5"/><path d="M4 12C4 13.6569 7.58172 15 12 15C16.4183 15 20 13.6569 20 12" stroke="currentColor" stroke-width="1.5"/>`,
+  `<rect x="3" y="4" width="18" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 7H7.01M7 17H7.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<path d="M8 8L4 12L8 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 8L20 12L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 6L11 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<rect x="3" y="4" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 20H22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M3 12H21M12 3C14.5 5.5 15.5 8.5 15.5 12C15.5 15.5 14.5 18.5 12 21C9.5 18.5 8.5 15.5 8.5 12C8.5 8.5 9.5 5.5 12 3Z" stroke="currentColor" stroke-width="1.5"/>`,
+  `<path d="M9 15L15 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M11 7L12.5 5.5C13.8807 4.11929 16.1193 4.11929 17.5 5.5C18.8807 6.88071 18.8807 9.11929 17.5 10.5L16 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M13 17L11.5 18.5C10.1193 19.8807 7.88071 19.8807 6.5 18.5C5.11929 17.1193 5.11929 14.8807 6.5 13.5L8 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11" stroke="currentColor" stroke-width="1.5"/>`,
+  `<circle cx="8" cy="15" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M11 12L19 4M19 4H15M19 4V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  `<rect x="3" y="8" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 8V6C8 4.89543 8.89543 4 10 4H14C15.1046 4 16 4.89543 16 6V8" stroke="currentColor" stroke-width="1.5"/>`,
+  `<path d="M3 12L7 8L11 11L13 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12L17 8L13 11L11 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 8V16M17 8V16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<path d="M4 4V20H20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 16V12M12 16V8M16 16V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<path d="M12 3V12L19 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3" stroke="currentColor" stroke-width="1.5"/>`,
+  `<path d="M4 4H20L14 12V18L10 20V12L4 4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>`,
+  `<path d="M4 5H20V16H9L5 20V16H4V5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>`,
+  `<rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 10H21M8 3V7M16 3V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<path d="M6 18L18 6M18 6H10M18 6V14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  `<rect x="7" y="7" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M9 3V7M15 3V7M9 17V21M15 17V21M3 9H7M3 15H7M17 9H21M17 15H21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<circle cx="6" cy="6" r="2.5" stroke="currentColor" stroke-width="1.5"/><circle cx="18" cy="6" r="2.5" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="18" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M8.2 7.3L10.5 16M15.8 7.3L13.5 16M8.5 6H15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  `<circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M15 15L20 20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+];
+function mkIcon(i) {
+  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">${ICONS[i % ICONS.length]}</svg>`;
+}
+
+/* ============================================================
+   EXPORTED-DOCUMENT SCRIPTS
+   ============================================================ */
+
+// NOTE: these close with string concatenation instead of a literal close tag inside the
+// template. An HTML parser looks for that exact byte sequence anywhere in a script block's
+// raw text (comments included) and will end the tag right there, silently corrupting
+// everything written after it. Splitting the two halves across a concatenation keeps that
+// sequence out of the raw source, while the value produced at runtime still ends in one.
+const GRID_CANVAS_JS = `<script>
+(function () {
+  var canvases = document.querySelectorAll('canvas.hero-bg-grid');
+  canvases.forEach(function (canvas) {
+    var ctx = canvas.getContext('2d');
+    var squareSize = 64;
+    var mouse = { x: -9999, y: -9999 };
+    var grid = [];
+    var width = 0, height = 0;
+    function initGrid() {
+      grid.length = 0;
+      for (var x = 0; x < width; x += squareSize) {
+        for (var y = 0; y < height; y += squareSize) {
+          grid.push({ x: x, y: y, alpha: 0, fading: false, lastTouched: 0 });
+        }
+      }
+    }
+    function resize() {
+      var rect = canvas.parentElement.getBoundingClientRect();
+      width = canvas.width = rect.width;
+      height = canvas.height = rect.height;
+      initGrid();
+    }
+    function getCellAt(x, y) {
+      return grid.find(function (cell) { return x >= cell.x && x < cell.x + squareSize && y >= cell.y && y < cell.y + squareSize; });
+    }
+    function onMouseMove(e) {
+      var rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left; mouse.y = e.clientY - rect.top;
+      if (mouse.x < 0 || mouse.y < 0 || mouse.x > width || mouse.y > height) return;
+      var cell = getCellAt(mouse.x, mouse.y);
+      if (cell && cell.alpha === 0) { cell.alpha = 1; cell.lastTouched = Date.now(); cell.fading = false; }
+    }
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+      var now = Date.now();
+      for (var i = 0; i < grid.length; i++) {
+        var cell = grid[i];
+        if (cell.alpha > 0 && !cell.fading && now - cell.lastTouched > 500) cell.fading = true;
+        if (cell.fading) { cell.alpha -= 0.02; if (cell.alpha <= 0) { cell.alpha = 0; cell.fading = false; } }
+        if (cell.alpha > 0) {
+          var cx = cell.x + squareSize / 2, cy = cell.y + squareSize / 2;
+          var gradient = ctx.createRadialGradient(cx, cy, 5, cx, cy, squareSize);
+          gradient.addColorStop(0, 'rgba(233, 92, 37, ' + cell.alpha + ')');
+          gradient.addColorStop(1, 'rgba(233, 92, 37, 0)');
+          ctx.strokeStyle = gradient; ctx.lineWidth = 1.3;
+          ctx.strokeRect(cell.x + 0.5, cell.y + 0.5, squareSize - 1, squareSize - 1);
+        }
+      }
+      requestAnimationFrame(draw);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas.parentElement);
+    window.addEventListener('mousemove', onMouseMove);
+    draw();
+  });
+})();
+` + '<' + '/script>';
+
+const REVEAL_JS = `<script>
+const _obs = new IntersectionObserver(
+  entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
+  { threshold: 0.12 }
+);
+document.querySelectorAll('.reveal').forEach(el => _obs.observe(el));
+` + '<' + '/script>';
+
+const FAQ_JS = `<script>
+document.querySelectorAll('.faq-item').forEach(function(item){
+  item.addEventListener('toggle', function(){
+    if (item.open) {
+      document.querySelectorAll('.faq-item').forEach(function(other){ if (other !== item) other.open = false; });
+    }
+  });
+});
+` + '<' + '/script>';
+
+/* ============================================================
+   IN-PREVIEW (WIX-STYLE) DIRECT-EDIT LAYER
+   Only injected into the live editor preview (never into the exported file).
+   Lets a user click any text directly on the canvas to edit it in place,
+   and click any component to select it and get a floating move/duplicate/
+   delete toolbar — the core "edit on the canvas" interaction from Wix.
+   ============================================================ */
+
+function bfAttr(editMode, pid, cid, fkey) {
+  return editMode ? ` data-bf-field="${pid}|${cid||''}|${fkey}"` : '';
+}
+function bfCompWrap(editMode, pid, cid, label, inner) {
+  if (!editMode) return inner;
+  return `<div class="bf-comp" data-bf-pid="${pid}" data-bf-cid="${cid}" data-bf-label="${esc(label)}">${inner}</div>`;
+}
+
+const EDITOR_OVERLAY_CSS = `
+[data-bf-field]{outline:1px dashed transparent;outline-offset:2px;border-radius:3px;transition:outline-color .12s,background-color .12s;cursor:text}
+[data-bf-field]:hover{outline-color:rgba(79,140,255,.85);background:rgba(79,140,255,.06)}
+[data-bf-field]:focus{outline:2px solid #4f8cff;outline-offset:2px;background:rgba(79,140,255,.08)}
+.bf-comp{position:relative;outline:1px dashed transparent;outline-offset:6px;border-radius:6px;transition:outline-color .12s}
+.bf-comp:hover{outline-color:rgba(79,140,255,.5)}
+.bf-comp.bf-selected{outline:2px solid #4f8cff;outline-offset:6px}
+.bf-comp::before{content:attr(data-bf-label);position:absolute;top:-11px;left:6px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:#4f8cff;padding:2px 7px;border-radius:4px;opacity:0;pointer-events:none;transition:opacity .12s;z-index:20;white-space:nowrap}
+.bf-comp:hover::before,.bf-comp.bf-selected::before{opacity:1}
+#bf-toolbar{position:fixed;z-index:9999;display:none;align-items:center;gap:2px;background:#161616;border:1px solid rgba(79,140,255,.5);border-radius:8px;padding:4px;box-shadow:0 6px 20px rgba(0,0,0,.4);font-family:'Montserrat',sans-serif}
+#bf-toolbar.visible{display:flex}
+#bf-toolbar button{background:none;border:none;color:#ddd;cursor:pointer;font-size:12px;padding:5px 8px;border-radius:5px;line-height:1;font-family:inherit}
+#bf-toolbar button:hover{background:rgba(79,140,255,.25);color:#fff}
+#bf-toolbar button:disabled{opacity:.3;cursor:default}
+#bf-toolbar .bf-sep{width:1px;height:16px;background:rgba(255,255,255,.15);margin:0 2px}
+`;
+
+const EDITOR_BRIDGE_JS = `<script>
+(function(){
+  var P = window.parent;
+  if (!P || typeof P.setField !== 'function') return;
+
+  document.querySelectorAll('[data-bf-field]').forEach(function(el){
+    el.setAttribute('contenteditable','true');
+    el.spellcheck = false;
+    if (el.tagName === 'A' || el.classList.contains('faq-q')) {
+      el.addEventListener('click', function(e){ e.preventDefault(); });
+    }
+    el.addEventListener('input', function(){
+      var parts = el.dataset.bfField.split('|');
+      var pid = parts[0], cid = parts[1], fkey = parts[2];
+      var val = el.innerHTML;
+      if (cid) { P.setComponentField(pid, cid, fkey, val); }
+      else { P.setField(pid, fkey, val); }
+      P.syncSidebarField(pid, cid, fkey, val);
+    });
+    el.addEventListener('blur', function(){
+      if (typeof P.schedulePreview === 'function') P.schedulePreview();
+    });
+  });
+
+  var toolbar = document.createElement('div');
+  toolbar.id = 'bf-toolbar';
+  toolbar.innerHTML =
+    '<button data-t="up" title="Move up">&#8593;</button>' +
+    '<button data-t="down" title="Move down">&#8595;</button>' +
+    '<span class="bf-sep"></span>' +
+    '<button data-t="dup" title="Duplicate">&#10697;</button>' +
+    '<button data-t="del" title="Delete">&#10005;</button>';
+  document.body.appendChild(toolbar);
+
+  var selected = null;
+
+  function positionToolbar(el){
+    var r = el.getBoundingClientRect();
+    toolbar.style.top = Math.max(6, r.top - 34) + 'px';
+    toolbar.style.left = Math.max(6, r.left) + 'px';
+    toolbar.classList.add('visible');
+  }
+  function clearSelection(){
+    if (selected) selected.classList.remove('bf-selected');
+    selected = null;
+    toolbar.classList.remove('visible');
+  }
+
+  document.querySelectorAll('.bf-comp').forEach(function(el){
+    el.addEventListener('click', function(e){
+      if (selected) selected.classList.remove('bf-selected');
+      selected = el;
+      el.classList.add('bf-selected');
+      positionToolbar(el);
+      e.stopPropagation();
+    });
+  });
+
+  document.addEventListener('click', function(e){
+    if (!e.target.closest('.bf-comp') && !e.target.closest('#bf-toolbar')) clearSelection();
+  });
+  window.addEventListener('scroll', function(){ if (selected) positionToolbar(selected); }, true);
+  window.addEventListener('resize', function(){ if (selected) positionToolbar(selected); });
+
+  toolbar.addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-t]');
+    if (!btn || !selected) return;
+    var pid = selected.dataset.bfPid, cid = selected.dataset.bfCid;
+    var t = btn.dataset.t;
+    if (t === 'up') P.moveComponent(pid, cid, -1);
+    else if (t === 'down') P.moveComponent(pid, cid, 1);
+    else if (t === 'dup') P.duplicateComponent(pid, cid);
+    else if (t === 'del') P.removeComponent(pid, cid);
+    clearSelection();
+  });
+})();
+` + '<' + '/script>';
+
+/* ============================================================
+   STATE
+   ============================================================ */
+
+let _nextId = 1;
+function newId() { return 'sec' + (_nextId++); }
+let _nextCid = 1;
+function newCid() { return 'c' + (_nextCid++); }
+
+const COMPONENT_LABELS = {
+  'section-tag':  'Section Tag',
+  'heading':      'Heading',
+  'subheading':   'Subheading',
+  'body':         'Body Paragraph',
+  'heading-text': 'Heading + Text',
+  'callout':      'Callout Box',
+  'pull-quote':   'Pull Quote',
+  'stats':        'Stats Row',
+  'trust-logos':  'Trust / Logo Bar',
+  'cards-2col':   '2-Col Cards',
+  'cards-3col':   '3-Col Cards',
+  'cards-1col':   '1-Col Card',
+  'steps':        'Steps List',
+  'testimonials': 'Testimonials',
+  'pricing':      'Pricing Table',
+  'faq':          'FAQ Accordion',
+  'list':         'List',
+  'image':        'Image',
+  'button-row':   'Button Row',
+  'spacer':       'Spacer',
+};
+
+const ADD_COMP_GLYPHS = {
+  'section-tag':  '—',
+  'heading':      'H',
+  'subheading':   'h',
+  'body':         '¶',
+  'heading-text': 'H¶',
+  'callout':      '❞',
+  'pull-quote':   '❛',
+  'stats':        '#',
+  'trust-logos':  '◫',
+  'cards-2col':   '▥',
+  'cards-3col':   '▦',
+  'cards-1col':   '▤',
+  'steps':        '①',
+  'testimonials': '❝',
+  'pricing':      '$',
+  'faq':          '?',
+  'list':         '•',
+  'image':        '▣',
+  'button-row':   '▭',
+  'spacer':       '␣',
+};
+
+const COMPONENT_DEFAULTS = {
+  'section-tag':  { text: 'Why It Works' },
+  'heading':      { text: 'Section Headline Goes Here' },
+  'subheading':   { text: 'Section Subheadline Goes Here' },
+  'body':         { text: 'Describe the key point of this section clearly and concisely — one or two sentences is usually enough.' },
+  'heading-text': { heading: 'Section Headline Goes Here', text: 'Describe the key point of this section clearly and concisely — one or two sentences is usually enough.' },
+  'callout':      { text: 'A short, highlighted quote, insight, or statistic goes here.' },
+  'pull-quote':   { eyebrow: 'Pull Quote', text: '&ldquo;Your success is our business.&rdquo;' },
+  'stats':        { items: [ { value: '98%', label: 'Client Retention' }, { value: '3.2x', label: 'Avg. Pipeline Growth' }, { value: '12 wks', label: 'Time to Impact' } ] },
+  'trust-logos':  { label: 'Trusted by teams at', logos: ['Microsoft Partners', 'SAP Partners', 'ISVs', 'CSPs'] },
+  'cards-2col':   { variant: 'numbered', cards: [ { title: 'Card One', body: 'Description.' }, { title: 'Card Two', body: 'Description.' } ] },
+  'cards-3col':   { variant: 'numbered', cards: [ { title: 'Point One', body: 'Description.' }, { title: 'Point Two', body: 'Description.' }, { title: 'Point Three', body: 'Description.' } ] },
+  'cards-1col':   { variant: 'plain', cards: [ { title: 'Full-Width Card', body: 'Use this for a single highlighted point, stat, or callout that deserves its own full-width moment.' } ] },
+  'steps':        { steps: [ { label: 'Step One', body: 'Description.' }, { label: 'Step Two', body: 'Description.' }, { label: 'Step Three', body: 'Description.' } ] },
+  'testimonials': { items: [ { quote: 'Working with this team completely changed how we approach revenue.', name: 'Jane Doe', role: 'VP Sales, Example Co.' }, { quote: 'The clearest, most structured engagement we\'ve run in years.', name: 'John Smith', role: 'CRO, Sample Inc.' } ] },
+  'pricing':      { plans: [
+                      { name: 'Starter', price: '$2,500', period: '/mo', featuresText: 'Core strategy sessions\nMonthly reporting\nEmail support', ctaText: 'Get Started', ctaUrl: '#', highlighted: false },
+                      { name: 'Growth', price: '$5,500', period: '/mo', featuresText: 'Everything in Starter\nWeekly check-ins\nDedicated advisor\nPriority support', ctaText: 'Get Started', ctaUrl: '#', highlighted: true },
+                      { name: 'Enterprise', price: 'Custom', period: '', featuresText: 'Everything in Growth\nCustom scope & SLAs\nQuarterly business reviews', ctaText: 'Talk to Us', ctaUrl: '#', highlighted: false }
+                    ] },
+  'faq':          { items: [
+                      { q: 'How long does an engagement typically take?', a: 'Most engagements run 8–12 weeks from kickoff to a live, working revenue motion.' },
+                      { q: 'Do you work with early-stage partners?', a: 'We typically work with partner practices generating $2M–$20M in ARR, but reach out if you\'re outside that range.' },
+                      { q: 'What does the process look like?', a: 'We start with a structured discovery sprint, then move into build, pilot, and rollout phases with weekly checkpoints.' }
+                    ] },
+  'list':         { listType: 'bullet', items: ['First item', 'Second item', 'Third item'] },
+  'image':        { dataUrl: null },
+  'button-row':   { primaryText: 'Book a Call', primaryUrl: '#', secondaryText: '', secondaryUrl: '' },
+  'spacer':       { size: 'md' },
+};
+
+const state = {
+  title: 'Blacfox Landing Page',
+  pages: [
+    { id: 'nav', type: 'nav', fixed: true, label: 'Navigation', fields: { ctaText: 'Book a Call', ctaUrl: '#' } },
+    {
+      id: 'hero', type: 'hero', fixed: true, label: 'Hero',
+      fields: {
+        background: 'dark',
+        eyebrow: 'Partner Growth Advisory',
+        headline: 'Build the Revenue Engine<br><em>Your Partners Need</em>',
+        subheadline: 'Blacfox helps Microsoft and SAP partners close faster, retain longer, and grow without adding headcount.',
+        bodyPara: 'Purpose-built for partner practices generating $2M–$20M ARR who are ready to move from reactive sales to a structured, outcome-led revenue motion.',
+        primaryText: 'Book a Strategy Call ↗', primaryUrl: '#',
+        secondaryText: '', secondaryUrl: ''
+      }
+    },
+    {
+      id: newId(), label: 'Proof & Approach',
+      components: [
+        { id: newCid(), type: 'trust-logos', fields: JSON.parse(JSON.stringify(COMPONENT_DEFAULTS['trust-logos'])) },
+        { id: newCid(), type: 'section-tag', fields: { text: 'How We Help' } },
+        { id: newCid(), type: 'heading', fields: { text: 'Three Engagements. One Revenue Motion.' } },
+        { id: newCid(), type: 'body', fields: { text: 'Each engagement is scoped, time-boxed, and designed to produce a live output — not a report that sits in a folder.' } },
+        { id: newCid(), type: 'cards-3col', fields: JSON.parse(JSON.stringify(COMPONENT_DEFAULTS['cards-3col'])) }
+      ]
+    },
+    {
+      id: 'cta', type: 'cta', fixed: true, label: 'CTA / Closing',
+      fields: {
+        background: 'light',
+        headline: 'Ready to Build Revenue That <em>Scales?</em>',
+        body: '12 weeks. One focused engagement. A live partner revenue motion on the other side.',
+        primaryText: 'Book a Strategy Call ↗', primaryUrl: '#',
+        secondaryText: 'Download the Guide', secondaryUrl: '#'
+      }
+    },
+    {
+      id: 'footer', type: 'footer', fixed: true, label: 'Footer',
+      fields: {
+        description: 'We build the revenue engine that tech companies need to scale through partners — not around them.',
+        copyrightYear: '2026', copyrightName: 'Blacfox',
+        legalText: 'Privacy Policy', legalUrl: '#'
+      }
+    }
+  ]
+};
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function ea(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+function pageIndex(id) { return state.pages.findIndex(p => p.id === id); }
+function fixedIndexes() {
+  // First two pages (nav, hero) and last two pages (cta, footer) are fixed.
+  return { firstMovable: 2, lastMovable: state.pages.length - 3 };
+}
+
+function imgBlock(dataUrl) {
+  if (dataUrl) return `<div class="image-block"><img src="${dataUrl}"></div>`;
+  return `<div class="image-block"><div class="placeholder"><span>Image Placeholder</span></div></div>`;
+}
+function bulletItem(text) { return `<li>${text||''}</li>`; }
+
+/* ============================================================
+   LANDING PAGE RENDERERS
+   ============================================================ */
+
+function renderNavPage(p, editMode) {
+  const f = p.fields;
+  return `<header class="site-header">
+  <div class="site-container">
+  <div class="nav-row">
+    <a href="#">${NAV_LOGO_SVG}</a>
+    <a href="${ea(f.ctaUrl||'#')}" class="btn-ghost nav-cta-btn"${bfAttr(editMode,p.id,'','ctaText')}>${esc(f.ctaText||'Book a Call')}</a>
+  </div>
+  </div>
+</header>`;
+}
+
+function renderHeroPage(p, editMode) {
+  const f = p.fields;
+  const bgClass = f.background === 'light' ? ' bg-light' : '';
+  const secondary = f.secondaryText ? `<a href="${ea(f.secondaryUrl||'#')}" class="btn-ghost"${bfAttr(editMode,p.id,'','secondaryText')}>${esc(f.secondaryText)}</a>` : '';
+  return `<section class="page-section hero-section${bgClass}">
+  <canvas class="hero-bg-grid"></canvas>
+  <div class="hero-bg-glow"></div>
+  <div class="site-container">
+  <div class="hero-inner reveal">
+    <span class="hero-eyebrow"${bfAttr(editMode,p.id,'','eyebrow')}>${esc(f.eyebrow||'')}</span>
+    <h1 class="hero-title"${bfAttr(editMode,p.id,'','headline')}>${f.headline||''}</h1>
+    <p class="hero-sub"${bfAttr(editMode,p.id,'','subheadline')}>${f.subheadline||''}</p>
+    <p class="hero-body"${bfAttr(editMode,p.id,'','bodyPara')}>${f.bodyPara||''}</p>
+    <div class="hero-ctas">
+      <a href="${ea(f.primaryUrl||'#')}" class="btn-primary"${bfAttr(editMode,p.id,'','primaryText')}>${esc(f.primaryText||'Book a Call')}</a>
+      ${secondary}
+    </div>
+  </div>
+  </div>
+</section>`;
+}
+
+function renderCtaPage(p, editMode) {
+  const f = p.fields;
+  const bgClass = f.background === 'dark' ? ' bg-dark' : '';
+  const secondary = f.secondaryText ? `<a href="${ea(f.secondaryUrl||'#')}" class="btn-ghost"${bfAttr(editMode,p.id,'','secondaryText')}>${esc(f.secondaryText)}</a>` : '';
+  return `<section class="cta-wrapper${bgClass}">
+  <canvas class="hero-bg-grid"></canvas>
+  <div class="site-container">
+  <div class="cta-section reveal">
+    <h2 class="cta-h"${bfAttr(editMode,p.id,'','headline')}>${f.headline||''}</h2>
+    <p class="cta-p"${bfAttr(editMode,p.id,'','body')}>${f.body||''}</p>
+    <div class="cta-ctas">
+      <a href="${ea(f.primaryUrl||'#')}" class="btn-primary"${bfAttr(editMode,p.id,'','primaryText')}>${esc(f.primaryText||'Book a Call')}</a>
+      ${secondary}
+    </div>
+  </div>
+  </div>
+</section>`;
+}
+
+function renderFooterPage(p, editMode) {
+  const f = p.fields;
+  return `<footer class="footer-demo">
+  <div class="site-container">
+  <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 0 var(--space-12);">
+    ${FOOTER_WORDMARK_SVG}
+    <p style="font-size:var(--type-body-sm-size);color:var(--text-muted);line-height:var(--leading-loose);max-width:360px;margin:var(--space-4) 0 var(--space-6);"${bfAttr(editMode,p.id,'','description')}>${f.description||''}</p>
+    <div class="footer-socials">
+      <a href="#" class="soc">in</a>
+      <a href="#" class="soc">&#120143;</a>
+      <a href="#" class="soc">&#9654;</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; ${esc(f.copyrightYear||'')} ${esc(f.copyrightName||'')}. All rights reserved.</span>
+    <a href="${ea(f.legalUrl||'#')}" class="footer-legal-link">${esc(f.legalText||'Privacy Policy')}</a>
+  </div>
+  </div>
+</footer>`;
+}
+
+function renderComponent(comp, pid, editMode) {
+  const f = comp.fields;
+  const cid = comp.id;
+  switch (comp.type) {
+    case 'section-tag':
+      return `<span class="section-tag"${bfAttr(editMode,pid,cid,'text')}>${esc(f.text||'')}</span>`;
+    case 'heading':
+      return `<h2 class="section-h"${bfAttr(editMode,pid,cid,'text')}>${f.text||''}</h2>`;
+    case 'subheading':
+      return `<h3 class="section-sub"${bfAttr(editMode,pid,cid,'text')}>${f.text||''}</h3>`;
+    case 'body':
+      return `<p class="section-p"${bfAttr(editMode,pid,cid,'text')}>${f.text||''}</p>`;
+    case 'heading-text':
+      return `<div class="heading-text-block"><h2 class="section-h"${bfAttr(editMode,pid,cid,'heading')}>${f.heading||''}</h2><p class="section-p"${bfAttr(editMode,pid,cid,'text')}>${f.text||''}</p></div>`;
+    case 'callout':
+      return `<div class="callout-box"><p${bfAttr(editMode,pid,cid,'text')}>${f.text||''}</p></div>`;
+    case 'pull-quote':
+      return `<div class="pull-quote"><span class="pull-quote-eyebrow"${bfAttr(editMode,pid,cid,'eyebrow')}>${esc(f.eyebrow||'')}</span><div class="pull-quote-text"${bfAttr(editMode,pid,cid,'text')}>${f.text||''}</div><div class="pull-quote-band"><span></span><span></span><span></span><span></span><span></span><span></span></div></div>`;
+    case 'stats': {
+      const items = (f.items||[]).map((s,i) => `<div><div class="stat-value"${bfAttr(editMode,pid,cid,'items.'+i+'.value')}>${esc(s.value||'')}</div><div class="stat-label"${bfAttr(editMode,pid,cid,'items.'+i+'.label')}>${esc(s.label||'')}</div></div>`).join('');
+      return `<div class="stats-row reveal">${items}</div>`;
+    }
+    case 'trust-logos': {
+      const logos = (f.logos||[]).map((l,i) => `<span class="trust-logo"${bfAttr(editMode,pid,cid,'logos.'+i)}>${esc(l)}</span>`).join('\n');
+      return `<div class="trust-bar reveal">
+  <span class="trust-label"${bfAttr(editMode,pid,cid,'label')}>${esc(f.label||'')}</span>
+  ${logos}
+</div>`;
+    }
+    case 'cards-2col':
+    case 'cards-3col':
+    case 'cards-1col': {
+      const cols = comp.type === 'cards-2col' ? 2 : comp.type === 'cards-3col' ? 3 : 1;
+      const variant = f.variant || 'numbered';
+      const cards = (f.cards||[]).map((c,i) => {
+        let badge = '';
+        if (variant === 'numbered') badge = `<div class="card-num">${String(i+1).padStart(2,'0')}</div>`;
+        else if (variant === 'icon') badge = `<div class="card-num">${mkIcon(c.icon != null ? c.icon : i)}</div>`;
+        return `<div class="dark-card"><div class="card-num-slot">${badge}</div><div class="card-title"${bfAttr(editMode,pid,cid,'cards.'+i+'.title')}>${esc(c.title||'')}</div><div class="card-body"${bfAttr(editMode,pid,cid,'cards.'+i+'.body')}>${c.body||''}</div></div>`;
+      }).join('');
+      return `<div class="card-grid-${cols} reveal">${cards}</div>`;
+    }
+    case 'steps': {
+      const steps = (f.steps||[]).map((s,i) =>
+        `<div class="step-item">
+          <div class="step-num">Step ${String(i+1).padStart(2,'0')}</div>
+          <div><div class="step-label"${bfAttr(editMode,pid,cid,'steps.'+i+'.label')}>${esc(s.label||'')}</div><div class="step-body"${bfAttr(editMode,pid,cid,'steps.'+i+'.body')}>${s.body||''}</div></div>
+        </div>`
+      ).join('');
+      return `<div class="steps-list reveal">${steps}</div>`;
+    }
+    case 'testimonials': {
+      const items = (f.items||[]).map((t,i) =>
+        `<div class="testimonial-card">
+          <span class="quote-mark">&ldquo;</span>
+          <p class="testimonial-quote"${bfAttr(editMode,pid,cid,'items.'+i+'.quote')}>${t.quote||''}</p>
+          <div class="testimonial-name"${bfAttr(editMode,pid,cid,'items.'+i+'.name')}>${esc(t.name||'')}</div>
+          <div class="testimonial-role"${bfAttr(editMode,pid,cid,'items.'+i+'.role')}>${esc(t.role||'')}</div>
+        </div>`
+      ).join('');
+      return `<div class="testimonial-grid reveal">${items}</div>`;
+    }
+    case 'pricing': {
+      const plans = (f.plans||[]).map((pl,i) => {
+        const features = String(pl.featuresText||'').split('\n').filter(Boolean).map(t => `<li>${esc(t)}</li>`).join('');
+        return `<div class="pricing-card${pl.highlighted?' featured':''}">
+          <div class="pricing-name"${bfAttr(editMode,pid,cid,'plans.'+i+'.name')}>${esc(pl.name||'')}</div>
+          <div><span class="pricing-price"${bfAttr(editMode,pid,cid,'plans.'+i+'.price')}>${esc(pl.price||'')}</span><span class="pricing-period"${bfAttr(editMode,pid,cid,'plans.'+i+'.period')}>${esc(pl.period||'')}</span></div>
+          <ul class="pricing-features">${features}</ul>
+          <a href="${ea(pl.ctaUrl||'#')}" class="${pl.highlighted?'btn-primary':'btn-ghost'}"${bfAttr(editMode,pid,cid,'plans.'+i+'.ctaText')}>${esc(pl.ctaText||'Get Started')}</a>
+        </div>`;
+      }).join('');
+      return `<div class="pricing-grid reveal">${plans}</div>`;
+    }
+    case 'faq': {
+      const items = (f.items||[]).map((qa,i) =>
+        `<details class="faq-item"><summary class="faq-q"${bfAttr(editMode,pid,cid,'items.'+i+'.q')}>${esc(qa.q||'')}</summary><div class="faq-a"${bfAttr(editMode,pid,cid,'items.'+i+'.a')}>${qa.a||''}</div></details>`
+      ).join('');
+      return `<div class="faq-list reveal">${items}</div>`;
+    }
+    case 'list': {
+      const items = (f.items||[]).map((it,i) => `<li${bfAttr(editMode,pid,cid,'items.'+i)}>${it||''}</li>`).join('');
+      const tag = f.listType === 'numbered' ? 'ol' : 'ul';
+      return `<${tag} class="reveal" style="list-style:none;display:flex;flex-direction:column;gap:var(--space-4);padding-left:0;">${items}</${tag}>`;
+    }
+    case 'image':
+      return `<div class="reveal">${imgBlock(f.dataUrl)}</div>`;
+    case 'button-row': {
+      const secondary = f.secondaryText ? `<a href="${ea(f.secondaryUrl||'#')}" class="btn-ghost"${bfAttr(editMode,pid,cid,'secondaryText')}>${esc(f.secondaryText)}</a>` : '';
+      return `<div class="button-row reveal"><a href="${ea(f.primaryUrl||'#')}" class="btn-primary"${bfAttr(editMode,pid,cid,'primaryText')}>${esc(f.primaryText||'')}</a>${secondary}</div>`;
+    }
+    case 'spacer': {
+      const h = { sm:'16px', md:'32px', lg:'64px' }[f.size||'md'];
+      return `<div style="height:${h}"></div>`;
+    }
+    default: return '';
+  }
+}
+
+function renderSectionPage(p, editMode) {
+  const compsHtml = (p.components||[]).map(c => {
+    const inner = renderComponent(c, p.id, editMode);
+    return bfCompWrap(editMode, p.id, c.id, COMPONENT_LABELS[c.type]||c.type, inner);
+  }).join('\n');
+  return `<section class="page-section">
+  <div class="site-container">
+  <div style="display:flex;flex-direction:column;gap:var(--space-5);">${compsHtml}</div>
+  </div>
+</section>`;
+}
+
+function renderLandingPage(forExport) {
+  const editMode = !forExport;
+  const pages = state.pages.map(p => {
+    if (p.type === 'nav') return renderNavPage(p, editMode);
+    if (p.type === 'hero') return renderHeroPage(p, editMode);
+    if (p.type === 'cta') return renderCtaPage(p, editMode);
+    if (p.type === 'footer') return renderFooterPage(p, editMode);
+    return renderSectionPage(p, editMode);
+  }).join('\n');
+
+  const revealOverride = forExport ? '' : `<style>.reveal{opacity:1!important;transform:none!important;transition:none!important}</style>`;
+  const revealScript = forExport ? REVEAL_JS : '';
+  const gridScript = GRID_CANVAS_JS;
+  const faqScript = forExport ? FAQ_JS : '';
+  const editorCss = editMode ? `<style>${EDITOR_OVERLAY_CSS}</style>` : '';
+  const editorScript = editMode ? EDITOR_BRIDGE_JS : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${esc(state.title)}</title>
+${FONTS_HTML}
+<style>${PAGE_CSS}</style>
+${revealOverride}
+${editorCss}
+${'<\/head>'}
+${'<body>'}
+${HEADER_FOOTER_STRIP_SVG}
+${pages}
+${HEADER_FOOTER_STRIP_SVG}
+${gridScript}
+${revealScript}
+${faqScript}
+${editorScript}
+${'<\/body>'}
+${'<\/html>'}`;
+}
+
+/* ============================================================
+   EDITOR FIELD HELPERS
+   ============================================================ */
+
+function fld(label, inputHtml, hint) {
+  return `<div class="field-group">
+    <span class="field-label">${label}</span>
+    ${inputHtml}
+    ${hint ? `<span class="field-hint">${hint}</span>` : ''}
+  </div>`;
+}
+function inp(pid, fkey, val, ph) {
+  return `<input class="field-input" type="text" data-pid="${pid}" data-fkey="${fkey}" value="${ea(val||'')}" placeholder="${ph||''}">`;
+}
+function rta(pid, fkey, val) {
+  return `<div class="field-rta" contenteditable="true" data-pid="${pid}" data-fkey="${fkey}" spellcheck="true">${val||''}</div>`;
+}
+function bgVariantBtns(pid, current) {
+  return [{v:'dark',l:'Dark'},{v:'light',l:'Light'}].map(o =>
+    `<button class="variant-btn${current===o.v?' on':''}" data-action="set-field" data-pid="${pid}" data-fkey="background" data-val="${o.v}">${o.l}</button>`
+  ).join('');
+}
+
+// Component-aware field helpers (include data-cid)
+function cInp(pid, cid, fkey, val, ph) {
+  return `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="${fkey}" value="${ea(val||'')}" placeholder="${ph||''}">`;
+}
+function cRta(pid, cid, fkey, val) {
+  return `<div class="field-rta" contenteditable="true" data-pid="${pid}" data-cid="${cid}" data-fkey="${fkey}" spellcheck="true">${val||''}</div>`;
+}
+function cTa(pid, cid, fkey, val, rows) {
+  return `<textarea class="field-input" data-pid="${pid}" data-cid="${cid}" data-fkey="${fkey}" rows="${rows||3}" style="resize:vertical;line-height:1.5">${esc(val||'')}</textarea>`;
+}
+
+/* ============================================================
+   FIXED PAGE FIELDS (nav / hero / cta / footer)
+   ============================================================ */
+
+const fixedPageFields = {
+  nav(p) {
+    return fld('CTA Button Text', inp(p.id,'ctaText',p.fields.ctaText,'e.g. Book a Call')) +
+           fld('CTA Button URL', inp(p.id,'ctaUrl',p.fields.ctaUrl,'https://'));
+  },
+  hero(p) {
+    const bg = p.fields.background === 'light' ? 'light' : 'dark';
+    return fld('Background', `<div class="variant-row">${bgVariantBtns(p.id, bg)}</div>`, 'Dark background uses white/orange text; light background uses black/orange text') +
+           `<div class="field-sep"></div>` +
+           fld('Eyebrow Tag', inp(p.id,'eyebrow',p.fields.eyebrow,'e.g. Partner Growth Advisory')) +
+           fld('Headline', rta(p.id,'headline',p.fields.headline), 'Select text to bold or italicize it') +
+           fld('Subheadline', rta(p.id,'subheadline',p.fields.subheadline)) +
+           fld('Body Paragraph', rta(p.id,'bodyPara',p.fields.bodyPara)) +
+           `<div class="field-sep"></div>` +
+           fld('Primary Button Text', inp(p.id,'primaryText',p.fields.primaryText)) +
+           fld('Primary Button URL', inp(p.id,'primaryUrl',p.fields.primaryUrl,'https://')) +
+           fld('Secondary Button Text', inp(p.id,'secondaryText',p.fields.secondaryText,'Optional')) +
+           fld('Secondary Button URL', inp(p.id,'secondaryUrl',p.fields.secondaryUrl,'https://'));
+  },
+  cta(p) {
+    const bg = p.fields.background === 'dark' ? 'dark' : 'light';
+    return fld('Background', `<div class="variant-row">${bgVariantBtns(p.id, bg)}</div>`, 'Dark background uses white/orange text; light background uses black/orange text') +
+           `<div class="field-sep"></div>` +
+           fld('Headline', rta(p.id,'headline',p.fields.headline), 'Select text to bold or italicize it') +
+           fld('Body', rta(p.id,'body',p.fields.body)) +
+           fld('Primary Button Text', inp(p.id,'primaryText',p.fields.primaryText)) +
+           fld('Primary Button URL', inp(p.id,'primaryUrl',p.fields.primaryUrl,'https://')) +
+           fld('Secondary Button Text', inp(p.id,'secondaryText',p.fields.secondaryText,'Optional')) +
+           fld('Secondary Button URL', inp(p.id,'secondaryUrl',p.fields.secondaryUrl,'https://'));
+  },
+  footer(p) {
+    return fld('Brand Description', rta(p.id,'description',p.fields.description)) +
+           `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+             ${fld('Copyright Year', inp(p.id,'copyrightYear',p.fields.copyrightYear))}
+             ${fld('Brand Name', inp(p.id,'copyrightName',p.fields.copyrightName))}
+           </div>` +
+           fld('Legal Link Text', inp(p.id,'legalText',p.fields.legalText)) +
+           fld('Legal Link URL', inp(p.id,'legalUrl',p.fields.legalUrl,'https://'));
+  }
+};
+
+/* ============================================================
+   COMPONENT FIELD BUILDERS
+   ============================================================ */
+
+function buildCompFields(pid, comp) {
+  const cid = comp.id;
+  const f = comp.fields;
+  switch (comp.type) {
+    case 'section-tag':
+      return fld('Tag Text', cInp(pid, cid, 'text', f.text, 'e.g. Why It Works'));
+    case 'heading':
+      return fld('Heading', cRta(pid, cid, 'text', f.text));
+    case 'subheading':
+      return fld('Subheading', cRta(pid, cid, 'text', f.text));
+    case 'body':
+      return fld('Paragraph', cRta(pid, cid, 'text', f.text));
+    case 'heading-text':
+      return fld('Heading', cRta(pid, cid, 'heading', f.heading)) + fld('Body Text', cRta(pid, cid, 'text', f.text));
+    case 'callout':
+      return fld('Callout Text', cRta(pid, cid, 'text', f.text));
+    case 'pull-quote':
+      return fld('Eyebrow', cInp(pid, cid, 'eyebrow', f.eyebrow, 'e.g. Pull Quote')) + fld('Quote', cRta(pid, cid, 'text', f.text));
+    case 'stats':
+      return buildStatsCompFields(pid, comp);
+    case 'trust-logos':
+      return fld('Intro Label', cInp(pid, cid, 'label', f.label)) + buildLogosCompFields(pid, comp);
+    case 'cards-2col':
+    case 'cards-3col':
+    case 'cards-1col':
+      return buildCardCompFields(pid, comp);
+    case 'steps':
+      return buildStepCompFields(pid, comp);
+    case 'testimonials':
+      return buildTestimonialCompFields(pid, comp);
+    case 'pricing':
+      return buildPricingCompFields(pid, comp);
+    case 'faq':
+      return buildFaqCompFields(pid, comp);
+    case 'list':
+      return buildListCompFields(pid, comp);
+    case 'image':
+      return buildImageCompFields(pid, comp);
+    case 'button-row':
+      return fld('Primary Button Text', cInp(pid, cid, 'primaryText', f.primaryText)) +
+             fld('Primary Button URL', cInp(pid, cid, 'primaryUrl', f.primaryUrl, 'https://')) +
+             fld('Secondary Button Text', cInp(pid, cid, 'secondaryText', f.secondaryText, 'Optional')) +
+             fld('Secondary Button URL', cInp(pid, cid, 'secondaryUrl', f.secondaryUrl, 'https://'));
+    case 'spacer': {
+      const s = f.size || 'md';
+      const btns = ['sm','md','lg'].map(v =>
+        `<button class="variant-btn${s===v?' on':''}" data-action="set-comp-field" data-pid="${pid}" data-cid="${cid}" data-fkey="size" data-val="${v}">${v==='sm'?'Small':v==='md'?'Medium':'Large'}</button>`
+      ).join('');
+      return fld('Size', `<div class="variant-row">${btns}</div>`);
+    }
+    default: return '';
+  }
+}
+
+function buildCardCompFields(pid, comp) {
+  const cid = comp.id;
+  const f = comp.fields;
+  const variant = f.variant || 'numbered';
+  const varRow = fld('Card Style', `<div class="variant-row">${
+    [{v:'numbered',l:'Numbered'},{v:'icon',l:'Icon'},{v:'plain',l:'Plain'}].map(o =>
+      `<button class="variant-btn${variant===o.v?' on':''}" data-action="set-comp-field" data-pid="${pid}" data-cid="${cid}" data-fkey="variant" data-val="${o.v}">${o.l}</button>`
+    ).join('')
+  }</div>`);
+  const cards = f.cards || [];
+  let cardsHtml = `<div class="cards-list" id="clst-${cid}">`;
+  cards.forEach((c,i) => {
+    const selectedIcon = c.icon != null ? c.icon : i;
+    const iconPicker = variant === 'icon' ? fld('Icon', `<button class="icon-trigger-btn" data-action="open-icon-picker" data-pid="${pid}" data-cid="${cid}" data-idx="${i}">${mkIcon(selectedIcon)}<span>Choose Icon</span></button>`) : '';
+    cardsHtml += `<div class="card-item">
+      <div class="card-item-head">
+        <span class="card-badge">${String(i+1).padStart(2,'0')}</span>
+        <button class="card-rm" data-action="rm-comp-card" data-pid="${pid}" data-cid="${cid}" data-idx="${i}">×</button>
+      </div>
+      ${fld('Title', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="cards.${i}.title" value="${ea(c.title||'')}" placeholder="Card title">`)}
+      ${fld('Body', cRta(pid, cid, `cards.${i}.body`, c.body))}
+      ${iconPicker}
+    </div>`;
+  });
+  cardsHtml += `</div><button class="add-card-btn" data-action="add-comp-card" data-pid="${pid}" data-cid="${cid}">+ Add Card</button>`;
+  return varRow + `<div class="field-group"><span class="field-label">Cards</span>${cardsHtml}</div>`;
+}
+
+function buildStepCompFields(pid, comp) {
+  const cid = comp.id;
+  const steps = comp.fields.steps || [];
+  let html = `<div class="steps-list-edit" id="slst-${cid}">`;
+  steps.forEach((s,i) => {
+    html += `<div class="step-item-edit">
+      <div class="card-item-head">
+        <span class="card-badge">Step ${String(i+1).padStart(2,'0')}</span>
+        <button class="card-rm" data-action="rm-comp-step" data-pid="${pid}" data-cid="${cid}" data-idx="${i}">×</button>
+      </div>
+      ${fld('Label', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="steps.${i}.label" value="${ea(s.label||'')}" placeholder="Step title">`)}
+      ${fld('Body', cRta(pid, cid, `steps.${i}.body`, s.body))}
+    </div>`;
+  });
+  html += `</div><button class="add-step-btn" data-action="add-comp-step" data-pid="${pid}" data-cid="${cid}">+ Add Step</button>`;
+  return `<div class="field-group"><span class="field-label">Steps</span>${html}</div>`;
+}
+
+function buildListCompFields(pid, comp) {
+  const cid = comp.id;
+  const f = comp.fields;
+  const listType = f.listType || 'bullet';
+  const varRow = fld('List Type', `<div class="variant-row">${
+    [{v:'bullet',l:'• Bullet'},{v:'numbered',l:'1. Numbered'}].map(o =>
+      `<button class="variant-btn${listType===o.v?' on':''}" data-action="set-comp-field" data-pid="${pid}" data-cid="${cid}" data-fkey="listType" data-val="${o.v}">${o.l}</button>`
+    ).join('')
+  }</div>`);
+  const items = f.items || [];
+  let html = `<div class="cards-list" id="ilst-${cid}">`;
+  items.forEach((item,i) => {
+    html += `<div class="item-edit-row">
+      <div class="field-rta" contenteditable="true" data-pid="${pid}" data-cid="${cid}" data-fkey="items.${i}" spellcheck="true">${item||''}</div>
+      <button class="item-rm" data-action="rm-comp-item" data-pid="${pid}" data-cid="${cid}" data-idx="${i}">×</button>
+    </div>`;
+  });
+  html += `</div><button class="add-item-btn" data-action="add-comp-item" data-pid="${pid}" data-cid="${cid}">+ Add Item</button>`;
+  return varRow + `<div class="field-group"><span class="field-label">Items</span>${html}</div>`;
+}
+
+function buildLogosCompFields(pid, comp) {
+  const cid = comp.id;
+  const logos = comp.fields.logos || [];
+  let html = `<div class="cards-list" id="glst-${cid}">`;
+  logos.forEach((logo,i) => {
+    html += `<div class="item-edit-row">
+      <input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="logos.${i}" value="${ea(logo)}" placeholder="Partner or client name">
+      <button class="item-rm" data-action="rm-comp-logo" data-pid="${pid}" data-cid="${cid}" data-idx="${i}">×</button>
+    </div>`;
+  });
+  html += `</div><button class="add-item-btn" data-action="add-comp-logo" data-pid="${pid}" data-cid="${cid}">+ Add Logo</button>`;
+  return `<div class="field-group"><span class="field-label">Logo Items</span>${html}</div>`;
+}
+
+function buildStatsCompFields(pid, comp) {
+  const cid = comp.id;
+  const items = comp.fields.items || [];
+  let html = `<div class="steps-list-edit" id="stlst-${cid}">`;
+  items.forEach((s,i) => {
+    html += `<div class="step-item-edit">
+      <div class="card-item-head">
+        <span class="card-badge">Stat ${String(i+1).padStart(2,'0')}</span>
+        <button class="card-rm" data-action="rm-comp-stat" data-pid="${pid}" data-cid="${cid}" data-idx="${i}">×</button>
+      </div>
+      ${fld('Value', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="items.${i}.value" value="${ea(s.value||'')}" placeholder="e.g. 98%">`)}
+      ${fld('Label', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="items.${i}.label" value="${ea(s.label||'')}" placeholder="e.g. Client Retention">`)}
+    </div>`;
+  });
+  html += `</div><button class="add-step-btn" data-action="add-comp-stat" data-pid="${pid}" data-cid="${cid}">+ Add Stat</button>`;
+  return `<div class="field-group"><span class="field-label">Stats</span>${html}</div>`;
+}
+
+function buildTestimonialCompFields(pid, comp) {
+  const cid = comp.id;
+  const items = comp.fields.items || [];
+  let html = `<div class="steps-list-edit" id="tlst-${cid}">`;
+  items.forEach((t,i) => {
+    html += `<div class="step-item-edit">
+      <div class="card-item-head">
+        <span class="card-badge">Quote ${String(i+1).padStart(2,'0')}</span>
+        <button class="card-rm" data-action="rm-comp-testimonial" data-pid="${pid}" data-cid="${cid}" data-idx="${i}">×</button>
+      </div>
+      ${fld('Quote', cRta(pid, cid, `items.${i}.quote`, t.quote))}
+      ${fld('Name', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="items.${i}.name" value="${ea(t.name||'')}" placeholder="Full name">`)}
+      ${fld('Role / Company', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="items.${i}.role" value="${ea(t.role||'')}" placeholder="e.g. VP Sales, Example Co.">`)}
+    </div>`;
+  });
+  html += `</div><button class="add-step-btn" data-action="add-comp-testimonial" data-pid="${pid}" data-cid="${cid}">+ Add Testimonial</button>`;
+  return `<div class="field-group"><span class="field-label">Testimonials</span>${html}</div>`;
+}
+
+function buildPricingCompFields(pid, comp) {
+  const cid = comp.id;
+  const plans = comp.fields.plans || [];
+  let html = `<div class="steps-list-edit" id="plst-${cid}">`;
+  plans.forEach((pl,i) => {
+    html += `<div class="step-item-edit">
+      <div class="card-item-head">
+        <span class="card-badge">Plan ${String(i+1).padStart(2,'0')}</span>
+        <button class="card-rm" data-action="rm-comp-plan" data-pid="${pid}" data-cid="${cid}" data-idx="${i}">×</button>
+      </div>
+      ${fld('Plan Name', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="plans.${i}.name" value="${ea(pl.name||'')}" placeholder="e.g. Growth">`)}
+      <div class="field-row-2">
+        ${fld('Price', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="plans.${i}.price" value="${ea(pl.price||'')}" placeholder="e.g. $5,500">`)}
+        ${fld('Period', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="plans.${i}.period" value="${ea(pl.period||'')}" placeholder="e.g. /mo">`)}
+      </div>
+      ${fld('Features', cTa(pid, cid, `plans.${i}.featuresText`, pl.featuresText, 4), 'One feature per line')}
+      <div class="field-row-2">
+        ${fld('Button Text', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="plans.${i}.ctaText" value="${ea(pl.ctaText||'')}" placeholder="Get Started">`)}
+        ${fld('Button URL', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="plans.${i}.ctaUrl" value="${ea(pl.ctaUrl||'')}" placeholder="https://">`)}
+      </div>
+      ${fld('Highlight', `<div class="variant-row">${[{v:'0',l:'Normal'},{v:'1',l:'Featured'}].map(o=>`<button class="variant-btn${(pl.highlighted?'1':'0')===o.v?' on':''}" data-action="set-plan-highlight" data-pid="${pid}" data-cid="${cid}" data-idx="${i}" data-val="${o.v}">${o.l}</button>`).join('')}</div>`)}
+    </div>`;
+  });
+  html += `</div><button class="add-step-btn" data-action="add-comp-plan" data-pid="${pid}" data-cid="${cid}">+ Add Plan</button>`;
+  return `<div class="field-group"><span class="field-label">Pricing Plans</span>${html}</div>`;
+}
+
+function buildFaqCompFields(pid, comp) {
+  const cid = comp.id;
+  const items = comp.fields.items || [];
+  let html = `<div class="steps-list-edit" id="flst-${cid}">`;
+  items.forEach((qa,i) => {
+    html += `<div class="step-item-edit">
+      <div class="card-item-head">
+        <span class="card-badge">Q&amp;A ${String(i+1).padStart(2,'0')}</span>
+        <button class="card-rm" data-action="rm-comp-faq" data-pid="${pid}" data-cid="${cid}" data-idx="${i}">×</button>
+      </div>
+      ${fld('Question', `<input class="field-input" type="text" data-pid="${pid}" data-cid="${cid}" data-fkey="items.${i}.q" value="${ea(qa.q||'')}" placeholder="Question">`)}
+      ${fld('Answer', cRta(pid, cid, `items.${i}.a`, qa.a))}
+    </div>`;
+  });
+  html += `</div><button class="add-step-btn" data-action="add-comp-faq" data-pid="${pid}" data-cid="${cid}">+ Add Question</button>`;
+  return `<div class="field-group"><span class="field-label">Questions</span>${html}</div>`;
+}
+
+function buildImageCompFields(pid, comp) {
+  const cid = comp.id;
+  const dataUrl = comp.fields.dataUrl;
+  return `<div class="field-group"><span class="field-label">Image</span>
+    <div class="img-upload-wrap" id="imgwrap-${cid}">
+      <input type="file" accept="image/*" data-pid="${pid}" data-cid="${cid}" data-fkey="dataUrl">
+      ${dataUrl ? `<img class="img-upload-preview" src="${dataUrl}">` : ''}
+      <span class="img-upload-lbl" ${dataUrl ? 'style="display:none"' : ''}>Click to upload image</span>
+      ${dataUrl ? `<br><button class="img-clear-btn" data-action="clear-comp-img" data-pid="${pid}" data-cid="${cid}">Remove image</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function buildComponentBlock(pid, comp, idx, total, hasPrevPage, hasNextPage) {
+  const cid = comp.id;
+  const label = COMPONENT_LABELS[comp.type] || comp.type;
+  return `<div class="comp-block" id="compblock-${cid}" data-pid="${pid}">
+    <div class="comp-header" draggable="true" data-pid="${pid}" data-cid="${cid}">
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
+      <span class="comp-type-label">${label}</span>
+      <div class="comp-actions">
+        <button class="comp-move" data-action="comp-move-up" data-pid="${pid}" data-cid="${cid}" ${idx===0&&!hasPrevPage?'disabled':''} title="Move up">↑</button>
+        <button class="comp-move" data-action="comp-move-down" data-pid="${pid}" data-cid="${cid}" ${idx===total-1&&!hasNextPage?'disabled':''} title="Move down">↓</button>
+        <button class="comp-remove" data-action="comp-remove" data-pid="${pid}" data-cid="${cid}" title="Remove">✕</button>
+      </div>
+    </div>
+    <div class="comp-fields">${buildCompFields(pid, comp)}</div>
+  </div>`;
+}
+
+function buildAddComponentPanel(pid) {
+  const comps = [
+    { type:'section-tag',  label:'Section Tag',   desc:'Uppercase label',      title:'A small uppercase label above a heading' },
+    { type:'heading',      label:'Heading',       desc:'H2 headline',          title:'A bold section headline' },
+    { type:'subheading',   label:'Subheading',    desc:'Smaller headline',     title:'A smaller headline, Montserrat Medium' },
+    { type:'body',         label:'Body',          desc:'Paragraph text',       title:'A paragraph of body text' },
+    { type:'heading-text', label:'Heading + Text',desc:'Heading & paragraph',  title:'A heading and paragraph bundled together' },
+    { type:'callout',      label:'Callout',       desc:'Highlighted box',      title:'A highlighted box for a key quote or stat' },
+    { type:'pull-quote',   label:'Pull Quote',    desc:'Large quotation',      title:'A large standalone quotation with an eyebrow label' },
+    { type:'stats',        label:'Stats Row',     desc:'Numbers + labels',     title:'A row of big numbers with labels — social proof' },
+    { type:'trust-logos',  label:'Trust Bar',     desc:'Partner/client names', title:'A row of partner or client names to build credibility' },
+    { type:'cards-2col',   label:'2-Col Cards',   desc:'2-column grid',        title:'Two feature cards side by side' },
+    { type:'cards-3col',   label:'3-Col Cards',   desc:'3-column grid',        title:'Three feature cards side by side' },
+    { type:'cards-1col',   label:'1-Col Card',    desc:'Full-width card(s)',   title:'One or more full-width cards, stacked' },
+    { type:'steps',        label:'Steps',         desc:'Numbered process',     title:'A numbered list of process steps' },
+    { type:'testimonials', label:'Testimonials',  desc:'Quote cards',          title:'A grid of customer quote cards' },
+    { type:'pricing',      label:'Pricing Table', desc:'Plan cards',           title:'A set of pricing plan cards' },
+    { type:'faq',          label:'FAQ',           desc:'Accordion Q&A',        title:'An expandable list of questions and answers' },
+    { type:'list',         label:'List',          desc:'Bullet or numbered',   title:'A bullet or numbered list of items' },
+    { type:'image',        label:'Image',         desc:'Upload a photo',       title:'An image or supporting graphic' },
+    { type:'button-row',   label:'Button Row',    desc:'One or two CTAs',      title:'A standalone row of call-to-action buttons' },
+    { type:'spacer',       label:'Spacer',        desc:'Vertical space',       title:'Adds vertical blank space between components' },
+  ];
+  const items = comps.map(c =>
+    `<button class="add-comp-item" data-action="add-comp" data-pid="${pid}" data-ctype="${c.type}" title="${c.title}">
+      <span class="add-comp-glyph">${ADD_COMP_GLYPHS[c.type]||'•'}</span>
+      <span style="display:flex;flex-direction:column">
+        <strong>${c.label}</strong>
+        <span>${c.desc}</span>
+      </span>
+    </button>`
+  ).join('');
+  return `<div class="add-comp-wrap">
+    <button class="add-comp-trigger" data-action="toggle-comp-panel" data-pid="${pid}">
+      <svg width="10" height="10" viewBox="0 0 11 11" fill="none"><line x1="5.5" y1="1" x2="5.5" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Add Component
+    </button>
+    <div class="add-comp-panel" id="addcomppanel-${pid}" style="display:none">
+      <div class="add-comp-grid">${items}</div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   BUILD EDITOR
+   ============================================================ */
+
+let openPageId = null;
+
+function buildEditor() {
+  const body = document.getElementById('editor-body');
+  body.innerHTML = '';
+
+  if (openPageId === null && state.pages.length) openPageId = state.pages[0].id;
+
+  const TYPE_LABELS = { nav: 'Nav', hero: 'Hero', cta: 'CTA', footer: 'Footer' };
+
+  state.pages.forEach((page, idx) => {
+    const { firstMovable, lastMovable } = fixedIndexes();
+    const block = document.createElement('div');
+    block.className = 'page-block';
+    block.id = 'pageblock-' + page.id;
+
+    const isContent = !page.type; // section pages have no type
+    const typeLabel = page.type ? (TYPE_LABELS[page.type] || page.type) : 'Section';
+    const typeBadgeClass = isContent ? 'page-type-badge neutral' : 'page-type-badge';
+
+    const moveUpDisabled   = page.fixed || idx <= firstMovable;
+    const moveDownDisabled = page.fixed || idx >= lastMovable;
+
+    const actions = page.fixed
+      ? `<span class="page-fixed-badge" title="This section can't be moved or deleted.">FIXED</span>`
+      : `<div class="page-actions">
+          <button class="page-move-btn" data-action="move-up" data-pid="${page.id}" ${moveUpDisabled?'disabled':''}>↑</button>
+          <button class="page-move-btn" data-action="move-down" data-pid="${page.id}" ${moveDownDisabled?'disabled':''}>↓</button>
+          <button class="page-remove-btn" data-action="remove-page" data-pid="${page.id}">✕</button>
+        </div>`;
+
+    let fieldsHtml = '';
+    if (isContent) {
+      const total = page.components.length;
+      const hasPrevPage = state.pages.slice(0, idx).some(pg => !pg.type);
+      const hasNextPage = state.pages.slice(idx + 1).some(pg => !pg.type);
+      const compsHtml = total === 0
+        ? `<div class="empty-page-hint">No components yet — add one below</div>`
+        : page.components.map((c,i) => buildComponentBlock(page.id, c, i, total, hasPrevPage, hasNextPage)).join('');
+      fieldsHtml = `
+        <div class="field-group">
+          <span class="field-label">Section Label</span>
+          <input class="field-input" type="text" data-action="rename-page" data-pid="${page.id}" value="${ea(page.label||'')}" placeholder="Section name">
+        </div>
+        <span class="comps-section-label">Components</span>
+        <div class="comps-list" id="comps-${page.id}">${compsHtml}</div>
+        ${buildAddComponentPanel(page.id)}`;
+    } else {
+      fieldsHtml = fixedPageFields[page.type] ? fixedPageFields[page.type](page) : '';
+    }
+
+    const isOpen = page.id === openPageId;
+    block.innerHTML = `<div class="page-header" data-pid="${page.id}" ${page.fixed?'':'draggable="true"'}>
+      ${page.fixed?'':'<span class="drag-handle" title="Drag to reorder">⠿</span>'}
+      <span class="page-num-badge">${String(idx+1).padStart(2,'0')}</span>
+      <span class="${typeBadgeClass}">${typeLabel}</span>
+      <span class="page-label">${esc(page.label||typeLabel)}</span>
+      ${actions}
+      <span class="chevron${isOpen?' open':''}">▶</span>
+    </div>
+    <div class="page-fields${isOpen?'':' collapsed'}" id="fields-${page.id}">${fieldsHtml}</div>`;
+    body.appendChild(block);
+  });
+
+  // Add Section button
+  const addWrap = document.createElement('div');
+  addWrap.style.paddingBottom = '8px';
+  addWrap.style.flexShrink = '0';
+  addWrap.innerHTML = `<button class="add-page-trigger" data-action="add-page">
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><line x1="5.5" y1="1" x2="5.5" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    Add Blank Section
+  </button>`;
+  body.appendChild(addWrap);
+}
+
+/* ============================================================
+   COMPONENT MUTATIONS
+   ============================================================ */
+
+function addComponent(pid, ctype) {
+  const p = state.pages.find(pg => pg.id === pid);
+  if (!p) return;
+  p.components.push({ id: newCid(), type: ctype, fields: JSON.parse(JSON.stringify(COMPONENT_DEFAULTS[ctype]||{})) });
+  rebuildPageComps(pid);
+  schedulePreview();
+}
+
+function removeComponent(pid, cid) {
+  const p = state.pages.find(pg => pg.id === pid);
+  if (!p) return;
+  p.components = p.components.filter(c => c.id !== cid);
+  rebuildPageComps(pid);
+  schedulePreview();
+}
+
+function moveComponent(pid, cid, dir) {
+  const p = state.pages.find(pg => pg.id === pid);
+  if (!p) return;
+  const idx = p.components.findIndex(c => c.id === cid);
+  if (idx < 0) return;
+  const swap = idx + dir;
+
+  if (swap >= 0 && swap < p.components.length) {
+    [p.components[idx], p.components[swap]] = [p.components[swap], p.components[idx]];
+    rebuildPageComps(pid);
+    schedulePreview();
+    return;
+  }
+
+  // Cross-section: find the nearest adjacent content section in direction dir
+  const pageIdx = state.pages.findIndex(pg => pg.id === pid);
+  let targetIdx = pageIdx + dir;
+  while (targetIdx >= 0 && targetIdx < state.pages.length && state.pages[targetIdx].type) {
+    targetIdx += dir;
+  }
+  if (targetIdx < 0 || targetIdx >= state.pages.length) return;
+  const targetPage = state.pages[targetIdx];
+  if (!targetPage.components) targetPage.components = [];
+
+  const [comp] = p.components.splice(idx, 1);
+  if (dir === -1) {
+    targetPage.components.push(comp);     // moving up → append to end of previous section
+  } else {
+    targetPage.components.unshift(comp);  // moving down → prepend to start of next section
+  }
+  rebuildPageComps(pid);
+  rebuildPageComps(targetPage.id);
+  schedulePreview();
+}
+
+function duplicateComponent(pid, cid) {
+  const p = state.pages.find(pg => pg.id === pid);
+  if (!p) return;
+  const idx = p.components.findIndex(c => c.id === cid);
+  if (idx < 0) return;
+  const clone = JSON.parse(JSON.stringify(p.components[idx]));
+  clone.id = newCid();
+  p.components.splice(idx + 1, 0, clone);
+  rebuildPageComps(pid);
+  schedulePreview();
+}
+
+// Called from inside the preview iframe (Wix-style click-to-edit) after a direct edit,
+// so the corresponding sidebar field stays in sync without stealing focus from the preview.
+function syncSidebarField(pid, cid, fkey, value) {
+  let sel = cid ? `[data-pid="${pid}"][data-cid="${cid}"][data-fkey="${fkey}"]` : `[data-pid="${pid}"][data-fkey="${fkey}"]`;
+  let el;
+  try { el = document.querySelector('#editor-body ' + sel); } catch (e) { return; }
+  if (!el || el === document.activeElement) return;
+  if (el.classList.contains('field-rta')) {
+    if (el.innerHTML !== value) el.innerHTML = value;
+  } else if ('value' in el) {
+    if (el.value !== value) el.value = value;
+  }
+}
+
+function setComponentField(pid, cid, fkey, value) {
+  const p = state.pages.find(pg => pg.id === pid);
+  if (!p) return;
+  const comp = p.components.find(c => c.id === cid);
+  if (!comp) return;
+  const parts = fkey.split('.');
+  if (parts.length === 1) {
+    comp.fields[parts[0]] = value;
+  } else if (parts.length === 2) {
+    const arr = comp.fields[parts[0]];
+    if (Array.isArray(arr)) arr[parseInt(parts[1])] = value;
+  } else if (parts.length === 3) {
+    const arr = comp.fields[parts[0]];
+    if (Array.isArray(arr)) {
+      if (!arr[parseInt(parts[1])]) arr[parseInt(parts[1])] = {};
+      arr[parseInt(parts[1])][parts[2]] = value;
+    }
+  }
+}
+
+function rebuildPageComps(pid) {
+  const p = state.pages.find(pg => pg.id === pid);
+  if (!p) return;
+  const el = document.getElementById('comps-' + pid);
+  if (!el) return;
+  const total = p.components.length;
+  const pIdx = state.pages.findIndex(pg => pg.id === pid);
+  const hasPrevPage = state.pages.slice(0, pIdx).some(pg => !pg.type);
+  const hasNextPage = state.pages.slice(pIdx + 1).some(pg => !pg.type);
+  el.innerHTML = total === 0
+    ? `<div class="empty-page-hint">No components yet — add one below</div>`
+    : p.components.map((c,i) => buildComponentBlock(pid, c, i, total, hasPrevPage, hasNextPage)).join('');
+}
+
+/* ============================================================
+   PAGE (SECTION) MUTATIONS
+   ============================================================ */
+
+function addPage() {
+  const page = { id: newId(), label: 'New Section', components: [] };
+  state.pages.splice(state.pages.length - 2, 0, page); // insert before CTA
+  openPageId = page.id;
+  buildEditor();
+  schedulePreview();
+}
+
+function removePage(pid) {
+  const idx = pageIndex(pid);
+  if (idx < 0 || state.pages[idx].fixed) return;
+  state.pages.splice(idx, 1);
+  if (openPageId === pid) {
+    openPageId = state.pages.length ? state.pages[0].id : null;
+  }
+  buildEditor();
+  schedulePreview();
+}
+
+function movePage(pid, dir) {
+  const idx = pageIndex(pid);
+  if (idx < 0 || state.pages[idx].fixed) return;
+  const swap = idx + dir;
+  const { firstMovable, lastMovable } = fixedIndexes();
+  if (swap < firstMovable || swap > lastMovable) return;
+  [state.pages[idx], state.pages[swap]] = [state.pages[swap], state.pages[idx]];
+  buildEditor();
+  schedulePreview();
+}
+
+/* ============================================================
+   FIELD MUTATIONS (nav / hero / cta / footer)
+   ============================================================ */
+
+function setField(pid, fkey, value) {
+  const p = state.pages.find(pg => pg.id === pid);
+  if (!p || !p.fields) return;
+  p.fields[fkey] = value;
+}
+
+function rebuildFixedPageFields(pid) {
+  const p = state.pages.find(pg => pg.id === pid);
+  if (!p || !fixedPageFields[p.type]) return;
+  const el = document.getElementById('fields-' + pid);
+  if (!el) return;
+  el.innerHTML = fixedPageFields[p.type](p);
+}
+
+/* ============================================================
+   PREVIEW
+   ============================================================ */
+
+let _previewTimer = null;
+function schedulePreview() {
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(updatePreview, 250);
+}
+function updatePreview() {
+  const frame = document.getElementById('preview-frame');
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open();
+  doc.write(renderLandingPage(false));
+  doc.close();
+}
+
+/* ============================================================
+   EVENT HANDLING
+   ============================================================ */
+
+// Collapse / expand page blocks
+document.getElementById('editor-body').addEventListener('click', function(e) {
+  const header = e.target.closest('.page-header[data-pid]');
+  if (!header) return;
+  if (e.target.closest('[data-action]')) return;
+  const pid = header.dataset.pid;
+  const fields = document.getElementById('fields-' + pid);
+  if (!fields) return;
+
+  if (openPageId === pid) {
+    openPageId = null;
+    fields.classList.add('collapsed');
+    const chevron = header.querySelector('.chevron');
+    if (chevron) chevron.classList.remove('open');
+    return;
+  }
+
+  document.querySelectorAll('.page-block').forEach(block => {
+    const f = block.querySelector('.page-fields');
+    const c = block.querySelector('.chevron');
+    if (f) f.classList.add('collapsed');
+    if (c) c.classList.remove('open');
+  });
+
+  openPageId = pid;
+  fields.classList.remove('collapsed');
+  const chevron = header.querySelector('.chevron');
+  if (chevron) chevron.classList.add('open');
+});
+
+// Button actions
+document.getElementById('editor-body').addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const pid = btn.dataset.pid;
+  const cid = btn.dataset.cid;
+
+  function getComp() {
+    const p = state.pages.find(pg => pg.id === pid);
+    return p && p.components.find(c => c.id === cid);
+  }
+
+  if (action === 'add-page') {
+    addPage();
+
+  } else if (action === 'remove-page') {
+    removePage(pid);
+
+  } else if (action === 'move-up') {
+    movePage(pid, -1);
+
+  } else if (action === 'move-down') {
+    movePage(pid, 1);
+
+  } else if (action === 'toggle-comp-panel') {
+    const panel = document.getElementById('addcomppanel-' + pid);
+    if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
+
+  } else if (action === 'add-comp') {
+    addComponent(pid, btn.dataset.ctype);
+    const panel = document.getElementById('addcomppanel-' + pid);
+    if (panel) panel.style.display = 'none';
+
+  } else if (action === 'open-icon-picker') {
+    openIconPicker(pid, cid, parseInt(btn.dataset.idx));
+
+  } else if (action === 'comp-remove') {
+    removeComponent(pid, cid);
+
+  } else if (action === 'comp-move-up') {
+    moveComponent(pid, cid, -1);
+
+  } else if (action === 'comp-move-down') {
+    moveComponent(pid, cid, 1);
+
+  } else if (action === 'set-comp-field') {
+    setComponentField(pid, cid, btn.dataset.fkey, btn.dataset.val);
+    rebuildPageComps(pid);
+    schedulePreview();
+
+  } else if (action === 'set-field') {
+    setField(pid, btn.dataset.fkey, btn.dataset.val);
+    rebuildFixedPageFields(pid);
+    schedulePreview();
+
+  } else if (action === 'set-plan-highlight') {
+    const comp = getComp();
+    if (comp && comp.fields.plans) {
+      comp.fields.plans[parseInt(btn.dataset.idx)].highlighted = btn.dataset.val === '1';
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'add-comp-card') {
+    const comp = getComp();
+    if (comp) {
+      if (!comp.fields.cards) comp.fields.cards = [];
+      comp.fields.cards.push({ title: 'New Card', body: 'Description.' });
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'rm-comp-card') {
+    const comp = getComp();
+    if (comp && comp.fields.cards) {
+      comp.fields.cards.splice(parseInt(btn.dataset.idx), 1);
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'add-comp-step') {
+    const comp = getComp();
+    if (comp) {
+      if (!comp.fields.steps) comp.fields.steps = [];
+      comp.fields.steps.push({ label: 'New Step', body: 'Description.' });
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'rm-comp-step') {
+    const comp = getComp();
+    if (comp && comp.fields.steps) {
+      comp.fields.steps.splice(parseInt(btn.dataset.idx), 1);
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'add-comp-item') {
+    const comp = getComp();
+    if (comp) {
+      if (!comp.fields.items) comp.fields.items = [];
+      comp.fields.items.push('New item.');
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'rm-comp-item') {
+    const comp = getComp();
+    if (comp && comp.fields.items) {
+      comp.fields.items.splice(parseInt(btn.dataset.idx), 1);
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'add-comp-logo') {
+    const comp = getComp();
+    if (comp) {
+      if (!comp.fields.logos) comp.fields.logos = [];
+      comp.fields.logos.push('Partner Name');
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'rm-comp-logo') {
+    const comp = getComp();
+    if (comp && comp.fields.logos) {
+      comp.fields.logos.splice(parseInt(btn.dataset.idx), 1);
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'add-comp-stat') {
+    const comp = getComp();
+    if (comp) {
+      if (!comp.fields.items) comp.fields.items = [];
+      comp.fields.items.push({ value: '00%', label: 'New Stat' });
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'rm-comp-stat') {
+    const comp = getComp();
+    if (comp && comp.fields.items) {
+      comp.fields.items.splice(parseInt(btn.dataset.idx), 1);
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'add-comp-testimonial') {
+    const comp = getComp();
+    if (comp) {
+      if (!comp.fields.items) comp.fields.items = [];
+      comp.fields.items.push({ quote: 'New testimonial quote.', name: 'Full Name', role: 'Title, Company' });
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'rm-comp-testimonial') {
+    const comp = getComp();
+    if (comp && comp.fields.items) {
+      comp.fields.items.splice(parseInt(btn.dataset.idx), 1);
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'add-comp-plan') {
+    const comp = getComp();
+    if (comp) {
+      if (!comp.fields.plans) comp.fields.plans = [];
+      comp.fields.plans.push({ name: 'New Plan', price: '$0', period: '/mo', featuresText: 'Feature one\nFeature two', ctaText: 'Get Started', ctaUrl: '#', highlighted: false });
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'rm-comp-plan') {
+    const comp = getComp();
+    if (comp && comp.fields.plans) {
+      comp.fields.plans.splice(parseInt(btn.dataset.idx), 1);
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'add-comp-faq') {
+    const comp = getComp();
+    if (comp) {
+      if (!comp.fields.items) comp.fields.items = [];
+      comp.fields.items.push({ q: 'New question?', a: 'Answer goes here.' });
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'rm-comp-faq') {
+    const comp = getComp();
+    if (comp && comp.fields.items) {
+      comp.fields.items.splice(parseInt(btn.dataset.idx), 1);
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+
+  } else if (action === 'clear-comp-img') {
+    const comp = getComp();
+    if (comp) {
+      comp.fields.dataUrl = null;
+      rebuildPageComps(pid);
+      schedulePreview();
+    }
+  }
+});
+
+// Input / textarea / contenteditable changes
+document.getElementById('editor-body').addEventListener('input', function(e) {
+  const el = e.target;
+  const pid    = el.dataset && el.dataset.pid;
+  const cid    = el.dataset && el.dataset.cid;
+  const fkey   = el.dataset && el.dataset.fkey;
+  const action = el.dataset && el.dataset.action;
+
+  // Section rename
+  if (action === 'rename-page' && pid) {
+    const p = state.pages.find(pg => pg.id === pid);
+    if (p) {
+      p.label = el.value;
+      const labelEl = document.querySelector(`#pageblock-${pid} .page-label`);
+      if (labelEl) labelEl.textContent = el.value;
+      schedulePreview();
+    }
+    return;
+  }
+
+  if (!pid || !fkey) return;
+  const value = el.classList.contains('field-rta') ? el.innerHTML : el.value;
+
+  if (cid) {
+    setComponentField(pid, cid, fkey, value);
+  } else {
+    setField(pid, fkey, value);
+  }
+  schedulePreview();
+});
+
+// File input (image upload) changes
+document.getElementById('editor-body').addEventListener('change', function(e) {
+  const el = e.target;
+  if (el.type !== 'file' || !el.dataset.pid || !el.dataset.cid || !el.dataset.fkey) return;
+  const file = el.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    setComponentField(el.dataset.pid, el.dataset.cid, el.dataset.fkey, ev.target.result);
+    rebuildPageComps(el.dataset.pid);
+    schedulePreview();
+  };
+  reader.readAsDataURL(file);
+});
+
+/* ============================================================
+   DRAG & DROP REORDERING (Wix-style) — sections and components
+   ============================================================ */
+
+let _dragType = null; // 'page' | 'comp'
+let _dragPid = null;
+let _dragCid = null;
+
+function clearDragIndicators() {
+  document.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(el => el.classList.remove('drag-over-top','drag-over-bottom'));
+}
+
+function reorderPage(draggedPid, targetPid, before) {
+  if (draggedPid === targetPid) return;
+  const draggedIdx = pageIndex(draggedPid);
+  if (draggedIdx < 0 || state.pages[draggedIdx].fixed) return;
+  const { firstMovable, lastMovable } = fixedIndexes();
+  const targetIdxBefore = pageIndex(targetPid);
+  if (targetIdxBefore < firstMovable || targetIdxBefore > lastMovable) return; // can't drop among fixed pages
+  const [dragged] = state.pages.splice(draggedIdx, 1);
+  const targetIdxAfter = pageIndex(targetPid);
+  let insertAt = before ? targetIdxAfter : targetIdxAfter + 1;
+  const { firstMovable: fm2, lastMovable: lm2 } = fixedIndexes();
+  insertAt = Math.max(fm2, Math.min(insertAt, lm2 + 1));
+  state.pages.splice(insertAt, 0, dragged);
+  buildEditor();
+  schedulePreview();
+}
+
+function reorderComponent(draggedPid, draggedCid, targetPid, targetCid, before) {
+  const srcPage = state.pages.find(pg => pg.id === draggedPid);
+  const dstPage = state.pages.find(pg => pg.id === targetPid);
+  if (!srcPage || !dstPage) return;
+  const srcIdx = srcPage.components.findIndex(c => c.id === draggedCid);
+  if (srcIdx < 0) return;
+  if (srcPage.id === dstPage.id && srcIdx === dstPage.components.findIndex(c => c.id === targetCid)) return;
+  const [comp] = srcPage.components.splice(srcIdx, 1);
+  let dstIdx = dstPage.components.findIndex(c => c.id === targetCid);
+  if (dstIdx < 0) dstIdx = dstPage.components.length;
+  const insertAt = before ? dstIdx : dstIdx + 1;
+  dstPage.components.splice(insertAt, 0, comp);
+  rebuildPageComps(srcPage.id);
+  if (dstPage.id !== srcPage.id) rebuildPageComps(dstPage.id);
+  schedulePreview();
+}
+
+const editorBodyEl = document.getElementById('editor-body');
+
+editorBodyEl.addEventListener('dragstart', function(e) {
+  const compHeader = e.target.closest('.comp-header[draggable="true"]');
+  const pageHeader = !compHeader && e.target.closest('.page-header[draggable="true"]');
+  if (compHeader) {
+    _dragType = 'comp';
+    _dragPid = compHeader.dataset.pid;
+    _dragCid = compHeader.dataset.cid;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', _dragCid);
+  } else if (pageHeader) {
+    _dragType = 'page';
+    _dragPid = pageHeader.dataset.pid;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', _dragPid);
+  }
+});
+
+editorBodyEl.addEventListener('dragover', function(e) {
+  if (!_dragType) return;
+  const targetHeader = _dragType === 'page' ? e.target.closest('.page-header') : e.target.closest('.comp-header');
+  if (!targetHeader) return;
+  e.preventDefault();
+  clearDragIndicators();
+  const rect = targetHeader.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  targetHeader.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
+});
+
+editorBodyEl.addEventListener('drop', function(e) {
+  if (!_dragType) return;
+  e.preventDefault();
+  const targetHeader = _dragType === 'page' ? e.target.closest('.page-header') : e.target.closest('.comp-header');
+  clearDragIndicators();
+  if (!targetHeader) { _dragType = null; return; }
+  const rect = targetHeader.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+
+  if (_dragType === 'page') {
+    reorderPage(_dragPid, targetHeader.dataset.pid, before);
+  } else if (_dragType === 'comp') {
+    reorderComponent(_dragPid, _dragCid, targetHeader.dataset.pid, targetHeader.dataset.cid, before);
+  }
+  _dragType = null; _dragPid = null; _dragCid = null;
+});
+
+editorBodyEl.addEventListener('dragend', function() {
+  clearDragIndicators();
+  _dragType = null; _dragPid = null; _dragCid = null;
+});
+
+/* ============================================================
+   EXPORT
+   ============================================================ */
+
+document.getElementById('export-btn').addEventListener('click', function() {
+  const html = renderLandingPage(true);
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'landing-page-export.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* ============================================================
+   RTA TOOLBAR
+   ============================================================ */
+
+let _rtaTarget = null;
+
+function positionRtaToolbar() {
+  if (!_rtaTarget) return;
+  const rect = _rtaTarget.getBoundingClientRect();
+  const tb = document.getElementById('rta-toolbar');
+  const tbH = 42;
+  let top = rect.top - tbH - 8;
+  let left = rect.left;
+  if (top < 8) top = rect.bottom + 6;
+  if (left + 240 > window.innerWidth) left = window.innerWidth - 246;
+  tb.style.top = Math.max(8, top) + 'px';
+  tb.style.left = Math.max(8, left) + 'px';
+}
+
+document.getElementById('editor-body').addEventListener('focusin', function(e) {
+  const rta = e.target.closest('.field-rta');
+  if (!rta) return;
+  _rtaTarget = rta;
+  positionRtaToolbar();
+  document.getElementById('rta-toolbar').classList.add('visible');
+});
+
+document.getElementById('editor-body').addEventListener('focusout', function(e) {
+  setTimeout(function() {
+    const active = document.activeElement;
+    if (!active || (!active.closest('.field-rta') && !active.closest('#rta-toolbar'))) {
+      document.getElementById('rta-toolbar').classList.remove('visible');
+      _rtaTarget = null;
+    }
+  }, 120);
+});
+
+document.getElementById('editor-body').addEventListener('keyup', positionRtaToolbar);
+document.getElementById('editor-body').addEventListener('scroll', positionRtaToolbar, true);
+
+function applyForeColor(color) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount || sel.isCollapsed) return;
+  const range = sel.getRangeAt(0);
+  const frag = range.extractContents();
+  const span = document.createElement('span');
+  span.style.color = color;
+  span.appendChild(frag);
+  range.insertNode(span);
+  sel.removeAllRanges();
+  const newRange = document.createRange();
+  newRange.selectNodeContents(span);
+  sel.addRange(newRange);
+}
+
+document.getElementById('rta-toolbar').addEventListener('mousedown', function(e) {
+  e.preventDefault();
+  const btn = e.target.closest('[data-fmt]');
+  if (!btn) return;
+  const fmt = btn.dataset.fmt;
+  if (fmt === 'bold')        { document.execCommand('bold', false); }
+  else if (fmt === 'italic') { document.execCommand('italic', false); }
+  else if (fmt === 'clear')  { document.execCommand('removeFormat', false); }
+  else if (fmt === 'color')  { applyForeColor(btn.dataset.color); }
+  if (_rtaTarget) _rtaTarget.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+/* ============================================================
+   ICON PICKER POPUP
+   ============================================================ */
+
+let _iconPickerTarget = null;
+
+function openIconPicker(pid, cid, idx) {
+  const p = state.pages.find(pg => pg.id === pid);
+  const comp = p && p.components.find(c => c.id === cid);
+  const card = comp && comp.fields.cards && comp.fields.cards[idx];
+  if (!card) return;
+  _iconPickerTarget = { pid, cid, idx };
+  const selectedIcon = card.icon != null ? card.icon : idx;
+  const grid = document.getElementById('icon-picker-grid');
+  grid.innerHTML = ICONS.map((_, ii) =>
+    `<button class="icon-pick-btn${String(selectedIcon)===String(ii)?' on':''}" data-icon-idx="${ii}" title="Icon ${ii+1}">${mkIcon(ii)}</button>`
+  ).join('');
+  document.getElementById('icon-picker-overlay').classList.add('visible');
+}
+
+function closeIconPicker() {
+  document.getElementById('icon-picker-overlay').classList.remove('visible');
+  _iconPickerTarget = null;
+}
+
+document.getElementById('icon-picker-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeIconPicker();
+});
+document.getElementById('icon-picker-close').addEventListener('click', closeIconPicker);
+
+document.getElementById('icon-picker-grid').addEventListener('click', function(e) {
+  const btn = e.target.closest('.icon-pick-btn');
+  if (!btn || !_iconPickerTarget) return;
+  const { pid, cid, idx } = _iconPickerTarget;
+  setComponentField(pid, cid, `cards.${idx}.icon`, parseInt(btn.dataset.iconIdx));
+  rebuildPageComps(pid);
+  schedulePreview();
+  closeIconPicker();
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && _iconPickerTarget) closeIconPicker();
+});
+
+// Strip all formatting on paste into RTA fields — plain text only
+document.getElementById('editor-body').addEventListener('paste', function(e) {
+  const rta = e.target.closest('.field-rta');
+  if (!rta) return;
+  e.preventDefault();
+  const plain = (e.clipboardData || window.clipboardData).getData('text/plain');
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  sel.deleteFromDocument();
+  const range = sel.getRangeAt(0);
+  const node = document.createTextNode(plain);
+  range.insertNode(node);
+  range.setStartAfter(node);
+  range.setEndAfter(node);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  rta.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+
+buildEditor();
+updatePreview();
+
+</script>
+</body>
+</html>

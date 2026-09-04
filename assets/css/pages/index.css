@@ -536,6 +536,38 @@ section{position:relative;overflow:clip}
 .case-stat-label{font-size:12px;color:var(--muted);line-height:1.4}
 
 /* =========================================================
+   MISTAKES / NUMBERED Q&A GRID
+   ========================================================= */
+.mistakes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px}
+.mistake-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;position:relative;overflow:clip;box-shadow:0 1px 3px rgba(10,10,10,0.05);transition:border-color 0.25s}
+.mistake-card:hover{background:var(--card);border-color:rgba(233,92,37,0.40);box-shadow:0 1px 3px rgba(10,10,10,0.05)}
+.mistake-num{font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:var(--orange);margin-bottom:10px}
+.mistake-q{font-size:14px;font-weight:800;color:var(--light);line-height:1.4;margin-bottom:12px;letter-spacing:-0.01em}
+.mistake-a{font-size:12px;color:var(--muted);line-height:1.7}
+.mistake-a em{color:var(--orange);font-style:normal;font-weight:700}
+.mistake-bg-num{position:absolute;right:16px;top:12px;font-size:80px;font-weight:900;font-style:italic;color:rgba(10,10,10,0.04);line-height:1;user-select:none}
+.mistakes-bottom{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:900px){.mistakes-grid{grid-template-columns:1fr}.mistakes-bottom{grid-template-columns:1fr}}
+
+/* =========================================================
+   PULL QUOTE
+   ========================================================= */
+.pull-quote-block{border-left:3px solid var(--orange);padding:4px 0 4px 28px;margin:40px 0}
+.pull-quote-eyebrow{font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--orange);margin-bottom:10px}
+.pull-quote-text{font-size:clamp(18px,2.4vw,26px);font-weight:700;font-style:italic;color:var(--light);line-height:1.4}
+.pull-quote-text em{font-style:italic;color:var(--orange)}
+
+/* =========================================================
+   TESTIMONIAL
+   ========================================================= */
+.testimonial-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 40px;margin:32px 0}
+.testimonial-quote{font-size:18px;font-weight:600;color:var(--light);line-height:1.6;margin-bottom:20px}
+.testimonial-quote em{font-style:italic;color:var(--orange)}
+.testimonial-author{display:flex;flex-direction:column;gap:2px}
+.testimonial-name{font-size:13px;font-weight:700;color:var(--light)}
+.testimonial-role{font-size:12px;color:var(--muted)}
+
+/* =========================================================
    CONTACT
    ========================================================= */
 .contact-layout{display:grid;grid-template-columns:1fr 1.2fr;gap:80px;margin-top:64px}

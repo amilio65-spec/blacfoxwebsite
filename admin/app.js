@@ -389,6 +389,67 @@ const COMPONENTS = {
     fields: [{ key: 'size', label: 'Height', type: 'select', options: ['32px', '64px', '96px'], default: '64px' }],
     render: f => `<div style="height:${f.size}"></div>`,
   },
+  'callout-box': {
+    label: 'Callout Box', hint: 'A short, bold statement in an orange-bordered box, for punching up one key line mid-section.',
+    fields: [{ key: 'html', label: 'Text (HTML allowed for <em>)', type: 'textarea', default: 'A short, memorable statement goes here.' }],
+    render: f => `<div class="callout-box reveal">\n  <p>${f.html}</p>\n</div>`,
+  },
+  'pull-quote': {
+    label: 'Pull Quote', hint: 'An optional eyebrow label above a large italic quote line.',
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow (optional)', type: 'text', default: '' },
+      { key: 'html', label: 'Quote text (HTML allowed for <em>)', type: 'textarea', default: 'A memorable line worth pulling out on its own.' },
+    ],
+    render: f => `<div class="pull-quote-block reveal">\n${f.eyebrow ? `  <p class="pull-quote-eyebrow">${escHtml(f.eyebrow)}</p>\n` : ''}  <p class="pull-quote-text">${f.html}</p>\n</div>`,
+  },
+  'testimonial': {
+    label: 'Testimonial', hint: 'A client quote with a name and role/company.',
+    fields: [
+      { key: 'quoteHtml', label: 'Quote (HTML allowed for <em>)', type: 'textarea', default: '“A memorable client quote goes here.”' },
+      { key: 'name', label: 'Name', type: 'text', default: 'Full Name' },
+      { key: 'role', label: 'Role / Company', type: 'text', default: 'Title, Company' },
+    ],
+    render: f => `<div class="testimonial-card reveal">\n  <p class="testimonial-quote">${f.quoteHtml}</p>\n  <div class="testimonial-author">\n    <p class="testimonial-name">${escHtml(f.name)}</p>\n    <p class="testimonial-role">${escHtml(f.role)}</p>\n  </div>\n</div>`,
+  },
+  'service-card': {
+    label: 'Service / Offering Card', hint: 'One packaged service or offering, matching the cards on the Services page.',
+    fields: [
+      { key: 'name', label: 'Eyebrow (e.g. "Service 01")', type: 'text', default: 'Service 01' },
+      { key: 'headlineHtml', label: 'Headline (HTML allowed for <em>)', type: 'text', default: 'Service name' },
+      { key: 'leadHtml', label: 'Lead line (HTML allowed for <strong>/<em>)', type: 'textarea', default: 'One-line description of the outcome this service delivers.' },
+      { key: 'includesTitle', label: 'List heading', type: 'text', default: "What's included" },
+      { key: 'features', label: 'Features (one per line, HTML allowed)', type: 'textarea', default: 'First deliverable\nSecond deliverable\nThird deliverable' },
+      { key: 'meta', label: 'Footer meta line (e.g. "12 WEEKS · PAID ON OUTCOMES")', type: 'text', default: 'PAID ON OUTCOMES' },
+    ],
+    render: f => {
+      const feats = f.features.split('\n').map(s => s.trim()).filter(Boolean);
+      return `<div class="service-card reveal">\n  <p class="service-name">${escHtml(f.name)}</p>\n  <h2 class="service-headline">${f.headlineHtml}</h2>\n  <p class="service-lead">${f.leadHtml}</p>\n  <p class="service-includes-title">${escHtml(f.includesTitle)}</p>\n  <ul class="service-list">\n${feats.map(x => `    <li>${x}</li>`).join('\n')}\n  </ul>\n  <p class="service-meta">${escHtml(f.meta)}</p>\n</div>`;
+    },
+  },
+  'case-study': {
+    label: 'Case Study Card', hint: 'A proof panel: headline, body copy, a CTA link, and a strip of stat numbers.',
+    fields: [
+      { key: 'badge', label: 'Badge text', type: 'text', default: 'Proof, not promises' },
+      { key: 'meta', label: 'Small eyebrow line (optional)', type: 'text', default: '' },
+      { key: 'headlineHtml', label: 'Headline (HTML allowed for <em>)', type: 'text', default: 'Case study headline goes here.' },
+      { key: 'body', label: 'Body', type: 'textarea', default: 'Describe the result and how it was achieved.' },
+      { key: 'ctaText', label: 'CTA text', type: 'text', default: 'Ask us on the call' },
+      { key: 'ctaUrl', label: 'CTA URL', type: 'text', default: 'contact.html' },
+      { key: 'stats', label: 'Stats (value | label, one per line, up to 4)', type: 'textarea', default: '10:1 | pipeline ACV return\n15+ | years experience' },
+    ],
+    render: f => {
+      const rows = f.stats.split('\n').map(l => l.split('|').map(s => s.trim())).filter(r => r[0]).slice(0, 4);
+      return `<div class="case-study-card reveal" style="padding:40px 48px;">\n  <div class="case-study-body">\n    <div class="case-badge">${escHtml(f.badge)}</div>\n${f.meta ? `    <p class="case-meta">${escHtml(f.meta)}</p>\n` : ''}    <h3 class="case-headline">${f.headlineHtml}</h3>\n    <p style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px;">${escHtml(f.body)}</p>\n    <div style="margin-top:32px;">\n      <a href="${escHtml(f.ctaUrl)}" class="btn-ghost">${escHtml(f.ctaText)} →</a>\n    </div>\n  </div>\n  <div class="case-stats-strip">\n${rows.map(([v, l]) => `    <div><p class="case-stat-num">${escHtml(v)}</p><p class="case-stat-label">${escHtml(l || '')}</p></div>`).join('\n')}\n  </div>\n</div>`;
+    },
+  },
+  'mistakes-grid': {
+    label: 'Numbered Mistakes Grid', hint: 'A grid of big-numeral Q&A cards (e.g. "5 common mistakes") — visually distinct from the FAQ accordion. One Q&A per pair of lines, blank line between pairs.',
+    fields: [{ key: 'items', label: 'Q/A pairs (question, then answer, blank line between pairs)', type: 'textarea', default: 'Common mistake one?\nWhy it happens and how to avoid it.\n\nCommon mistake two?\nWhy it happens and how to avoid it.' }],
+    render: f => {
+      const pairs = f.items.split(/\n\s*\n/).map(block => block.split('\n')).filter(p => p[0]);
+      return `<div class="mistakes-grid reveal">\n${pairs.map(([q, ...a], i) => `  <div class="mistake-card">\n    <div class="mistake-bg-num">${i + 1}</div>\n    <div class="mistake-num">Mistake ${String(i + 1).padStart(2, '0')}</div>\n    <div class="mistake-q">${escHtml(q)}</div>\n    <div class="mistake-a">${escHtml(a.join(' '))}</div>\n  </div>`).join('\n')}\n</div>`;
+    },
+  },
 };
 
 /* Curated block vocabulary for article bodies -- narrower than the full
@@ -551,6 +612,12 @@ function insertBlockAt(region, index, html) {
    ------------------------------------------------------------ */
 const INLINE_PASSENGER_TAGS = new Set(['EM', 'I', 'STRONG', 'B', 'SPAN', 'BR', 'SVG', 'PATH', 'RECT', 'CIRCLE', 'POLYGON', 'LINE', 'G']);
 const SKIP_CONTAINER_TAGS = new Set(['FORM', 'SCRIPT', 'STYLE', 'CANVAS', 'SELECT', 'TEXTAREA', 'OPTION']);
+// Classes handled by the dedicated illustration-upload field (see
+// getIllustrationPanels below) rather than plain text editing: the hero
+// "quote panel" placeholder, and method.html's identical in-body
+// ".section-split-img" placeholders. Both share the same placeholder
+// markup/behavior, just in different regions of the page.
+const ILLUSTRATION_PANEL_CLASSES = ['hero-quote-panel', 'section-split-img'];
 
 function isPhrasingOnly(el) {
   for (const child of el.children) {
@@ -589,13 +656,17 @@ function collectEditableLeaves(root, out) {
     // with anything in the raw string, silently corrupting an unrelated
     // edit. Skip it entirely, both here and in the block-control wiring.
     if (el.classList && el.classList.contains('cms-generated')) continue;
-    // The hero illustration panel (see renderIllustrationField) is addressed
-    // by its own dedicated scheme, not a leaf index -- and its "leaf-ness"
-    // would otherwise flip depending on state (an <img> has no textContent,
-    // so hasEditableText would drop it the moment an image is uploaded,
-    // silently shifting every later leaf's index). Skip it unconditionally,
-    // in both states, so it never participates in this count at all.
-    if (el.classList && el.classList.contains('hero-quote-panel')) continue;
+    // Illustration panels (the hero "quote panel", and method.html's
+    // in-body ".section-split-img" placeholders -- see renderIllustrationField)
+    // are addressed by their own dedicated scheme, not a leaf index -- and
+    // their "leaf-ness" would otherwise flip depending on state (an <img>
+    // has no textContent, so hasEditableText would drop it the moment an
+    // image is uploaded, silently shifting every later leaf's index). Skip
+    // them unconditionally, in both states, so they never participate in
+    // this count at all. (Inlined literally, not via a shared helper --
+    // this function's source is toString()'d into the preview iframe, which
+    // can't see any function/const defined outside this template literal.)
+    if (el.classList && (el.classList.contains('hero-quote-panel') || el.classList.contains('section-split-img'))) continue;
     if (isPhrasingOnly(el) && hasEditableText(el)) {
       out.push(el);
     } else {
@@ -614,7 +685,7 @@ function leavesForBlock(block) {
   if (SKIP_CONTAINER_TAGS.has(block.tagName.toUpperCase())) return [];
   if (typeof SVGElement !== 'undefined' && block instanceof SVGElement) return [];
   if (block.classList && block.classList.contains('cms-generated')) return [];
-  if (block.classList && block.classList.contains('hero-quote-panel')) return [];
+  if (block.classList && (block.classList.contains('hero-quote-panel') || block.classList.contains('section-split-img'))) return [];
   if (isPhrasingOnly(block) && hasEditableText(block)) return [block];
   return collectEditableLeaves(block);
 }
@@ -634,6 +705,12 @@ function guessBlockLabel(el) {
   if (cls.includes('trust-bar')) return 'Trust bar';
   if (cls.includes('faq-list')) return 'FAQ list';
   if (cls.includes('hero-ctas')) return 'Button row';
+  if (cls.includes('callout-box')) return 'Callout box';
+  if (cls.includes('pull-quote-block')) return 'Pull quote';
+  if (cls.includes('testimonial-card')) return 'Testimonial';
+  if (cls.includes('service-card')) return 'Service card';
+  if (cls.includes('case-study-card')) return 'Case study card';
+  if (cls.includes('mistakes-grid')) return 'Mistakes grid';
   if (tag === 'h1' || tag === 'h2') return 'Heading';
   if (tag === 'h3') return 'Subheading';
   if (tag === 'p') return 'Paragraph';
@@ -1562,41 +1639,44 @@ async function savePageMeta() {
    Save (which reads directly from those textareas) keeps working exactly
    as before regardless of which view was used to make the edit.
    ------------------------------------------------------------ */
-// The hand-authored hero illustration placeholder (`<div class=
-// "hero-quote-panel is-placeholder"><svg>...</svg><span>Illustration
-// placeholder</span></div>`, identical across all 9 pages -- see site.css's
-// "stands in for a future custom illustration" comment) is deliberately
+// The hand-authored illustration placeholder (`<div class="hero-quote-panel
+// is-placeholder"><svg>...</svg><span>Illustration placeholder</span></div>`,
+// identical across all 9 pages' heroes -- see site.css's "stands in for a
+// future custom illustration" comment -- plus the same placeholder markup
+// reused in-body as `.section-split-img` on method.html, 3x) is deliberately
 // skipped by collectEditableLeaves/leavesForBlock above (a text-edit box
 // would let someone "edit" an SVG icon as raw HTML, and once it holds a
 // real <img> it wouldn't even qualify as a leaf -- an <img> has no
 // textContent -- so its leaf-ness would depend on state, which would shift
 // every later leaf's index the moment an image got uploaded). It gets its
 // own image-upload field instead, addressed by its position among
-// `.hero-quote-panel` elements rather than a leaf index, so it's stable in
-// both states.
+// `ILLUSTRATION_PANEL_CLASSES` elements rather than a leaf index, so it's
+// stable in both states.
 const PLACEHOLDER_ICON_HTML = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.75"/><path d="M21 15l-5-5L5 21"/></svg>\n      <span>Illustration placeholder</span>';
+const ILLUSTRATION_PANEL_SELECTOR = ILLUSTRATION_PANEL_CLASSES.map(c => '.' + c).join(', ');
 function getIllustrationPanels(region) {
   const html = getRegionHtml(region) || '';
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  return Array.from(doc.body.querySelectorAll('.hero-quote-panel'));
+  return Array.from(doc.body.querySelectorAll(ILLUSTRATION_PANEL_SELECTOR));
 }
 function transformIllustrationPanel(region, panelIndex, mutate) {
   const raw = getRegionHtml(region);
   if (raw == null) return false;
   const doc = new DOMParser().parseFromString(raw, 'text/html');
-  const panels = Array.from(doc.body.querySelectorAll('.hero-quote-panel'));
+  const panels = Array.from(doc.body.querySelectorAll(ILLUSTRATION_PANEL_SELECTOR));
   const el = panels[panelIndex];
   if (!el) return false;
   mutate(el);
   setRegionHtml(region, doc.body.innerHTML.trim());
   return true;
 }
-function renderIllustrationField(region, panel, panelIndex) {
+function renderIllustrationField(region, panel, panelIndex, totalPanels) {
   const img = panel.querySelector('img');
   const src = img ? img.getAttribute('src') : '';
   const size = panel.classList.contains('size-sm') ? 'sm' : panel.classList.contains('size-lg') ? 'lg' : 'md';
+  const label = totalPanels > 1 ? `Illustration ${panelIndex + 1}` : 'Illustration';
   return `<div class="content-field">
-    <label class="content-field-label">Illustration</label>
+    <label class="content-field-label">${escHtml(label)}</label>
     <div class="img-drop illustration-drop" data-region="${region}" data-panel-index="${panelIndex}" data-src="${escHtml(src)}">
       <div class="img-drop-lbl illustration-drop-lbl">${src ? 'Loading preview…' : 'Click or drop a JPG/PNG to replace this placeholder'}</div>
       <input type="file" class="illustration-file-input" accept="image/*">
@@ -1645,7 +1725,8 @@ function renderLeafFieldsHTML(region) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const leaves = collectEditableLeaves(doc.body);
   const textFields = leaves.map((leaf, i) => renderContentFieldForLeaf(region, leaf, i)).join('');
-  const illustrationFields = getIllustrationPanels(region).map((panel, i) => renderIllustrationField(region, panel, i)).join('');
+  const panels = getIllustrationPanels(region);
+  const illustrationFields = panels.map((panel, i) => renderIllustrationField(region, panel, i, panels.length)).join('');
   return (textFields + illustrationFields) || '<p class="field-hint">Nothing editable here yet.</p>';
 }
 function renderContentBlocksHTML(region) {
@@ -1734,9 +1815,16 @@ function onIllustrationFilePicked(e, region, panelIndex, drop) {
     try {
       const slug = App.current.slug;
       const ext = (file.name.match(/\.\w+$/) || ['.jpg'])[0];
-      const path = `assets/hero/${slug}/illustration${ext}`;
+      // Keeps the original hero-panel path (region 'hero', index 0) exactly
+      // as-is, since illustrations already live there in the repo -- any
+      // additional panel (e.g. method.html's in-body section-split-img
+      // placeholders) gets a disambiguated path so multiple uploads on one
+      // page never overwrite each other or the hero's own file.
+      const path = (region === 'hero' && panelIndex === 0)
+        ? `assets/hero/${slug}/illustration${ext}`
+        : `assets/hero/${slug}/illustration-${region}-${panelIndex}${ext}`;
       const existing = await gh.getFile(gh.owner, gh.repo, path, App.branch);
-      await gh.putFile(gh.owner, gh.repo, path, bytesToB64(new Uint8Array(reader.result)), `Add hero illustration for ${slug} via Blacfox CMS`, App.branch, existing ? existing.sha : undefined);
+      await gh.putFile(gh.owner, gh.repo, path, bytesToB64(new Uint8Array(reader.result)), `Add illustration for ${slug} via Blacfox CMS`, App.branch, existing ? existing.sha : undefined);
       App.assetCache.delete(`datauri:${App.branch}:${path}`);
       const obj = getCurrentEditable();
       const alt = escHtml((obj && obj.data && obj.data.title) || 'Illustration');
@@ -1760,7 +1848,11 @@ function removeIllustration(region, panelIndex) {
   if (!confirm('Remove this illustration and restore the placeholder? The uploaded image file stays in the repo either way.')) return;
   transformIllustrationPanel(region, panelIndex, el => {
     el.classList.remove('has-image', 'size-sm', 'size-md', 'size-lg');
-    el.classList.add('is-placeholder');
+    // .hero-quote-panel needs the explicit is-placeholder modifier to get
+    // the dashed-box look; .section-split-img has no such modifier -- its
+    // bare class is already styled as the placeholder, so adding one would
+    // just be dead markup.
+    if (el.classList.contains('hero-quote-panel')) el.classList.add('is-placeholder');
     el.innerHTML = PLACEHOLDER_ICON_HTML;
   });
   refreshRegionUI(region);
