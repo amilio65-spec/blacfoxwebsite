@@ -242,9 +242,16 @@ section + section {
 .hero-quote-panel.is-placeholder svg{opacity:0.55}
 .hero-quote-panel.is-placeholder span{font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase}
 
-/* Once a real illustration is uploaded via the CMS (replacing is-placeholder) */
-.hero-quote-panel.has-image{padding:0;overflow:hidden;min-height:320px}
-.hero-quote-panel.has-image img{width:100%;height:100%;object-fit:cover;display:block;border-radius:19px}
+/* Once a real illustration is uploaded via the CMS (replacing is-placeholder).
+   No card background/border and object-fit:contain (not cover) so a
+   transparent PNG's own transparency shows the page behind it instead of
+   being cropped to fill an opaque card. Size picks the panel's height;
+   medium matches the placeholder's own 320px so switching to/from it
+   doesn't jump the layout. */
+.hero-quote-panel.has-image{padding:0;overflow:hidden;min-height:320px;background:transparent;border:none}
+.hero-quote-panel.has-image.size-sm{min-height:200px}
+.hero-quote-panel.has-image.size-lg{min-height:460px}
+.hero-quote-panel.has-image img{width:100%;height:100%;object-fit:contain;display:block}
 
 /* =========================================================
    STATS BAR

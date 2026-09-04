@@ -1593,13 +1593,20 @@ function transformIllustrationPanel(region, panelIndex, mutate) {
 function renderIllustrationField(region, panel, panelIndex) {
   const img = panel.querySelector('img');
   const src = img ? img.getAttribute('src') : '';
+  const size = panel.classList.contains('size-sm') ? 'sm' : panel.classList.contains('size-lg') ? 'lg' : 'md';
   return `<div class="content-field">
     <label class="content-field-label">Illustration</label>
     <div class="img-drop illustration-drop" data-region="${region}" data-panel-index="${panelIndex}" data-src="${escHtml(src)}">
       <div class="img-drop-lbl illustration-drop-lbl">${src ? 'Loading preview…' : 'Click or drop a JPG/PNG to replace this placeholder'}</div>
       <input type="file" class="illustration-file-input" accept="image/*">
     </div>
-    ${src ? `<button class="btn btn-ghost btn-sm illustration-remove-btn" data-region="${region}" data-panel-index="${panelIndex}" style="margin-top:6px">Remove image</button>` : ''}
+    ${src ? `
+    <div class="radio-row illustration-size-row" data-region="${region}" data-panel-index="${panelIndex}" style="margin-top:8px">
+      <div class="radio-btn illustration-size-btn${size === 'sm' ? ' on' : ''}" data-size="sm">Small</div>
+      <div class="radio-btn illustration-size-btn${size === 'md' ? ' on' : ''}" data-size="md">Medium</div>
+      <div class="radio-btn illustration-size-btn${size === 'lg' ? ' on' : ''}" data-size="lg">Large</div>
+    </div>
+    <button class="btn btn-ghost btn-sm illustration-remove-btn" data-region="${region}" data-panel-index="${panelIndex}" style="margin-top:6px">Remove image</button>` : ''}
   </div>`;
 }
 function renderContentFieldForLeaf(region, leaf, index) {
@@ -1673,6 +1680,20 @@ function wireIllustrationFields(container) {
   container.querySelectorAll('.illustration-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => removeIllustration(btn.dataset.region, parseInt(btn.dataset.panelIndex, 10)));
   });
+  container.querySelectorAll('.illustration-size-row').forEach(row => {
+    const region = row.dataset.region;
+    const panelIndex = parseInt(row.dataset.panelIndex, 10);
+    row.querySelectorAll('.illustration-size-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        transformIllustrationPanel(region, panelIndex, el => {
+          el.classList.remove('size-sm', 'size-md', 'size-lg');
+          el.classList.add('size-' + btn.dataset.size);
+        });
+        row.querySelectorAll('.illustration-size-btn').forEach(b => b.classList.toggle('on', b === btn));
+        refreshPreview();
+      });
+    });
+  });
 }
 // Uploads immediately (like the article image block) rather than deferring
 // to Save -- there's no good way to preview a not-yet-uploaded blob as part
@@ -1713,7 +1734,7 @@ function onIllustrationFilePicked(e, region, panelIndex, drop) {
 function removeIllustration(region, panelIndex) {
   if (!confirm('Remove this illustration and restore the placeholder? The uploaded image file stays in the repo either way.')) return;
   transformIllustrationPanel(region, panelIndex, el => {
-    el.classList.remove('has-image');
+    el.classList.remove('has-image', 'size-sm', 'size-md', 'size-lg');
     el.classList.add('is-placeholder');
     el.innerHTML = PLACEHOLDER_ICON_HTML;
   });
