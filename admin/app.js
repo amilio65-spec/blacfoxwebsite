@@ -544,6 +544,50 @@ function collectEditableLeaves(root, out) {
   return out;
 }
 
+// Same "is this element itself a leaf, or do I need to look inside it"
+// check collectEditableLeaves applies to each child of its root -- exposed
+// separately so the sidebar's block-card view can ask it of one specific
+// block and get exactly the slice of the flat leaf list that block
+// contributes, in the same order applyInlineEdit's indices assume.
+function leavesForBlock(block) {
+  if (SKIP_CONTAINER_TAGS.has(block.tagName.toUpperCase())) return [];
+  if (block.classList && block.classList.contains('cms-generated')) return [];
+  if (isPhrasingOnly(block) && hasEditableText(block)) return [block];
+  return collectEditableLeaves(block);
+}
+
+// Best-effort, cosmetic-only labels so the sidebar reads as "Heading" /
+// "Paragraph" / "Card grid" instead of a class name or a bare tag -- these
+// never affect what gets saved, only how the block list is captioned.
+function guessBlockLabel(el) {
+  const cls = el.className || '';
+  const tag = el.tagName.toLowerCase();
+  if (cls.includes('hero-section')) return 'Hero section';
+  if (cls.includes('cta-section')) return 'Closing CTA';
+  if (cls.includes('card-grid')) return 'Card grid';
+  if (cls.includes('stats-section')) return 'Stats row';
+  if (cls.includes('trust-bar')) return 'Trust bar';
+  if (cls.includes('faq-list')) return 'FAQ list';
+  if (cls.includes('hero-ctas')) return 'Button row';
+  if (tag === 'h1' || tag === 'h2') return 'Heading';
+  if (tag === 'h3') return 'Subheading';
+  if (tag === 'p') return 'Paragraph';
+  if (tag === 'blockquote') return 'Quote';
+  if (tag === 'figure' || tag === 'img' || (tag === 'div' && el.querySelector('img'))) return 'Image';
+  return 'Section';
+}
+function guessLeafKind(el) {
+  const cls = el.className || '';
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'h1' || tag === 'h2') return 'Heading';
+  if (tag === 'h3') return 'Subheading';
+  if (tag === 'a') return 'Link text';
+  if (tag === 'blockquote') return 'Quote';
+  if (tag === 'figcaption') return 'Caption';
+  if (cls.includes('section-tag')) return 'Label';
+  return 'Text';
+}
+
 // Applies an edit reported by the preview iframe back into the real,
 // canonical hero/main HTML string for the current page (and mirrors it
 // into the raw-HTML textarea if that tab happens to be open). Nothing is
@@ -571,10 +615,12 @@ function handleBlockMessage(msg) {
     if (!confirm('Remove this block? Unsaved until you hit Save, but there is no undo once you do.')) return;
     deleteBlock(region, index);
     setStatus('edited (unsaved)', '');
+    refreshRegionUI(region);
     refreshPreview();
   } else if (action === 'move') {
     moveBlock(region, index, msg.dir);
     setStatus('edited (unsaved)', '');
+    refreshRegionUI(region);
     refreshPreview();
   } else if (action === 'insert') {
     openInsertSectionModal(region, index);
@@ -584,7 +630,10 @@ function handleBlockMessage(msg) {
 window.addEventListener('message', e => {
   if (!e.data || e.data.source !== 'blacfox-cms-preview') return;
   if (e.data.type === 'edit') {
-    if (applyInlineEdit(e.data.region, e.data.index, e.data.html)) setStatus('edited (unsaved)', '');
+    if (applyInlineEdit(e.data.region, e.data.index, e.data.html)) {
+      setStatus('edited (unsaved)', '');
+      syncContentFieldBox(e.data.region, e.data.index, e.data.html);
+    }
   } else if (e.data.type === 'block') {
     handleBlockMessage(e.data);
   }
@@ -1331,6 +1380,8 @@ function wireTabHandlers() {
     document.getElementById('insert-section-btn').addEventListener('click', () => openInsertSectionModal('main', null));
     document.getElementById('b-hero').addEventListener('input', syncBodyDraftAndPreview);
     document.getElementById('b-main').addEventListener('input', syncBodyDraftAndPreview);
+    wireEditableBoxes(document.getElementById('content-blocks-hero'));
+    wireContentBlocksUI('main');
   }
 }
 
@@ -1421,24 +1472,148 @@ async function savePageMeta() {
 }
 
 /* ---------- Body tab ---------- */
+/* ------------------------------------------------------------
+   Plain-text content editing for the sidebar -- the whole point is that a
+   non-technical editor should never see a raw tag. A region's text leaves
+   (same leaves collectEditableLeaves finds in the preview, same order, same
+   indices applyInlineEdit expects) render as labeled contenteditable boxes:
+   the actual styled text (an <em> shows as real italic orange text, not as
+   "<em>"), never HTML source. 'hero' gets a flat list of fields (there's
+   only ever one hero, nothing to reorder); 'main'/'body' get that same
+   list grouped into move/delete-able section cards, matching the same
+   block model the live preview's floating toolbar drives.
+
+   The raw HTML textareas (#b-hero/#b-main/#a-body) still exist underneath
+   an "Advanced" disclosure for anyone who needs to hand-edit markup --
+   applyInlineEdit/setRegionHtml already mirror every change into them, so
+   Save (which reads directly from those textareas) keeps working exactly
+   as before regardless of which view was used to make the edit.
+   ------------------------------------------------------------ */
+function renderLeafFieldsHTML(region) {
+  const html = getRegionHtml(region) || '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const leaves = collectEditableLeaves(doc.body);
+  if (!leaves.length) return '<p class="field-hint">Nothing editable here yet.</p>';
+  return leaves.map((leaf, i) => `<div class="content-field">
+    <label class="content-field-label">${escHtml(guessLeafKind(leaf))}</label>
+    <div class="content-editable-box" contenteditable="true" data-region="${region}" data-leaf-index="${i}">${leaf.innerHTML}</div>
+  </div>`).join('');
+}
+function renderContentBlocksHTML(region) {
+  const html = getRegionHtml(region) || '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const blocks = Array.from(doc.body.children);
+  if (!blocks.length) return '<p class="field-hint" style="margin:2px 0 10px">Nothing here yet — use the button below to add the first section.</p>';
+  let idx = 0;
+  return blocks.map((block, blockIdx) => {
+    const fields = leavesForBlock(block).map(leaf => {
+      const i = idx++;
+      return `<div class="content-field">
+        <label class="content-field-label">${escHtml(guessLeafKind(leaf))}</label>
+        <div class="content-editable-box" contenteditable="true" data-region="${region}" data-leaf-index="${i}">${leaf.innerHTML}</div>
+      </div>`;
+    }).join('');
+    return `<div class="chrome-item-card">
+      <div class="chrome-item-head">
+        <span class="chrome-item-badge">${escHtml(guessBlockLabel(block))}</span>
+        <div class="move-btns">
+          <button data-block-move="up" data-block-index="${blockIdx}" title="Move up" ${blockIdx === 0 ? 'disabled' : ''}>↑</button>
+          <button data-block-move="down" data-block-index="${blockIdx}" title="Move down" ${blockIdx === blocks.length - 1 ? 'disabled' : ''}>↓</button>
+          <button data-block-del data-block-index="${blockIdx}" title="Remove section">✕</button>
+        </div>
+      </div>
+      ${fields || '<p class="field-hint">No plain text in this section — use the live preview to change it, or Advanced HTML below.</p>'}
+    </div>`;
+  }).join('');
+}
+function wireEditableBoxes(container) {
+  if (!container) return;
+  container.querySelectorAll('.content-editable-box').forEach(box => {
+    let sendTimer = null;
+    const commit = () => {
+      applyInlineEdit(box.dataset.region, parseInt(box.dataset.leafIndex, 10), box.innerHTML);
+      refreshPreview();
+    };
+    box.addEventListener('input', () => { clearTimeout(sendTimer); sendTimer = setTimeout(commit, 400); });
+    box.addEventListener('blur', () => { clearTimeout(sendTimer); commit(); });
+  });
+}
+function refreshLeafFieldsUI(region) {
+  const container = document.getElementById('content-blocks-' + region);
+  if (!container) return;
+  container.innerHTML = renderLeafFieldsHTML(region);
+  wireEditableBoxes(container);
+}
+function wireContentBlocksUI(region) {
+  const container = document.getElementById('content-blocks-' + region);
+  if (!container) return;
+  container.querySelectorAll('[data-block-move]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      moveBlock(region, parseInt(btn.dataset.blockIndex, 10), btn.dataset.blockMove);
+      refreshContentBlocksUI(region);
+      refreshPreview();
+    });
+  });
+  container.querySelectorAll('[data-block-del]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Remove this section? Unsaved until you hit Save.')) return;
+      deleteBlock(region, parseInt(btn.dataset.blockIndex, 10));
+      refreshContentBlocksUI(region);
+      refreshPreview();
+    });
+  });
+  wireEditableBoxes(container);
+}
+function refreshContentBlocksUI(region) {
+  const container = document.getElementById('content-blocks-' + region);
+  if (!container) return;
+  container.innerHTML = renderContentBlocksHTML(region);
+  wireContentBlocksUI(region);
+}
+// region: 'hero' has no block chrome (only ever one section, nothing to
+// reorder); 'main'/'body' get the full card list. Used after any
+// structural change (block add/move/delete) wherever it came from -- the
+// sidebar (if that tab happens to be open) and the live preview's floating
+// toolbar both funnel through here.
+function refreshRegionUI(region) {
+  if (region === 'hero') refreshLeafFieldsUI(region);
+  else refreshContentBlocksUI(region);
+}
+// A single text edit (from the preview's click-to-edit, not a structural
+// change) only needs its one matching sidebar box updated, not a full
+// re-render -- and only if it's not the box currently being typed into.
+function syncContentFieldBox(region, index, html) {
+  const box = document.querySelector(`.content-editable-box[data-region="${region}"][data-leaf-index="${index}"]`);
+  if (box && document.activeElement !== box) box.innerHTML = html;
+}
+
 function renderBodyTab() {
   const slug = App.current.slug;
   const p = App.pages[slug];
   return `
-    <div class="callout-box">Existing page bodies are hand-authored HTML — edited here as raw source so nothing is lost or restyled. Use “+ Insert section” to add new, consistently-styled sections without hand-writing markup.</div>
+    <div class="callout-box">Click any text below — or directly in the live preview — to edit it. Use the arrows to reorder a section, ✕ to remove it, and “+ Insert section” to add a new one.</div>
 
-    <div class="field-group">
-      <label class="field-label">Hero <span style="color:#444">(before the content wrap)</span></label>
-      <textarea class="field-textarea tall" id="b-hero">${escHtml(p.hero)}</textarea>
-    </div>
+    <div class="section-title">Hero</div>
+    <div id="content-blocks-hero">${renderLeafFieldsHTML('hero')}</div>
 
-    <div class="field-group">
-      <label class="field-label">Main content <span style="color:#444">(after the content wrap, before the footer)</span></label>
-      <textarea class="field-textarea tall" id="b-main" style="min-height:360px">${escHtml(p.main)}</textarea>
-    </div>
+    <div class="section-divider"></div>
+    <div class="section-title">Main content</div>
+    <div id="content-blocks-main">${renderContentBlocksHTML('main')}</div>
+    <button class="btn btn-ghost" id="insert-section-btn" style="width:100%;margin:10px 0">+ Insert section</button>
 
-    <button class="btn btn-ghost" id="insert-section-btn" style="width:100%;margin-bottom:10px">+ Insert section</button>
-    <button class="btn btn-primary" id="save-body-btn" style="width:100%;padding:10px">Save to ${App.branch}</button>
+    <details>
+      <summary>Advanced: edit raw HTML</summary>
+      <div class="field-group" style="margin-top:10px">
+        <label class="field-label">Hero <span style="color:#444">(before the content wrap)</span></label>
+        <textarea class="field-textarea tall" id="b-hero">${escHtml(p.hero)}</textarea>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Main content <span style="color:#444">(after the content wrap, before the footer)</span></label>
+        <textarea class="field-textarea tall" id="b-main" style="min-height:360px">${escHtml(p.main)}</textarea>
+      </div>
+    </details>
+
+    <button class="btn btn-primary" id="save-body-btn" style="width:100%;padding:10px;margin-top:10px">Save to ${App.branch}</button>
   `;
 }
 
@@ -1495,13 +1670,20 @@ function renderArticleBodyTab() {
   const slug = App.current.slug;
   const a = App.articles[slug];
   return `
-    <div class="callout-box">The article body — click text directly in the live preview to edit it, or edit the raw source here. Use “+ Insert block” to add headings, images, quotes, or buttons.</div>
-    <div class="field-group">
-      <label class="field-label">Body</label>
-      <textarea class="field-textarea tall" id="a-body" style="min-height:420px">${escHtml(a.body)}</textarea>
-    </div>
-    <button class="btn btn-ghost" id="insert-block-btn" style="width:100%;margin-bottom:10px">+ Insert block</button>
-    <button class="btn btn-primary" id="save-article-body-btn" style="width:100%;padding:10px">Save to ${App.branch}</button>
+    <div class="callout-box">Click any text below — or directly in the live preview — to edit it. Use the arrows to reorder a block, ✕ to remove it, and “+ Insert block” to add headings, images, quotes, or buttons.</div>
+
+    <div id="content-blocks-body">${renderContentBlocksHTML('body')}</div>
+    <button class="btn btn-ghost" id="insert-block-btn" style="width:100%;margin:10px 0">+ Insert block</button>
+
+    <details>
+      <summary>Advanced: edit raw HTML</summary>
+      <div class="field-group" style="margin-top:10px">
+        <label class="field-label">Body</label>
+        <textarea class="field-textarea tall" id="a-body" style="min-height:420px">${escHtml(a.body)}</textarea>
+      </div>
+    </details>
+
+    <button class="btn btn-primary" id="save-article-body-btn" style="width:100%;padding:10px;margin-top:10px">Save to ${App.branch}</button>
   `;
 }
 function wireArticleTabHandlers() {
@@ -1519,6 +1701,7 @@ function wireArticleTabHandlers() {
     document.getElementById('save-article-body-btn').addEventListener('click', saveArticleBody);
     document.getElementById('insert-block-btn').addEventListener('click', () => openInsertSectionModal('body', null));
     document.getElementById('a-body').addEventListener('input', syncBodyDraftAndPreview);
+    wireContentBlocksUI('body');
   }
 }
 
@@ -1636,6 +1819,7 @@ function openComponentForm(compSet, key, region, insertIndex) {
     const html = c.render(values);
     insertBlockAt(region, insertIndex, html);
     closeModal();
+    refreshRegionUI(region);
     refreshPreview();
     toast(`${c.label} inserted — check the preview, then Save when you're happy with it.`, 'success');
   });
@@ -1691,6 +1875,7 @@ function openArticleImageModal(region, insertIndex) {
         : `<img src="${path}" alt="${alt}" loading="lazy">`;
       insertBlockAt(region, insertIndex, html);
       closeModal();
+      refreshRegionUI(region);
       refreshPreview();
       toast('Image inserted — Save when you\'re happy with it.', 'success');
     } catch (e) {
