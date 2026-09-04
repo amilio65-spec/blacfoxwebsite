@@ -528,6 +528,16 @@ function collectEditableLeaves(root, out) {
   if (!root) return out;
   for (const el of root.children) {
     if (SKIP_CONTAINER_TAGS.has(el.tagName.toUpperCase())) continue;
+    // Inline SVG diagrams (charts, wave graphics) are decoration, not
+    // content -- skip the whole subtree rather than recursing into it.
+    // Without this, an SVG <text> label (its tagName isn't in
+    // INLINE_PASSENGER_TAGS, so a containing <svg> isn't phrasing-only and
+    // gets recursed into) surfaces as its own "editable" leaf, and for an
+    // SVG element `.className` is an SVGAnimatedString with no .includes()
+    // -- guessLeafKind would throw on it, which was breaking the ENTIRE
+    // body tab render for any page with inline SVG charts (e.g. index.md's
+    // PMF-wave and doughnut charts) the moment that leaf got labeled.
+    if (typeof SVGElement !== 'undefined' && el instanceof SVGElement) continue;
     // cms-generated content (e.g. the articles grid spliced into the
     // articles page at preview/build time) has no corresponding element in
     // the canonical stored HTML -- it's just a marker comment there. Editing
@@ -558,6 +568,7 @@ function collectEditableLeaves(root, out) {
 // contributes, in the same order applyInlineEdit's indices assume.
 function leavesForBlock(block) {
   if (SKIP_CONTAINER_TAGS.has(block.tagName.toUpperCase())) return [];
+  if (typeof SVGElement !== 'undefined' && block instanceof SVGElement) return [];
   if (block.classList && block.classList.contains('cms-generated')) return [];
   if (block.classList && block.classList.contains('hero-quote-panel')) return [];
   if (isPhrasingOnly(block) && hasEditableText(block)) return [block];
@@ -567,8 +578,10 @@ function leavesForBlock(block) {
 // Best-effort, cosmetic-only labels so the sidebar reads as "Heading" /
 // "Paragraph" / "Card grid" instead of a class name or a bare tag -- these
 // never affect what gets saved, only how the block list is captioned.
+// getAttribute('class') (not .className) because .className on an SVG
+// element is an SVGAnimatedString, not a plain string -- no .includes().
 function guessBlockLabel(el) {
-  const cls = el.className || '';
+  const cls = el.getAttribute('class') || '';
   const tag = el.tagName.toLowerCase();
   if (cls.includes('hero-section')) return 'Hero section';
   if (cls.includes('cta-section')) return 'Closing CTA';
@@ -585,7 +598,7 @@ function guessBlockLabel(el) {
   return 'Section';
 }
 function guessLeafKind(el) {
-  const cls = el.className || '';
+  const cls = el.getAttribute('class') || '';
   const tag = el.tagName.toLowerCase();
   if (tag === 'h1' || tag === 'h2') return 'Heading';
   if (tag === 'h3') return 'Subheading';
