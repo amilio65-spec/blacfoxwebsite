@@ -302,44 +302,28 @@ pageScripts: ["assets/js/pages/index.js"]
     <line x1="0" y1="263" x2="1600" y2="263" stroke="rgba(10,10,10,0.10)" stroke-width="1"/>
 
     <!-- Labels: Step 01 — Context -->
-    <text x="8"    y="283" font-family="Montserrat,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="start">STEP 01</text>
-    <text x="8"    y="303" font-family="Montserrat,sans-serif" font-size="15" font-weight="700" fill="#15130f" text-anchor="start">Context</text>
-    <text x="8"    y="319" font-family="Montserrat,sans-serif" font-size="10" font-weight="500" letter-spacing="1"   fill="#555" text-anchor="start">MARKET &amp; TIMING</text>
+    <text x="8"    y="304" font-family="Montserrat,sans-serif" font-size="17" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="start">STEP 01</text>
 
     <!-- Step 02 — Company -->
-    <text x="200"  y="283" font-family="Montserrat,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 02</text>
-    <text x="200"  y="303" font-family="Montserrat,sans-serif" font-size="15" font-weight="700" fill="#15130f" text-anchor="middle">Company</text>
-    <text x="200"  y="319" font-family="Montserrat,sans-serif" font-size="10" font-weight="500" letter-spacing="1"   fill="#555" text-anchor="middle">CREDIBLE CLAIMS</text>
+    <text x="200"  y="304" font-family="Montserrat,sans-serif" font-size="17" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 02</text>
 
     <!-- Step 03 — Competitors -->
-    <text x="400"  y="283" font-family="Montserrat,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 03</text>
-    <text x="400"  y="303" font-family="Montserrat,sans-serif" font-size="15" font-weight="700" fill="#15130f" text-anchor="middle">Competitors</text>
-    <text x="400"  y="319" font-family="Montserrat,sans-serif" font-size="10" font-weight="500" letter-spacing="1"   fill="#555" text-anchor="middle">WHERE THEY'RE WEAK</text>
+    <text x="400"  y="304" font-family="Montserrat,sans-serif" font-size="17" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 03</text>
 
     <!-- Step 04 — Customers -->
-    <text x="600"  y="283" font-family="Montserrat,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 04</text>
-    <text x="600"  y="303" font-family="Montserrat,sans-serif" font-size="15" font-weight="700" fill="#15130f" text-anchor="middle">Customers</text>
-    <text x="600"  y="319" font-family="Montserrat,sans-serif" font-size="10" font-weight="500" letter-spacing="1"   fill="#555" text-anchor="middle">BUYER INTERVIEWS</text>
+    <text x="600"  y="304" font-family="Montserrat,sans-serif" font-size="17" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 04</text>
 
     <!-- Step 05 — Segment -->
-    <text x="800"  y="283" font-family="Montserrat,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 05</text>
-    <text x="800"  y="303" font-family="Montserrat,sans-serif" font-size="15" font-weight="700" fill="#15130f" text-anchor="middle">Segment</text>
-    <text x="800"  y="319" font-family="Montserrat,sans-serif" font-size="10" font-weight="500" letter-spacing="1"   fill="#555" text-anchor="middle">WHO WE GO AFTER</text>
+    <text x="800"  y="304" font-family="Montserrat,sans-serif" font-size="17" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 05</text>
 
     <!-- Step 06 — Position -->
-    <text x="1000" y="283" font-family="Montserrat,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 06</text>
-    <text x="1000" y="303" font-family="Montserrat,sans-serif" font-size="15" font-weight="700" fill="#15130f" text-anchor="middle">Position</text>
-    <text x="1000" y="319" font-family="Montserrat,sans-serif" font-size="10" font-weight="500" letter-spacing="1"   fill="#555" text-anchor="middle">"WHY YOU" STORY</text>
+    <text x="1000" y="304" font-family="Montserrat,sans-serif" font-size="17" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 06</text>
 
     <!-- Step 07 — 4 Ps -->
-    <text x="1200" y="283" font-family="Montserrat,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 07</text>
-    <text x="1200" y="303" font-family="Montserrat,sans-serif" font-size="15" font-weight="700" fill="#15130f" text-anchor="middle">4 Ps</text>
-    <text x="1200" y="319" font-family="Montserrat,sans-serif" font-size="10" font-weight="500" letter-spacing="1"   fill="#555" text-anchor="middle">PRICE, PLACE, PRODUCT, PROMO</text>
+    <text x="1200" y="304" font-family="Montserrat,sans-serif" font-size="17" font-weight="700" letter-spacing="1.5" fill="#666" text-anchor="middle">STEP 07</text>
 
     <!-- Output — PMF -->
-    <text x="1592" y="283" font-family="Montserrat,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#e95c25" text-anchor="end">OUTPUT</text>
-    <text x="1592" y="303" font-family="Montserrat,sans-serif" font-size="15" font-weight="700" fill="#e95c25" font-style="italic" text-anchor="end">PMF</text>
-    <text x="1592" y="319" font-family="Montserrat,sans-serif" font-size="10" font-weight="500" letter-spacing="1"   fill="#e95c25" text-anchor="end">THE MESSAGE BLUEPRINT</text>
+    <text x="1592" y="304" font-family="Montserrat,sans-serif" font-size="17" font-weight="700" letter-spacing="1.5" fill="#e95c25" text-anchor="end">OUTPUT</text>
   </svg>
   </div>
 
