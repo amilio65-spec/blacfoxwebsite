@@ -48,9 +48,9 @@ pageScripts: ["assets/js/pages/about.js"]
         <p style="font-size:16px;color:var(--muted);line-height:1.75;">We help B2B technology companies (ISVs and the partners who resell them) turn product clarity into qualified pipeline. Not by running campaigns, but by fixing the positioning and messaging underneath them.</p>
         <p style="font-size:16px;color:var(--muted);line-height:1.75;">We started Blacfox because the agencies serving B2B tech were either generalists who didn't understand the products, or channel specialists who didn't follow through past the lead. We do both. That's the whole point.</p>
       </div>
-      <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="text-card-stack" data-cms-max="2" style="display:flex;flex-direction:column;gap:16px;">
         <div class="dark-card" style="margin-top:0;">
-          <p class="card-num">B2B Tech only</p>
+          <p class="card-num">B2B tech only</p>
           <p class="card-title">No generalist clients</p>
           <p class="card-body">We work exclusively with B2B technology companies. Microsoft partners, SAP partners, ISVs, and software vendors. If you sell technology to businesses, we understand your buyer.</p>
         </div>

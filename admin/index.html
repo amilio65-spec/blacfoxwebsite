@@ -105,6 +105,28 @@ a{color:inherit}
 .comp-picker-item:hover{background:rgba(233,92,37,.1);border-color:rgba(233,92,37,.35);color:#fff}
 .comp-picker-item strong{display:block;font-size:10px;color:#ddd;margin-bottom:2px}
 
+/* Schematic mini-wireframes shown in the component picker instead of hint
+   text -- same idea as the Format Binder's grey-box proofs (placeholder
+   blocks + rules only), just scaled down to fit a ~150px picker tile. */
+.wf-mini{background:#0d0d0d;border:1px solid rgba(255,255,255,.07);border-radius:4px;margin-top:6px;padding:5px;height:46px;overflow:hidden;display:flex;flex-direction:column;gap:2px;}
+.wfm-row{display:flex;gap:2px;min-height:0;}
+.wfm-col{display:flex;flex-direction:column;gap:2px;min-height:0;}
+.wfm-g{flex:1;}
+.wfm-title{height:5px;background:#8a8a8a;border-radius:1px;flex:none;}
+.wfm-line{height:3px;background:#4a4a4a;border-radius:1px;flex:none;}
+.wfm-img{background:#2a2a2a;border-radius:1px;flex:1;min-height:4px;}
+.wfm-btn{height:6px;width:18px;background:#e95c25;border-radius:1px;flex:none;}
+.wfm-dot{width:5px;height:5px;border-radius:50%;background:#e95c25;flex:none;}
+.wfm-sq{width:5px;height:5px;border-radius:1px;background:#777;flex:none;}
+.wfm-num{width:8px;height:8px;border-radius:50%;background:#ccc;color:#0d0d0d;font-size:5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;}
+.wfm-card{border:1px solid #3a3a3a;border-radius:2px;padding:3px;display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.wfm-chart{display:flex;align-items:flex-end;gap:1.5px;flex:1;min-height:0;}
+.wfm-chart span{flex:1;background:#e95c25;opacity:.75;}
+.wfm-chart span.b{background:#777;opacity:1;}
+.wfm-hr{height:1px;background:#3a3a3a;flex:none;}
+.wfm-donut{width:14px;height:14px;border-radius:50%;background:conic-gradient(#e95c25 0turn .6turn,#3a3a3a .6turn 1turn);flex:none;position:relative;}
+.wfm-donut::after{content:"";position:absolute;inset:3px;border-radius:50%;background:#0d0d0d;}
+
 .icon-pick-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:4px}
 .icon-pick-btn{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:#aaa;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s}
 .icon-pick-btn:hover{background:rgba(233,92,37,.12);border-color:rgba(233,92,37,.4);color:#fff}

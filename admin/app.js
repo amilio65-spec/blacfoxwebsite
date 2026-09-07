@@ -366,21 +366,25 @@ function renderIcon(key, size) {
 const COMPONENTS = {
   'section-tag': {
     label: 'Section Tag', hint: 'The small orange label above a heading, e.g. “How We Help”.',
+    preview: `<div class="wfm-col wfm-g" style="justify-content:center;"><div class="wfm-line" style="width:32%;height:4px;background:#e95c25;"></div></div>`,
     fields: [{ key: 'text', label: 'Text', type: 'text', default: 'Section Tag' }],
     render: f => `<p class="section-tag reveal">${escHtml(f.text)}</p>`,
   },
   'heading': {
     label: 'Section Heading', hint: 'Use <em>…</em> to italicise/highlight part of it, matching the rest of the site.',
+    preview: `<div class="wfm-col wfm-g" style="justify-content:center;"><div class="wfm-title" style="width:85%;"></div><div class="wfm-title" style="width:55%;"></div></div>`,
     fields: [{ key: 'html', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'Section headline goes here' }],
     render: f => `<h2 class="section-h reveal">${f.html}</h2>`,
   },
   'body': {
     label: 'Body Paragraph', hint: '',
+    preview: `<div class="wfm-col wfm-g" style="justify-content:center;"><div class="wfm-line"></div><div class="wfm-line" style="width:88%;"></div><div class="wfm-line" style="width:64%;"></div></div>`,
     fields: [{ key: 'html', label: 'Text', type: 'textarea', default: 'Describe the point of this section in one or two sentences.' }],
     render: f => `<p class="section-p reveal">${f.html}</p>`,
   },
   'stats': {
     label: 'Stats Row', hint: 'A row of big numbers with a caption under each. Add or remove stats and the row stays evenly balanced (HTML allowed in the number for <em> highlighting).',
+    preview: `<div class="wfm-row wfm-g">${Array(4).fill('<div class="wfm-col" style="flex:1;align-items:center;justify-content:center;"><div class="wfm-line" style="width:60%;height:6px;background:#e95c25;"></div><div class="wfm-line" style="width:70%;"></div></div>').join('')}</div>`,
     fields: [
       { key: 'items', label: 'Stats', type: 'list', itemLabel: 'Stat', default: [
         { value: '<em>10:1</em>', label: 'pipeline ACV return on campaign spend' },
@@ -412,13 +416,56 @@ ${rows.map(r => `    <div class="stat-item">
 </div>`;
     },
   },
+  'heading-stats-blocks': {
+    label: 'Heading + Stats Blocks', hint: 'Label and heading, then a row of bordered stat blocks (big orange number/text + grey caption). Add or remove blocks and the row stays evenly balanced.',
+    preview: `<div class="wfm-col wfm-g"><div class="wfm-title" style="width:45%;"></div><div class="wfm-row wfm-g" style="margin-top:1px;">${Array(4).fill('<div class="wfm-card" style="align-items:center;justify-content:center;"><div class="wfm-line" style="width:60%;height:5px;background:#e95c25;"></div><div class="wfm-line" style="width:70%;"></div></div>').join('')}</div></div>`,
+    fields: [
+      { key: 'tag', label: 'Label', type: 'text', default: 'Credibility' },
+      { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'The numbers behind <em>the team.</em>' },
+      { key: 'items', label: 'Stat Blocks', type: 'list', itemLabel: 'Stat Block', default: [
+        { main: '15<span style="font-size:32px;">+</span>', sub: 'Years inside the Microsoft & SAP partner ecosystem' },
+        { main: '$250M<span style="font-size:28px;">+</span>', sub: 'Segment pipeline growth led at Microsoft (former executive role)' },
+        { main: '80<span style="font-size:32px;">+</span>', sub: 'Countries of Microsoft partner channel experience' },
+        { main: 'B2B', sub: 'Tech exclusively. No generalist clients.' },
+      ], itemFields: [
+        { key: 'main', label: 'Main text (HTML allowed, e.g. a smaller "+" suffix)', type: 'text' },
+        { key: 'sub', label: 'Sub text', type: 'textarea' },
+      ] },
+      { key: 'bg', label: 'Background', type: 'select', options: ['white', 'grey'], default: 'grey' },
+    ],
+    render: f => {
+      const items = (f.items || []).filter(s => s.main);
+      const n = Math.max(items.length, 1);
+      const bg = f.bg === 'white' ? 'bg-white' : 'bg-grey';
+      // Same scoped-<style> technique as 'stats': an inline grid-template-columns
+      // would beat any responsive rule at equal specificity, so mobile gets its
+      // own rule here rather than relying on a site-wide class.
+      const uid = 'hsb-' + Math.random().toString(36).slice(2, 9);
+      return `<section class="section-mid ${bg}">
+  <div class="section-inner">
+    <p class="section-tag reveal">${escHtml(f.tag)}</p>
+    <h2 class="section-h reveal">${f.heading}</h2>
+
+    <style>#${uid}{grid-template-columns:repeat(${n},1fr);}@media(max-width:640px){#${uid}{grid-template-columns:repeat(2,1fr);}}</style>
+    <div id="${uid}" style="display:grid;gap:24px;margin-top:64px;" class="stagger">
+${items.map(s => `      <div class="glass-card" style="text-align:center;padding:40px 24px;border-radius:20px;">
+        <p style="font-size:52px;font-weight:800;letter-spacing:-0.03em;color:var(--orange);line-height:1;">${s.main}</p>
+        <p style="font-size:14px;color:var(--muted);margin-top:12px;line-height:1.5;">${escHtml(s.sub)}</p>
+      </div>`).join('\n')}
+    </div>
+  </div>
+</section>`;
+    },
+  },
   'trust-bar': {
     label: 'Trust Bar', hint: 'A single centered line, e.g. "— Trusted by…".',
+    preview: `<div class="wfm-col wfm-g" style="align-items:center;justify-content:center;"><div class="wfm-line" style="width:46%;"></div></div>`,
     fields: [{ key: 'text', label: 'Text', type: 'text', default: '— Trusted by B2B tech companies' }],
     render: f => `<div class="trust-bar bg-grey">\n  <p class="trust-label">${escHtml(f.text)}</p>\n</div>`,
   },
   'cards': {
     label: 'Card Grid (2 or 3 col)', hint: 'One card per line: number | title | body',
+    preview: `<div class="wfm-row wfm-g">${[1, 2, 3].map(n => `<div class="wfm-card"><div class="wfm-num">${n}</div><div class="wfm-line" style="width:70%;"></div><div class="wfm-line" style="width:55%;"></div></div>`).join('')}</div>`,
     fields: [
       { key: 'cols', label: 'Columns', type: 'select', options: ['2', '3'], default: '3' },
       { key: 'items', label: 'Cards (num | title | body, one per line)', type: 'textarea', default: '01 | Card title one | Description.\n02 | Card title two | Description.\n03 | Card title three | Description.' },
@@ -428,8 +475,94 @@ ${rows.map(r => `    <div class="stat-item">
       return `<div class="card-grid-${f.cols} stagger" style="margin-top:48px;">\n${rows.map(([n, t, b]) => `  <div class="dark-card">\n    <p class="card-num">${escHtml(n)}</p>\n    <p class="card-title">${escHtml(t || '')}</p>\n    <p class="card-body">${escHtml(b || '')}</p>\n  </div>`).join('\n')}\n</div>`;
     },
   },
+  'heading-text-cards': {
+    label: 'Heading + Text + Cards', hint: 'Label and heading span full width; below that, body text on the left and a stack of dark cards on the right. Add or remove cards freely.',
+    preview: `<div class="wfm-col wfm-g"><div class="wfm-title" style="width:55%;"></div><div class="wfm-row wfm-g" style="margin-top:1px;"><div class="wfm-col" style="flex:1;"><div class="wfm-line"></div><div class="wfm-line" style="width:80%;"></div><div class="wfm-line" style="width:60%;"></div></div><div class="wfm-col" style="flex:1;"><div class="wfm-card" style="flex:none;padding:2px;"><div class="wfm-line" style="width:70%;"></div></div><div class="wfm-card" style="flex:none;padding:2px;margin-top:1px;"><div class="wfm-line" style="width:70%;"></div></div></div></div></div>`,
+    fields: [
+      { key: 'tag', label: 'Label', type: 'text', default: 'Our story' },
+      { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: "Built by people who've <em>sold the technology.</em>" },
+      { key: 'paragraph1', label: 'Paragraph 1', type: 'textarea', default: 'First paragraph goes here.' },
+      { key: 'paragraph2', label: 'Paragraph 2 (optional)', type: 'textarea', default: '' },
+      { key: 'paragraph3', label: 'Paragraph 3 (optional)', type: 'textarea', default: '' },
+      { key: 'cards', label: 'Cards', type: 'list', itemLabel: 'Card', max: 2, default: [
+        { tag: 'B2B tech only', title: 'No generalist clients', body: 'We work exclusively with B2B technology companies. Microsoft partners, SAP partners, ISVs, and software vendors. If you sell technology to businesses, we understand your buyer.' },
+        { tag: 'Paid on outcomes', title: 'Aligned incentives', body: "We don't get paid until you do. Our outcomes-based model means our success is tied directly to your qualified pipeline, not to hours worked or activities completed." },
+      ], itemFields: [
+        { key: 'tag', label: 'Eyebrow', type: 'text' },
+        { key: 'title', label: 'Card title', type: 'text' },
+        { key: 'body', label: 'Card body', type: 'textarea' },
+      ] },
+      { key: 'bg', label: 'Background', type: 'select', options: ['white', 'grey'], default: 'white' },
+    ],
+    render: f => {
+      const bg = f.bg === 'grey' ? 'bg-grey' : 'bg-white';
+      const paragraphs = [f.paragraph1, f.paragraph2, f.paragraph3].filter(p => p && p.trim());
+      const cards = (f.cards || []).filter(c => c.title);
+      return `<section class="${bg}">
+  <div class="section-inner">
+    <p class="section-tag reveal">${escHtml(f.tag)}</p>
+    <h2 class="section-h reveal">${f.heading}</h2>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:48px;" class="reveal">
+      <div style="display:flex;flex-direction:column;gap:24px;">
+${paragraphs.map(p => `        <p style="font-size:16px;color:var(--muted);line-height:1.75;">${p}</p>`).join('\n')}
+      </div>
+      <div class="text-card-stack" data-cms-max="2" style="display:flex;flex-direction:column;gap:16px;">
+${cards.map(c => `        <div class="dark-card" style="margin-top:0;">
+          <p class="card-num">${escHtml(c.tag)}</p>
+          <p class="card-title">${escHtml(c.title)}</p>
+          <p class="card-body">${escHtml(c.body)}</p>
+        </div>`).join('\n')}
+      </div>
+    </div>
+  </div>
+</section>`;
+    },
+  },
+  'heading-text-icon-boxes': {
+    label: 'Heading + Text + Icon Boxes', hint: 'Label, heading, and a line of text, then a 4-column grid of icon cards (icon + label). Add or remove cards freely, and pick each icon from the icon library.',
+    preview: `<div class="wfm-col wfm-g"><div class="wfm-title" style="width:55%;"></div><div class="wfm-row wfm-g" style="margin-top:1px;">${Array(4).fill('<div class="wfm-card" style="align-items:center;justify-content:center;"><div class="wfm-dot"></div><div class="wfm-line" style="width:80%;"></div></div>').join('')}</div></div>`,
+    fields: [
+      { key: 'tag', label: 'Label', type: 'text', default: 'The team' },
+      { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'Collective pedigree, <em>not a roster.</em>' },
+      { key: 'body', label: 'Text', type: 'textarea', default: "We don't hire generalists and train them in B2B tech. We bring in specialists who've already done the work, and give them the structure to do it better." },
+      { key: 'items', label: 'Cards', type: 'list', itemLabel: 'Card', default: [
+        { icon: 'target', label: 'Strategy lead' },
+        { icon: 'search', label: 'Buyer researcher' },
+        { icon: 'message', label: 'Positioning & messaging specialist' },
+        { icon: 'edit', label: 'Content & campaign manager' },
+        { icon: 'network', label: 'Channel enablement lead' },
+        { icon: 'phone', label: 'SDR (sales development representative)' },
+        { icon: 'trending', label: 'Performance & analytics' },
+        { icon: 'lock', label: 'Microsoft co-op funding specialist' },
+      ], itemFields: [
+        { key: 'icon', label: 'Icon', type: 'icon' },
+        { key: 'label', label: 'Label', type: 'text' },
+      ] },
+      { key: 'bg', label: 'Background', type: 'select', options: ['white', 'grey'], default: 'grey' },
+    ],
+    render: f => {
+      const bg = f.bg === 'white' ? 'bg-white' : 'bg-grey';
+      const cards = (f.items || []).filter(c => c.label);
+      return `<section class="section-mid ${bg}">
+  <div class="section-inner">
+    <p class="section-tag reveal">${escHtml(f.tag)}</p>
+    <h2 class="section-h reveal">${f.heading}</h2>
+    <p class="section-p reveal">${f.body}</p>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:48px;" class="stagger">
+${cards.map(c => `      <div class="glass-card" style="border-radius:14px;padding:24px 20px;">
+        <div style="color:var(--orange);margin-bottom:12px;">${renderIcon(c.icon, 22)}</div>
+        <p style="font-size:14px;font-weight:600;color:var(--light);">${escHtml(c.label)}</p>
+      </div>`).join('\n')}
+    </div>
+  </div>
+</section>`;
+    },
+  },
   'faq': {
     label: 'Heading + Text + FAQ', hint: 'Section tag, heading, and an FAQ accordion. Add or remove questions freely.',
+    preview: `<div class="wfm-col wfm-g"><div class="wfm-title" style="width:40%;"></div><div class="wfm-row" style="justify-content:space-between;align-items:center;"><div class="wfm-line" style="width:70%;"></div><div class="wfm-sq" style="border-radius:50%;"></div></div><div class="wfm-hr"></div><div class="wfm-row" style="justify-content:space-between;align-items:center;"><div class="wfm-line" style="width:60%;"></div><div class="wfm-sq" style="border-radius:50%;"></div></div></div>`,
     fields: [
       { key: 'tag', label: 'Label', type: 'text', default: 'Common questions' },
       { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'What people <em>ask us</em> before they call.' },
@@ -461,6 +594,7 @@ ${pairs.map(p => `      <div class="faq-item">
   },
   'button-row': {
     label: 'Button Row', hint: 'Primary button, optional secondary (ghost) button.',
+    preview: `<div class="wfm-col wfm-g" style="align-items:center;justify-content:center;"><div class="wfm-row"><div class="wfm-btn"></div><div class="wfm-btn" style="background:transparent;border:1px solid #e95c25;"></div></div></div>`,
     fields: [
       { key: 'primaryText', label: 'Primary text', type: 'text', default: 'Book a 20-min call' },
       { key: 'primaryUrl', label: 'Primary URL', type: 'text', default: 'contact.html' },
@@ -471,6 +605,7 @@ ${pairs.map(p => `      <div class="faq-item">
   },
   'closing-cta': {
     label: 'CTA', hint: 'The dark full-width CTA band used at the bottom of pages. Click the button in the preview afterward to change where it links.',
+    preview: `<div class="wfm-col wfm-g" style="align-items:center;justify-content:center;background:#000;margin:-5px;padding:5px;border-radius:3px;"><div class="wfm-title" style="width:55%;"></div><div class="wfm-line" style="width:40%;"></div><div class="wfm-btn" style="margin-top:1px;"></div></div>`,
     fields: [
       { key: 'headingHtml', label: 'Heading (HTML allowed)', type: 'text', default: 'Ready to <em>get started?</em>' },
       { key: 'body', label: 'Body', type: 'textarea', default: "No slide deck. We'll tell you honestly if we're a fit." },
@@ -481,16 +616,19 @@ ${pairs.map(p => `      <div class="faq-item">
   },
   'spacer': {
     label: 'Spacer', hint: 'Blank vertical space between sections.',
+    preview: `<div class="wfm-col wfm-g" style="justify-content:space-between;"><div style="height:1px;border-top:1px dashed #444;"></div><div style="height:1px;border-top:1px dashed #444;"></div></div>`,
     fields: [{ key: 'size', label: 'Height', type: 'select', options: ['32px', '64px', '96px'], default: '64px' }],
     render: f => `<div style="height:${f.size}"></div>`,
   },
   'callout-box': {
     label: 'Callout Box', hint: 'A short, bold statement in an orange-bordered box, for punching up one key line mid-section.',
+    preview: `<div class="wfm-card" style="border-color:#e95c25;align-items:center;justify-content:center;height:100%;"><div class="wfm-line" style="width:70%;"></div></div>`,
     fields: [{ key: 'html', label: 'Text (HTML allowed for <em>)', type: 'textarea', default: 'A short, memorable statement goes here.' }],
     render: f => `<div class="callout-box reveal">\n  <p>${f.html}</p>\n</div>`,
   },
   'pull-quote': {
     label: 'Pull Quote', hint: 'An optional eyebrow label above a large italic quote line.',
+    preview: `<div class="wfm-col wfm-g" style="justify-content:center;"><div class="wfm-line" style="width:30%;height:3px;background:#e95c25;"></div><div class="wfm-title" style="width:75%;"></div></div>`,
     fields: [
       { key: 'eyebrow', label: 'Eyebrow (optional)', type: 'text', default: '' },
       { key: 'html', label: 'Quote text (HTML allowed for <em>)', type: 'textarea', default: 'A memorable line worth pulling out on its own.' },
@@ -499,6 +637,7 @@ ${pairs.map(p => `      <div class="faq-item">
   },
   'testimonial': {
     label: 'Testimonial', hint: 'A client quote with a name and role/company.',
+    preview: `<div class="wfm-col wfm-g"><div class="wfm-line"></div><div class="wfm-line" style="width:70%;"></div><div class="wfm-row" style="align-items:center;margin-top:2px;"><div class="wfm-dot" style="background:#777;width:7px;height:7px;"></div><div class="wfm-line" style="width:30%;"></div></div></div>`,
     fields: [
       { key: 'quoteHtml', label: 'Quote (HTML allowed for <em>)', type: 'textarea', default: '“A memorable client quote goes here.”' },
       { key: 'name', label: 'Name', type: 'text', default: 'Full Name' },
@@ -508,6 +647,7 @@ ${pairs.map(p => `      <div class="faq-item">
   },
   'service-card': {
     label: 'Service / Offering Card', hint: 'One packaged service or offering, matching the cards on the Services page.',
+    preview: `<div class="wfm-col wfm-g"><div class="wfm-line" style="width:30%;height:3px;background:#e95c25;"></div><div class="wfm-title" style="width:65%;"></div><div class="wfm-line" style="width:80%;"></div><div class="wfm-line" style="width:60%;"></div></div>`,
     fields: [
       { key: 'name', label: 'Eyebrow (e.g. "Service 01")', type: 'text', default: 'Service 01' },
       { key: 'headlineHtml', label: 'Headline (HTML allowed for <em>)', type: 'text', default: 'Service name' },
@@ -523,6 +663,7 @@ ${pairs.map(p => `      <div class="faq-item">
   },
   'case-study': {
     label: 'Case Study Card', hint: 'A proof panel: headline, body copy, a CTA link, and a strip of stat numbers.',
+    preview: `<div class="wfm-col wfm-g"><div class="wfm-title" style="width:70%;"></div><div class="wfm-line" style="width:85%;"></div><div class="wfm-row" style="margin-top:2px;"><div class="wfm-col" style="flex:1;align-items:center;"><div class="wfm-line" style="width:50%;height:5px;background:#e95c25;"></div></div><div class="wfm-col" style="flex:1;align-items:center;"><div class="wfm-line" style="width:50%;height:5px;background:#e95c25;"></div></div></div></div>`,
     fields: [
       { key: 'badge', label: 'Badge text', type: 'text', default: 'Proof, not promises' },
       { key: 'meta', label: 'Small eyebrow line (optional)', type: 'text', default: '' },
@@ -539,6 +680,7 @@ ${pairs.map(p => `      <div class="faq-item">
   },
   'mistakes-grid': {
     label: 'Numbered Mistakes Grid', hint: 'A grid of big-numeral Q&A cards (e.g. "5 common mistakes") — visually distinct from the FAQ accordion. One Q&A per pair of lines, blank line between pairs.',
+    preview: `<div class="wfm-row wfm-g">${[1, 2].map(n => `<div class="wfm-card" style="align-items:center;justify-content:center;"><div style="font-size:14px;font-weight:800;color:#3a3a3a;line-height:1;">${n}</div><div class="wfm-line" style="width:70%;"></div></div>`).join('')}</div>`,
     fields: [{ key: 'items', label: 'Q/A pairs (question, then answer, blank line between pairs)', type: 'textarea', default: 'Common mistake one?\nWhy it happens and how to avoid it.\n\nCommon mistake two?\nWhy it happens and how to avoid it.' }],
     render: f => {
       const pairs = f.items.split(/\n\s*\n/).map(block => block.split('\n')).filter(p => p[0]);
@@ -547,6 +689,7 @@ ${pairs.map(p => `      <div class="faq-item">
   },
   'hero': {
     label: 'Hero', hint: 'Full hero: heading, sub text, one or two buttons, and an image placeholder in a 2-column layout. Deletes/replaces the page’s existing hero — click the button in the preview afterward to set its link.',
+    preview: `<div class="wfm-row wfm-g"><div class="wfm-col" style="flex:1.3;justify-content:center;"><div class="wfm-title" style="width:90%;"></div><div class="wfm-title" style="width:60%;"></div><div class="wfm-line" style="width:80%;margin-top:1px;"></div><div class="wfm-btn" style="margin-top:1px;"></div></div><div class="wfm-img" style="flex:1;"></div></div>`,
     fields: [
       { key: 'lines', label: 'Heading lines', type: 'list', itemLabel: 'Line', default: [
         { text: "We don't" },
@@ -585,6 +728,7 @@ ${lines.map(l => `        <span class="line"><span class="word">${l.text}</span>
   },
   'proof-cards': {
     label: 'Heading + Text + Callout + Card', hint: 'Section tag, heading, body text, a callout box, and two data cards side by side — a bar/line comparison and a doughnut chart. Fully editable live in the preview afterward.',
+    preview: `<div class="wfm-col wfm-g"><div class="wfm-title" style="width:70%;"></div><div class="wfm-row wfm-g" style="margin-top:1px;"><div class="wfm-card"><div class="wfm-chart"><span></span><span class="b"></span><span></span><span class="b"></span></div></div><div class="wfm-card" style="align-items:center;justify-content:center;"><div class="wfm-donut"></div></div></div></div>`,
     fields: [
       { key: 'tag', label: 'Label', type: 'text', default: 'The proof, not the pitch' },
       { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'The average B2B marketing agency returns 3:1. <em>We return 10:1.</em>' },
@@ -715,6 +859,7 @@ ${lines.map(l => `        <span class="line"><span class="word">${l.text}</span>
   },
   'agency-comparison': {
     label: 'Heading + Text + Comparison', hint: 'Section tag, heading, body text, and two side-by-side comparison columns (each with its own list of numbered steps). Add or remove steps in either column freely.',
+    preview: `<div class="wfm-row wfm-g"><div class="wfm-card"><div class="wfm-line" style="width:70%;"></div><div class="wfm-line" style="width:55%;"></div><div class="wfm-line" style="width:60%;"></div></div><div class="wfm-card" style="border-color:#e95c25;"><div class="wfm-line" style="width:70%;"></div><div class="wfm-line" style="width:55%;"></div><div class="wfm-line" style="width:60%;"></div></div></div>`,
     fields: [
       { key: 'tag', label: 'Label', type: 'text', default: 'Our model' },
       { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'Are we a B2B marketing agency? <em>No.</em>' },
@@ -817,6 +962,7 @@ ${stepsHtml(goodSteps, 'var(--orange)')}
   },
   'three-col-cards': {
     label: 'Heading + Text + 3-col Cards', hint: 'Section tag, heading, body text, and three cards, each with its own heading and text. Choose whether each card is topped with a number, an icon, or nothing.',
+    preview: `<div class="wfm-row wfm-g">${[1, 2, 3].map(n => `<div class="wfm-card"><div class="wfm-num">${n}</div><div class="wfm-line" style="width:80%;"></div><div class="wfm-line" style="width:60%;"></div></div>`).join('')}</div>`,
     fields: [
       { key: 'tag', label: 'Label', type: 'text', default: 'What we do' },
       { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'Conversions depend on a <em>good story.</em>' },
@@ -861,8 +1007,162 @@ ${cards.map((c, i) => `      <div class="dark-card">
 </section>`;
     },
   },
+  'contact-form-section': {
+    label: 'Contact Info + Discovery Call Form', hint: 'The full two-column contact section: direct-contact details + "what to expect" checklist on the left, the discovery-call form on the right. Matches the Contact page exactly.',
+    preview: `<div class="wfm-row wfm-g"><div class="wfm-col" style="flex:1;"><div class="wfm-line" style="width:70%;"></div><div class="wfm-line" style="width:50%;"></div><div class="wfm-line" style="width:60%;"></div></div><div class="wfm-col" style="flex:1;"><div class="wfm-card" style="flex:none;height:5px;padding:0;"></div><div class="wfm-card" style="flex:none;height:5px;padding:0;margin-top:1px;"></div><div class="wfm-btn" style="width:100%;margin-top:1px;"></div></div></div>`,
+    fields: [
+      { key: 'infoTag', label: 'Left column label', type: 'text', default: 'Direct contact' },
+      { key: 'contactItems', label: 'Contact details', type: 'list', itemLabel: 'Contact detail', default: [
+        { label: 'Email', value: 'info@blacfox.com', href: 'mailto:info@blacfox.com' },
+        { label: 'Phone', value: '+27 21 493 9327', href: 'tel:+27214939327' },
+        { label: 'Location', value: 'Cape Town, South Africa', href: '' },
+        { label: 'LinkedIn', value: '/company/blacfox-enterprises', href: 'https://www.linkedin.com/company/blacfox-enterprises' },
+      ], itemFields: [
+        { key: 'label', label: 'Label (e.g. "Email")', type: 'text' },
+        { key: 'value', label: 'Displayed text', type: 'text' },
+        { key: 'href', label: 'Link (optional — blank shows as plain text)', type: 'text' },
+      ] },
+      { key: 'expectTag', label: '"What to expect" box label', type: 'text', default: 'What to expect' },
+      { key: 'expectItems', label: '"What to expect" points', type: 'list', itemLabel: 'Point', default: [
+        { text: '20-minute video or phone call' },
+        { text: "We'll come prepared with context on your business" },
+        { text: "Honest assessment of whether we're a fit" },
+        { text: "If we're not, we'll tell you who we'd send you to" },
+        { text: 'No slide deck. No pitch.' },
+      ], itemFields: [
+        { key: 'text', label: 'Point', type: 'text' },
+      ] },
+      { key: 'formTag', label: 'Form column label', type: 'text', default: 'Discovery call form' },
+      { key: 'fnameLabel', label: 'First name — field label', type: 'text', default: 'First name *' },
+      { key: 'fnamePlaceholder', label: 'First name — placeholder', type: 'text', default: 'Jane' },
+      { key: 'lnameLabel', label: 'Last name — field label', type: 'text', default: 'Last name *' },
+      { key: 'lnamePlaceholder', label: 'Last name — placeholder', type: 'text', default: 'Smith' },
+      { key: 'emailLabel', label: 'Work email — field label', type: 'text', default: 'Work email *' },
+      { key: 'emailPlaceholder', label: 'Work email — placeholder', type: 'text', default: 'jane@company.com' },
+      { key: 'companyLabel', label: 'Company — field label', type: 'text', default: 'Company *' },
+      { key: 'companyPlaceholder', label: 'Company — placeholder', type: 'text', default: 'Acme Technologies' },
+      { key: 'phoneLabel', label: 'Phone number — field label', type: 'text', default: 'Phone number' },
+      { key: 'phonePlaceholder', label: 'Phone number — placeholder', type: 'text', default: '+27 82 000 0000' },
+      { key: 'typeLabel', label: '"Which best describes you?" — field label', type: 'text', default: 'Which best describes you? *' },
+      { key: 'typeOptions', label: '"Which best describes you?" — options', type: 'list', itemLabel: 'Option', default: [
+        { value: 'microsoft-sap-partner', text: 'I work at a Microsoft or SAP partner' },
+        { value: 'isv', text: 'I work at an ISV or software vendor' },
+        { value: 'distributor', text: 'I work at a tech distributor or reseller' },
+        { value: 'other', text: 'Other' },
+      ], itemFields: [
+        { key: 'value', label: 'Option value (used in submitted data)', type: 'text' },
+        { key: 'text', label: 'Option text', type: 'text' },
+      ] },
+      { key: 'revenueLabel', label: '"Approximate annual revenue?" — field label', type: 'text', default: 'Approximate annual revenue? *' },
+      { key: 'revenueOptions', label: '"Approximate annual revenue?" — options', type: 'list', itemLabel: 'Option', default: [
+        { value: 'under-10m', text: 'Under R10M' },
+        { value: '10-100m', text: 'R10M – R100M' },
+        { value: '100-500m', text: 'R100M – R500M' },
+        { value: '500m-plus', text: 'R500M+' },
+      ], itemFields: [
+        { key: 'value', label: 'Option value (used in submitted data)', type: 'text' },
+        { key: 'text', label: 'Option text', type: 'text' },
+      ] },
+      { key: 'messageLabel', label: 'Message — field label', type: 'text', default: "Where are you, what have you tried, and what's stuck?" },
+      { key: 'messagePlaceholder', label: 'Message — placeholder', type: 'textarea', default: "Tell us about your current situation — what you've already tried and where you're getting stuck..." },
+      { key: 'submitText', label: 'Submit button text', type: 'text', default: 'Book my discovery call' },
+      { key: 'disclaimer', label: 'Text under the button', type: 'text', default: "// No slide deck. We'll tell you honestly if we're a fit." },
+    ],
+    render: f => {
+      const contactItems = (f.contactItems || []).filter(it => it.label);
+      const expectItems = (f.expectItems || []).filter(it => it.text);
+      const typeOptions = (f.typeOptions || []).filter(o => o.text);
+      const revenueOptions = (f.revenueOptions || []).filter(o => o.text);
+      return `<section class="bg-white">
+  <div class="section-inner">
+    <div class="contact-layout" id="contact-form">
+
+      <!-- Direct contact -->
+      <div class="contact-info reveal-left">
+        <div>
+          <p class="section-tag" style="margin-bottom:12px;">${escHtml(f.infoTag)}</p>
+        </div>
+${contactItems.map(it => `        <div class="contact-item">
+          <h4>${escHtml(it.label)}</h4>
+          ${it.href ? `<a href="${escHtml(it.href)}"${it.href.startsWith('http') ? ' target="_blank" rel="noopener"' : ''}>${escHtml(it.value)}</a>` : `<p>${escHtml(it.value)}</p>`}
+        </div>`).join('\n')}
+
+        <div class="glass-card" style="padding:32px;border-radius:16px;margin-top:8px;">
+          <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--orange);margin-bottom:12px;">${escHtml(f.expectTag)}</p>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:10px;">
+${expectItems.map(it => `            <li style="font-size:14px;color:var(--muted);padding-left:20px;position:relative;line-height:1.5;"><span style="position:absolute;left:0;color:var(--orange);">—</span> ${escHtml(it.text)}</li>`).join('\n')}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="reveal-right">
+        <p class="section-tag" style="margin-bottom:24px;">${escHtml(f.formTag)}</p>
+        <form class="form-grid" action="#" method="POST">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="fname">${escHtml(f.fnameLabel)}</label>
+              <input class="form-input" type="text" id="fname" name="first_name" required placeholder="${escHtml(f.fnamePlaceholder)}"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="lname">${escHtml(f.lnameLabel)}</label>
+              <input class="form-input" type="text" id="lname" name="last_name" required placeholder="${escHtml(f.lnamePlaceholder)}"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="email">${escHtml(f.emailLabel)}</label>
+            <input class="form-input" type="email" id="email" name="email" required placeholder="${escHtml(f.emailPlaceholder)}"/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="company">${escHtml(f.companyLabel)}</label>
+            <input class="form-input" type="text" id="company" name="company" required placeholder="${escHtml(f.companyPlaceholder)}"/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="phone">${escHtml(f.phoneLabel)}</label>
+            <input class="form-input" type="tel" id="phone" name="phone" placeholder="${escHtml(f.phonePlaceholder)}"/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="type">${escHtml(f.typeLabel)}</label>
+            <select class="form-select" id="type" name="company_type" required>
+              <option value="" disabled selected>Select one</option>
+${typeOptions.map(o => `              <option value="${escHtml(o.value)}">${escHtml(o.text)}</option>`).join('\n')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="revenue">${escHtml(f.revenueLabel)}</label>
+            <select class="form-select" id="revenue" name="revenue" required>
+              <option value="" disabled selected>Select one</option>
+${revenueOptions.map(o => `              <option value="${escHtml(o.value)}">${escHtml(o.text)}</option>`).join('\n')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="message">${escHtml(f.messageLabel)}</label>
+            <textarea class="form-textarea" id="message" name="message" placeholder="${escHtml(f.messagePlaceholder)}"></textarea>
+          </div>
+
+          <div>
+            <button type="submit" class="btn-primary" style="width:100%;justify-content:center;cursor:pointer;border:none;">
+              ${escHtml(f.submitText)} →
+            </button>
+            <p style="font-size:12px;color:var(--muted);margin-top:12px;text-align:center;">${escHtml(f.disclaimer)}</p>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</section>`;
+    },
+  },
   'pmf-timeline': {
     label: 'Heading + Text + Timeline Swoosh', hint: 'Section tag, heading, body text, and an animated step-by-step wave. Add or remove steps — each caption is a normal text field, fully editable (fixes the old version where the text under the wave couldn’t be clicked).',
+    preview: `<div class="wfm-col wfm-g" style="justify-content:center;"><svg viewBox="0 0 60 20" preserveAspectRatio="none" style="width:100%;height:16px;display:block;"><path d="M0,16 C6,16 8,4 14,4 C20,4 22,16 28,16 C34,16 36,4 42,4 C48,4 50,10 56,10 L60,9" fill="none" stroke="#e95c25" stroke-width="1.5"/></svg><div class="wfm-row" style="justify-content:space-between;"><div class="wfm-line" style="width:8%;"></div><div class="wfm-line" style="width:8%;"></div><div class="wfm-line" style="width:8%;"></div><div class="wfm-line" style="width:8%;"></div></div></div>`,
     fields: [
       { key: 'tag', label: 'Label', type: 'text', default: 'The method' },
       { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'From buyer research to <em>PMF</em>, in six moves.' },
@@ -967,22 +1267,26 @@ ${labels}
 const BLOG_COMPONENTS = {
   'heading': {
     label: 'Heading', hint: 'A section heading within the article.',
+    preview: `<div class="wfm-col wfm-g" style="justify-content:center;"><div class="wfm-title" style="width:70%;"></div></div>`,
     fields: [{ key: 'html', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'A heading' }],
     render: f => `<h2>${f.html}</h2>`,
   },
   'subheading': {
     label: 'Subheading', hint: 'A smaller heading within the article.',
+    preview: `<div class="wfm-col wfm-g" style="justify-content:center;"><div class="wfm-line" style="width:55%;height:5px;"></div></div>`,
     fields: [{ key: 'html', label: 'Subheading (HTML allowed for <em>)', type: 'text', default: 'A subheading' }],
     render: f => `<h3>${f.html}</h3>`,
   },
   'paragraph': {
     label: 'Paragraph', hint: '',
+    preview: `<div class="wfm-col wfm-g" style="justify-content:center;"><div class="wfm-line"></div><div class="wfm-line" style="width:85%;"></div><div class="wfm-line" style="width:60%;"></div></div>`,
     fields: [{ key: 'html', label: 'Text', type: 'textarea', default: 'Write your paragraph here.' }],
     render: f => `<p>${f.html}</p>`,
   },
-  'image': { label: 'Image', hint: 'Upload a JPG or PNG from your computer.', fields: [], render: () => '' },
+  'image': { label: 'Image', hint: 'Upload a JPG or PNG from your computer.', preview: `<div class="wfm-img" style="flex:1;"></div>`, fields: [], render: () => '' },
   'quote': {
     label: 'Pull Quote', hint: 'A highlighted quote or callout.',
+    preview: `<div class="wfm-row wfm-g" style="align-items:center;"><div style="width:2px;align-self:stretch;background:#e95c25;flex:none;"></div><div class="wfm-col" style="flex:1;justify-content:center;"><div class="wfm-line" style="width:80%;"></div><div class="wfm-line" style="width:55%;"></div></div></div>`,
     fields: [{ key: 'html', label: 'Quote text', type: 'textarea', default: 'A memorable quote goes here.' }],
     render: f => `<blockquote>${f.html}</blockquote>`,
   },
@@ -1105,7 +1409,7 @@ function insertBlockAt(region, index, html) {
    iframe copy is generated from this same function's source further
    down -- never duplicated by hand.
    ------------------------------------------------------------ */
-const INLINE_PASSENGER_TAGS = new Set(['EM', 'I', 'STRONG', 'B', 'SPAN', 'BR', 'SVG', 'PATH', 'RECT', 'CIRCLE', 'POLYGON', 'LINE', 'G']);
+const INLINE_PASSENGER_TAGS = new Set(['EM', 'I', 'STRONG', 'B', 'U', 'SPAN', 'BR', 'SVG', 'PATH', 'RECT', 'CIRCLE', 'POLYGON', 'LINE', 'G']);
 const SKIP_CONTAINER_TAGS = new Set(['FORM', 'SCRIPT', 'STYLE', 'CANVAS', 'SELECT', 'TEXTAREA', 'OPTION']);
 // Classes handled by the dedicated illustration-upload field (see
 // getIllustrationPanels below) rather than plain text editing: the hero
@@ -1210,8 +1514,34 @@ function transformLeaf(region, index, mutate) {
   setRegionHtml(region, doc.body.innerHTML.trim());
   return true;
 }
-function applyInlineEdit(region, index, newInnerHtml) {
-  return transformLeaf(region, index, el => { el.innerHTML = newInnerHtml; });
+// newTag/newStyle are optional -- only sent when the toolbar's list/align
+// commands actually changed them (see toggleList/setAlign in the injected
+// preview script). newTag exists because a bulleted/numbered list can't be
+// stored as a child of the leaf's original tag if that tag is <p>/<h2>/etc:
+// those only permit phrasing content, so a <ul> inside one gets silently
+// auto-closed-and-split by any REAL top-level HTML parse (the next preview
+// reload, and the shipped page itself) even though the live, already-parsed
+// DOM tolerates it uncorrected via a plain innerHTML assignment -- so the
+// corruption wouldn't show up until the very next refresh. Swapping the
+// leaf's own tag to <div> (which does permit flow content) avoids that
+// entirely; it's harmless visually since every leaf's styling is class-based,
+// never tag-qualified.
+function applyInlineEdit(region, index, newInnerHtml, newTag, newStyle) {
+  return transformLeaf(region, index, el => {
+    if (newTag && el.tagName !== newTag) {
+      const replacement = el.ownerDocument.createElement(newTag);
+      for (const attr of Array.from(el.attributes)) replacement.setAttribute(attr.name, attr.value);
+      replacement.innerHTML = newInnerHtml;
+      el.replaceWith(replacement);
+      el = replacement;
+    } else {
+      el.innerHTML = newInnerHtml;
+    }
+    if (newStyle != null) {
+      if (newStyle) el.setAttribute('style', newStyle);
+      else el.removeAttribute('style');
+    }
+  });
 }
 
 // Delete/move act immediately (aside from the confirm on delete); insert
@@ -1254,7 +1584,7 @@ function handleIllustrationMessage(msg) {
 window.addEventListener('message', e => {
   if (!e.data || e.data.source !== 'blacfox-cms-preview') return;
   if (e.data.type === 'edit') {
-    if (applyInlineEdit(e.data.region, e.data.index, e.data.html)) {
+    if (applyInlineEdit(e.data.region, e.data.index, e.data.html, e.data.tag, e.data.style)) {
       setStatus('edited (unsaved)', '');
     }
   } else if (e.data.type === 'block') {
@@ -1297,6 +1627,11 @@ window.addEventListener('message', e => {
       ? addCardItem(e.data.region, e.data.groupIndex)
       : removeCardItem(e.data.region, e.data.groupIndex, e.data.cardIndex);
     if (ok) { setStatus('edited (unsaved)', ''); refreshPreview(); }
+  } else if (e.data.type === 'card-stack-item') {
+    const ok = e.data.action === 'add'
+      ? addCardStackItem(e.data.region, e.data.groupIndex)
+      : removeCardStackItem(e.data.region, e.data.groupIndex, e.data.itemIndex);
+    if (ok) { setStatus('edited (unsaved)', ''); refreshPreview(); }
   }
 });
 
@@ -1331,9 +1666,18 @@ function buildPreviewEditScript(editable) {
 
   var toolbar = document.createElement('div');
   toolbar.id = 'cms-toolbar';
-  toolbar.innerHTML = '<button data-cmd="strong" onmousedown="return false">B</button>' +
-    '<button data-cmd="em" onmousedown="return false" style="font-style:italic">Highlight</button>' +
-    '<button data-cmd="clear" onmousedown="return false">Clear</button>';
+  toolbar.innerHTML = '<button data-cmd="strong" onmousedown="return false" title="Bold" style="font-weight:800">B</button>' +
+    '<button data-cmd="em" onmousedown="return false" title="Italic" style="font-style:italic">I</button>' +
+    '<button data-cmd="u" onmousedown="return false" title="Underline" style="text-decoration:underline">U</button>' +
+    '<span class="cms-toolbar-sep"></span>' +
+    '<button data-cmd="ul" onmousedown="return false" title="Bullet list">•≡</button>' +
+    '<button data-cmd="ol" onmousedown="return false" title="Numbered list">1.≡</button>' +
+    '<span class="cms-toolbar-sep"></span>' +
+    '<button data-cmd="align-left" onmousedown="return false" title="Align left">L</button>' +
+    '<button data-cmd="align-center" onmousedown="return false" title="Align center">C</button>' +
+    '<button data-cmd="align-right" onmousedown="return false" title="Align right">R</button>' +
+    '<span class="cms-toolbar-sep"></span>' +
+    '<button data-cmd="clear" onmousedown="return false" title="Clear formatting">Clear</button>';
   document.body.appendChild(toolbar);
   var style = document.createElement('style');
   style.textContent = '.cms-editable{outline:1px dashed transparent;cursor:text;transition:outline-color .1s}' +
@@ -1342,6 +1686,7 @@ function buildPreviewEditScript(editable) {
     '#cms-toolbar{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:4px;gap:2px;box-shadow:0 6px 20px rgba(0,0,0,.4)}' +
     '#cms-toolbar button{background:none;border:none;color:#eee;font-size:11px;font-weight:700;padding:5px 9px;border-radius:5px;cursor:pointer;font-family:inherit}' +
     '#cms-toolbar button:hover{background:rgba(255,255,255,.12)}' +
+    '.cms-toolbar-sep{width:1px;align-self:stretch;background:rgba(255,255,255,.15);margin:2px 1px}' +
     '.cms-block{outline:2px dashed transparent;outline-offset:3px;transition:outline-color .1s}' +
     '.cms-block:hover{outline-color:rgba(80,140,255,.6)}' +
     '#cms-block-toolbar{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:4px;gap:2px;box-shadow:0 6px 20px rgba(0,0,0,.4)}' +
@@ -1384,6 +1729,8 @@ function buildPreviewEditScript(editable) {
     '.dark-card:hover .cms-card-del{opacity:1}' +
     '.cms-card-add{display:block;margin:16px auto 0;background:rgba(233,92,37,.1);border:1px dashed rgba(233,92,37,.4);color:#e95c25;border-radius:6px;padding:7px 16px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}' +
     '.cms-card-add:hover{background:rgba(233,92,37,.18)}' +
+    '.cms-card-add:disabled{opacity:.4;cursor:default}' +
+    '.cms-card-add:disabled:hover{background:rgba(233,92,37,.1)}' +
     '#cms-card-icon-popup{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(233,92,37,.5);border-radius:8px;padding:8px;box-shadow:0 8px 26px rgba(0,0,0,.45);width:190px}' +
     '#cms-card-icon-popup .icon-pick-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}' +
     '#cms-card-icon-popup button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:5px;color:#aaa;padding:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}' +
@@ -1421,12 +1768,66 @@ function buildPreviewEditScript(editable) {
     var editableEl = el && el.closest ? el.closest('.cms-editable') : null;
     if (editableEl) editableEl.dispatchEvent(new Event('input', { bubbles: true }));
   }
+  // Bullet/numbered list toggle acts on the whole active leaf, not just the
+  // selection -- same as a word processor (list-ness is a block property).
+  // If the leaf's own tag can't legally contain a <ul>/<ol> (true of every
+  // tag used as a leaf here except <div> -- see collectEditableLeaves,
+  // leaves can be <p>/<h2>/<div>/etc depending on the source markup), it's
+  // swapped to <div> first via reparentActiveLeaf -- see applyInlineEdit's
+  // comment for why this can't just be left as-is.
+  function reparentActiveLeaf(el) {
+    if (el.tagName === 'DIV') return el;
+    var div = document.createElement('div');
+    for (var i = 0; i < el.attributes.length; i++) div.setAttribute(el.attributes[i].name, el.attributes[i].value);
+    div.innerHTML = el.innerHTML;
+    el.replaceWith(div);
+    wireLeaf(div, el.dataset.cmsLeafRegion, parseInt(el.dataset.cmsLeafIndex, 10));
+    div.contentEditable = 'true';
+    div.classList.add('cms-active');
+    return div;
+  }
+  function toggleList(kind) {
+    var el = document.querySelector('.cms-editable.cms-active');
+    // A leaf can itself be a single <li> once a list already exists here --
+    // see the comment above collectEditableLeaves' recursion into <ul>/<ol>.
+    // reparentActiveLeaf's <div> swap would be invalid there (a <ul> can only
+    // contain <li> children), and nesting a list inside one bullet isn't a
+    // case this toolbar needs to support, so just no-op.
+    if (!el || el.tagName === 'LI') return;
+    var wantTag = kind === 'ol' ? 'OL' : 'UL';
+    var current = el.children.length === 1 && (el.firstElementChild.tagName === 'UL' || el.firstElementChild.tagName === 'OL') ? el.firstElementChild : null;
+    if (current && current.tagName === wantTag) {
+      // toggle off: flatten back to <br>-separated plain text
+      var lines = Array.from(current.children).map(function(li) { return li.innerHTML; });
+      el.innerHTML = lines.join('<br>');
+    } else {
+      var sourceHtml = current ? Array.from(current.children).map(function(li) { return li.innerHTML; }).join('<br>') : el.innerHTML;
+      var items = sourceHtml.split(/<br\s*\/?>/i).map(function(s) { return s.trim(); }).filter(function(s) { return s.length; });
+      if (!items.length) items = [sourceHtml];
+      var tag = wantTag.toLowerCase();
+      el = reparentActiveLeaf(el);
+      el.innerHTML = '<' + tag + '>' + items.map(function(s) { return '<li>' + s + '</li>'; }).join('') + '</' + tag + '>';
+    }
+    el.focus();
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function setAlign(align) {
+    var el = document.querySelector('.cms-editable.cms-active');
+    if (!el) return;
+    el.style.textAlign = align;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
   toolbar.addEventListener('mousedown', function(e) {
     var btn = e.target.closest('button');
     if (!btn) return;
     e.preventDefault();
     var cmd = btn.dataset.cmd;
-    if (cmd === 'clear') clearFormatting(); else toggleWrap(cmd);
+    if (cmd === 'clear') clearFormatting();
+    else if (cmd === 'ul' || cmd === 'ol') toggleList(cmd);
+    else if (cmd === 'align-left') setAlign('left');
+    else if (cmd === 'align-center') setAlign('center');
+    else if (cmd === 'align-right') setAlign('right');
+    else toggleWrap(cmd);
   });
   document.addEventListener('selectionchange', function() {
     var sel = window.getSelection();
@@ -1440,38 +1841,41 @@ function buildPreviewEditScript(editable) {
     toolbar.style.top = Math.max(4, rect.top - 40) + 'px';
   });
 
+  function wireLeaf(el, region, index) {
+    el.classList.add('cms-editable');
+    el.title = 'Click to edit';
+    el.dataset.cmsLeafRegion = region;
+    el.dataset.cmsLeafIndex = index;
+    var sendTimer = null;
+    function send() {
+      parent.postMessage({ source: 'blacfox-cms-preview', type: 'edit', region: region, index: index, html: el.innerHTML, tag: el.tagName, style: el.getAttribute('style') || '' }, '*');
+    }
+    el.addEventListener('click', function(e) {
+      if (el.contentEditable === 'true') return;
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll('.cms-active').forEach(function(x) { x.contentEditable = 'false'; x.classList.remove('cms-active'); });
+      el.contentEditable = 'true';
+      el.classList.add('cms-active');
+      el.focus();
+    });
+    el.addEventListener('input', function() {
+      clearTimeout(sendTimer);
+      sendTimer = setTimeout(send, 500);
+    });
+    el.addEventListener('blur', function() {
+      clearTimeout(sendTimer);
+      el.contentEditable = 'false';
+      el.classList.remove('cms-active');
+      toolbar.style.display = 'none';
+      send();
+    });
+  }
   function wireRegion(rootSelector, region) {
     var root = document.querySelector(rootSelector);
     if (!root) return;
     var leaves = collectEditableLeaves(root);
-    leaves.forEach(function(el, index) {
-      el.classList.add('cms-editable');
-      el.title = 'Click to edit';
-      var sendTimer = null;
-      function send() {
-        parent.postMessage({ source: 'blacfox-cms-preview', type: 'edit', region: region, index: index, html: el.innerHTML }, '*');
-      }
-      el.addEventListener('click', function(e) {
-        if (el.contentEditable === 'true') return;
-        e.preventDefault();
-        e.stopPropagation();
-        document.querySelectorAll('.cms-active').forEach(function(x) { x.contentEditable = 'false'; x.classList.remove('cms-active'); });
-        el.contentEditable = 'true';
-        el.classList.add('cms-active');
-        el.focus();
-      });
-      el.addEventListener('input', function() {
-        clearTimeout(sendTimer);
-        sendTimer = setTimeout(send, 500);
-      });
-      el.addEventListener('blur', function() {
-        clearTimeout(sendTimer);
-        el.contentEditable = 'false';
-        el.classList.remove('cms-active');
-        toolbar.style.display = 'none';
-        send();
-      });
-    });
+    leaves.forEach(function(el, index) { wireLeaf(el, region, index); });
   }
 
   // Elementor-style block controls: every TOP-LEVEL element of a region
@@ -1878,6 +2282,50 @@ function buildPreviewEditScript(editable) {
     });
   }
 
+  // Add/remove for a fixed-size stack of free-text-labelled cards (e.g.
+  // "Heading + Text + Cards"'s right-hand column) -- NOT reusing
+  // wireCardGroups/renumberCardMarkers below, since that renumbers every
+  // .card-num to a sequential "01"/"02" on every change, which would
+  // clobber this component's free-text eyebrow labels ("B2B tech only",
+  // "Paid on outcomes"). Capped via a data-cms-max attribute on the group
+  // (set by the component's render()) so "add" simply disables past the cap
+  // instead of wrapping/reflowing columns like the grid version does.
+  function wireCardStackGroups(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    Array.from(root.querySelectorAll('.text-card-stack')).forEach(function(group, groupIndex) {
+      var max = parseInt(group.getAttribute('data-cms-max'), 10) || Infinity;
+      var items = Array.from(group.children).filter(function(el) { return el.classList.contains('dark-card'); });
+      items.forEach(function(item, itemIndex) {
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'cms-card-del';
+        del.title = 'Remove this card';
+        del.textContent = '✕';
+        del.addEventListener('click', function(e) {
+          e.preventDefault(); e.stopPropagation();
+          if (items.length <= 1) return;
+          parent.postMessage({ source: 'blacfox-cms-preview', type: 'card-stack-item', action: 'remove', region: region, groupIndex: groupIndex, itemIndex: itemIndex }, '*');
+        });
+        item.appendChild(del);
+      });
+      var addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'cms-card-add';
+      addBtn.textContent = '+ Add card';
+      if (items.length >= max) {
+        addBtn.disabled = true;
+        addBtn.title = 'Maximum ' + max + ' cards';
+      } else {
+        addBtn.addEventListener('click', function(e) {
+          e.preventDefault(); e.stopPropagation();
+          parent.postMessage({ source: 'blacfox-cms-preview', type: 'card-stack-item', action: 'add', region: region, groupIndex: groupIndex }, '*');
+        });
+      }
+      group.parentElement.appendChild(addBtn);
+    });
+  }
+
   // Card marker mode (number / icon / plain) for any .card-grid-3/
   // .card-grid-2 of .dark-card items -- same "works on pre-existing
   // hand-authored markup too" approach as stats/FAQ above. A small toolbar
@@ -2006,6 +2454,8 @@ function buildPreviewEditScript(editable) {
   wireFaqGroups('#page-content, .other-page-content', 'main');
   wireCardGroups('#cms-hero-root', 'hero');
   wireCardGroups('#page-content, .other-page-content', 'main');
+  wireCardStackGroups('#cms-hero-root', 'hero');
+  wireCardStackGroups('#page-content, .other-page-content', 'main');
   ` : ''}
 })();
 <\/script>`;
@@ -2951,6 +3401,35 @@ function ensureCardGridScopedStyle(group, doc) {
   }
   styleEl.textContent = css;
 }
+function mutateCardStackGroup(region, groupIndex, mutate) {
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const group = Array.from(doc.body.querySelectorAll('.text-card-stack'))[groupIndex];
+  if (!group) return false;
+  mutate(group, doc);
+  setRegionHtml(region, doc.body.innerHTML.trim());
+  return true;
+}
+function addCardStackItem(region, groupIndex) {
+  return mutateCardStackGroup(region, groupIndex, (group, doc) => {
+    const max = parseInt(group.getAttribute('data-cms-max'), 10) || Infinity;
+    const cards = Array.from(group.querySelectorAll(':scope > .dark-card'));
+    if (cards.length >= max) return;
+    const div = doc.createElement('div');
+    div.className = 'dark-card';
+    div.setAttribute('style', 'margin-top:0;');
+    div.innerHTML = `<p class="card-num">New tag</p>\n          <p class="card-title">New card heading</p>\n          <p class="card-body">Describe this card.</p>`;
+    group.appendChild(div);
+  });
+}
+function removeCardStackItem(region, groupIndex, itemIndex) {
+  return mutateCardStackGroup(region, groupIndex, group => {
+    const cards = Array.from(group.querySelectorAll(':scope > .dark-card'));
+    if (cards.length <= 1) return;
+    if (cards[itemIndex]) cards[itemIndex].remove();
+  });
+}
 function mutateCardGroup(region, groupIndex, mutate) {
   const raw = getRegionHtml(region);
   if (raw == null) return false;
@@ -3148,7 +3627,7 @@ async function saveArticleMeta() {
 function openInsertSectionModal(region, insertIndex) {
   const isArticle = App.current.type === 'article';
   const compSet = isArticle ? BLOG_COMPONENTS : COMPONENTS;
-  const items = Object.entries(compSet).map(([key, c]) => `<div class="comp-picker-item" data-comp="${key}"><strong>${c.label}</strong>${c.hint}</div>`).join('');
+  const items = Object.entries(compSet).map(([key, c]) => `<div class="comp-picker-item" data-comp="${key}" title="${escHtml(c.hint || '')}"><strong>${c.label}</strong><div class="wf-mini">${c.preview || ''}</div></div>`).join('');
   openModal(`<div class="modal-title">Insert ${isArticle ? 'block' : 'section'}</div><div class="comp-picker-grid">${items}</div><div class="modal-actions"><button class="btn btn-ghost" data-close>Cancel</button></div>`);
   document.querySelectorAll('.comp-picker-item').forEach(el => el.addEventListener('click', () => {
     const key = el.dataset.comp;
@@ -3190,6 +3669,7 @@ function listFieldRow(f, row, i) {
 }
 function wireListField(f) {
   const container = document.getElementById(`cf-list-${f.key}`);
+  const addBtn = document.querySelector(`[data-list-add-key="${f.key}"]`);
   function renumber() {
     const cards = container.querySelectorAll('.chrome-item-card');
     cards.forEach((c, i) => {
@@ -3198,6 +3678,10 @@ function wireListField(f) {
       up.disabled = i === 0; down.disabled = i === cards.length - 1;
       c.querySelector('[data-list-remove]').disabled = cards.length <= 1;
     });
+    if (f.max) {
+      addBtn.disabled = cards.length >= f.max;
+      addBtn.title = addBtn.disabled ? `Maximum ${f.max} ${f.itemLabel || 'item'}${f.max === 1 ? '' : 's'}` : '';
+    }
   }
   function wireRow(card) {
     card.querySelector('[data-move="up"]').onclick = () => { const prev = card.previousElementSibling; if (prev) container.insertBefore(card, prev); renumber(); };
@@ -3206,8 +3690,9 @@ function wireListField(f) {
   }
   container.querySelectorAll('.chrome-item-card').forEach(wireRow);
   renumber();
-  document.querySelector(`[data-list-add-key="${f.key}"]`).addEventListener('click', () => {
+  addBtn.addEventListener('click', () => {
     const idx = container.querySelectorAll('.chrome-item-card').length;
+    if (f.max && idx >= f.max) return;
     const blank = {};
     f.itemFields.forEach(sf => { blank[sf.key] = ''; });
     container.insertAdjacentHTML('beforeend', listFieldRow(f, blank, idx));
