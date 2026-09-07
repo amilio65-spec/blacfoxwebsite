@@ -20,7 +20,8 @@ is a working design environment, not a deployed site.
 │   └── footer.html                    footer, byte-identical on every page
 ├── pages/<page>.md                    frontmatter (title, description, cssFiles, bodyClass, layout, canonical, pageScripts) + that page's unique body content
 ├── content/articles/<slug>.md         blog posts -- frontmatter (title, description, author, date, banner, ...) + body; each becomes dist/article-<slug>.html, and pages/articles.md's <!--ARTICLES-GRID--> marker is replaced with a generated card grid of all of them
-├── admin/                             Blacfox CMS -- static, GitHub-API-backed page/article editor with a live preview (click-to-edit text, add/move/remove sections); deploys verbatim to /admin/
+├── content/case-studies/<slug>.md     same shape as articles, its own collection -- each becomes dist/case-study-<slug>.html, and pages/case-studies.md's <!--CASESTUDIES-GRID--> marker is replaced with a generated card grid; pages/index.md's <!--FEATURED-CAROUSEL--> marker is replaced with a carousel of the newest items from BOTH collections
+├── admin/                             Blacfox CMS -- static, GitHub-API-backed editor; pages use a live preview (click-to-edit text, add/move/remove sections), articles/case studies open in a WordPress-style compose editor (paste/format text, insert images) instead; deploys verbatim to /admin/
 ├── assets/
 │   ├── css/
 │   │   ├── fonts.css                  self-hosted Montserrat — shared by every page

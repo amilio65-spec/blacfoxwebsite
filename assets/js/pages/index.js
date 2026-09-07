@@ -58,3 +58,20 @@
       if (entries[0].isIntersecting) startWave(); else resetWave();
     }, { threshold: 0.25 }).observe(document.getElementById('pmfWaveSection'));
   }
+
+  // Featured articles/case-studies carousel -- arrow buttons scroll the
+  // track by roughly one card + gap; native scroll-snap does the rest,
+  // including touch/trackpad swiping without any JS at all.
+  (function() {
+    const track = document.getElementById('featured-carousel-track');
+    if (!track) return;
+    const wrap = track.closest('.featured-carousel-wrap');
+    const prevBtn = wrap.querySelector('.carousel-prev');
+    const nextBtn = wrap.querySelector('.carousel-next');
+    function step() {
+      const card = track.querySelector('.featured-carousel-card');
+      return card ? card.getBoundingClientRect().width + 20 : track.clientWidth * 0.8;
+    }
+    prevBtn.addEventListener('click', () => track.scrollBy({ left: -step(), behavior: 'smooth' }));
+    nextBtn.addEventListener('click', () => track.scrollBy({ left: step(), behavior: 'smooth' }));
+  })();

@@ -1,8 +1,11 @@
-/* Shared styles for the articles listing grid (pages/articles.md) and
-   individual article pages (content/articles/*.md -> article-<slug>.html).
-   Loaded alongside site.css -- built on top of its shared tokens
-   (--orange/--card/--border/--muted/--light/--site-max/--site-px) rather
-   than redefining them. */
+/* Shared styles for the articles + case studies listing grids
+   (pages/articles.md, pages/case-studies.md) and individual post pages
+   (content/articles/*.md -> article-<slug>.html, content/case-studies/*.md
+   -> case-study-<slug>.html) -- both collections share this one stylesheet
+   since their markup is identical (see build.js's renderPostsGrid/
+   renderPostPage). Loaded alongside site.css -- built on top of its shared
+   tokens (--orange/--card/--border/--muted/--light/--site-max/--site-px)
+   rather than redefining them. */
 
 .article-hero .article-meta {
   font-size: 13px; color: var(--muted); margin-top: 14px; font-weight: 500;

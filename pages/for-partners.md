@@ -164,7 +164,7 @@ pageScripts: ["assets/js/vendor/chart.umd.min.js","assets/js/pages/for-partners.
         <h3 class="case-headline">How Adept ICT, a Microsoft Solutions Partner, <em>doubled partner pipeline</em> in 9 months, by changing the conversation about Azure.</h3>
         <p style="font-size:15px;color:var(--muted);line-height:1.7;max-width:640px;">Adept ICT had the certifications, the capability, and the case studies, but looked identical to every other Microsoft partner in the room. Blacfox reframed their Azure positioning, built a PMF around their genuine differentiators, and ran a co-op-funded campaign that put them in front of the right buyers. Sales followed.</p>
         <div style="margin-top:32px;">
-          <a href="work.html" class="btn-ghost">Read the full case study →</a>
+          <a href="case-studies.html" class="btn-ghost">Read the full case study →</a>
         </div>
       </div>
       <div class="case-stats-strip">

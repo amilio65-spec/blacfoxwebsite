@@ -374,6 +374,49 @@ section{position:relative;overflow:clip}
 .card-title{font-size:18px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px;color:var(--light)}
 .card-body{font-size:14px;color:var(--muted);line-height:1.65}
 
+/* article-card/article-card-thumb are normally defined in articles.css,
+   which this page doesn't load -- duplicated here (same rules, verbatim)
+   so the featured carousel's cards (shared markup with the articles/
+   case-studies grids) render identically on the home page. */
+.article-card{display:block;text-decoration:none;overflow:hidden}
+.article-card-thumb{
+  aspect-ratio:16/9;margin:-1px -1px 20px;border-radius:19px 19px 0 0;
+  overflow:hidden;background:var(--bg-alt,#f3f0ec);
+}
+.article-card-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* =========================================================
+   FEATURED CAROUSEL (articles + case studies)
+   ========================================================= */
+.featured-carousel-wrap{position:relative;max-width:1240px;margin:0 auto;padding:0 60px}
+.featured-carousel-track{
+  display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x proximity;
+  padding:4px 2px 12px;scrollbar-width:none;
+}
+.featured-carousel-track::-webkit-scrollbar{display:none}
+.featured-carousel-card{
+  flex:0 0 300px;scroll-snap-align:start;margin-top:0;
+}
+.carousel-arrow{
+  position:absolute;top:50%;transform:translateY(-50%);z-index:2;
+  width:40px;height:40px;border-radius:50%;background:var(--card);
+  border:1px solid var(--border);color:var(--light);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color 0.2s,transform 0.2s;
+}
+.carousel-arrow:hover{border-color:rgba(233,92,37,0.5);transform:translateY(-50%) scale(1.06)}
+.carousel-prev{left:16px}
+.carousel-next{right:16px}
+@media(max-width:900px){
+  .featured-carousel-wrap{padding:0 44px}
+  .featured-carousel-card{flex-basis:78vw}
+}
+@media(max-width:640px){
+  .featured-carousel-wrap{padding:0 12px}
+  .carousel-arrow{width:34px;height:34px}
+  .featured-carousel-card{flex-basis:82vw}
+}
+
 /* =========================================================
    COMPARISON GRID
    ========================================================= */

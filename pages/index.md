@@ -363,6 +363,12 @@ pageScripts: ["assets/js/pages/index.js"]
   </div>
 </section>
 
+<!-- FEATURED ARTICLES/CASE STUDIES -->
+<!--FEATURED-CAROUSEL-->
+<!-- The line above is replaced automatically (by build.js, and live in the
+     CMS preview) with a carousel of the newest articles + case studies.
+     Don't hand-edit it here, it's regenerated on every build. -->
+
 <!-- CTA -->
 <section class="cta-section">
   <canvas class="hero-bg-grid"></canvas>

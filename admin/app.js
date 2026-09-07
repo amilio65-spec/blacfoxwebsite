@@ -1294,6 +1294,30 @@ const BLOG_COMPONENTS = {
 };
 
 /* ------------------------------------------------------------
+   Post kinds -- "posts" are the two flat markdown collections
+   (content/<dir>/<slug>.md) that each get their own listing page
+   (pages/articles.md, pages/case-studies.md) and their own flat
+   dist/<prefix><slug>.html. Everything about how a post is stored,
+   listed, and committed is driven off this config so articles and
+   case studies share one code path instead of two near-duplicates.
+   Must mirror build.js's POST_KINDS exactly.
+   ------------------------------------------------------------ */
+const POST_KINDS = {
+  article: {
+    store: 'articles', dirPath: 'content/articles', assetDir: 'assets/articles',
+    prefix: 'article-', label: 'Article', pluralLabel: 'articles',
+    cssFiles: ['assets/css/site.css', 'assets/css/articles.css'],
+    gridMarker: '<!--ARTICLES-GRID-->',
+  },
+  'case-study': {
+    store: 'caseStudies', dirPath: 'content/case-studies', assetDir: 'assets/case-studies',
+    prefix: 'case-study-', label: 'Case Study', pluralLabel: 'case studies',
+    cssFiles: ['assets/css/site.css', 'assets/css/articles.css'],
+    gridMarker: '<!--CASESTUDIES-GRID-->',
+  },
+};
+
+/* ------------------------------------------------------------
    App state
    ------------------------------------------------------------ */
 const App = {
@@ -1301,13 +1325,23 @@ const App = {
   branches: [],
   pages: {},          // slug -> {path, sha, data, hero, main}
   articles: {},        // slug -> {path, sha, data, body}
+  caseStudies: {},      // slug -> {path, sha, data, body}
   navDoc: null,        // {sha, doc(DOMParser Document)}
   footerDoc: null,
-  current: null,       // {type:'page'|'article', slug} | {type:'nav'} | {type:'footer'}
+  current: null,       // {type:'page'|'article'|'case-study', slug} | {type:'nav'} | {type:'footer'}
   assetCache: new Map(), // `${branch}:${path}` -> text | null
   // Content editing happens in the live preview, not the sidebar -- default
   // to on so a freshly-opened page is immediately click-to-edit.
   previewEditMode: true,
+  // Articles/case studies open straight into the WordPress-style compose
+  // editor ('write') rather than the block-based live preview used for
+  // pages; 'preview' shows the real rendered page instead, read-only.
+  postViewMode: 'write',
+  // Tracks which post's DOM is currently built inside #compose-pane, so
+  // switching back to a post already open there doesn't stomp on
+  // in-progress typing by re-rendering from the (already up to date)
+  // in-memory store. See ensureComposePane.
+  composeKey: null,
 };
 
 const ARTICLE_META_FIELD_ORDER = ['title', 'description', 'author', 'date', 'banner', 'cssFiles', 'bodyClass', 'canonical', 'pageScripts'];
@@ -1337,7 +1371,8 @@ function formatArticleDate(iso) {
 function getCurrentEditable() {
   if (!App.current) return null;
   if (App.current.type === 'page') return App.pages[App.current.slug];
-  if (App.current.type === 'article') return App.articles[App.current.slug];
+  const kindCfg = POST_KINDS[App.current.type];
+  if (kindCfg) return App[kindCfg.store][App.current.slug];
   return null;
 }
 function getRegionHtml(region) {
@@ -2542,6 +2577,7 @@ async function loadBranches() {
 document.getElementById('branch-select').addEventListener('change', async e => {
   App.branch = e.target.value;
   App.current = null;
+  App.composeKey = null; // different branch may hold different content at the same slug
   renderEditor();
   await loadBranchContent();
 });
@@ -2565,6 +2601,7 @@ document.getElementById('new-draft-btn').addEventListener('click', () => {
       document.getElementById('branch-select').value = name;
       App.branch = name;
       App.current = null;
+      App.composeKey = null;
       renderEditor();
       await loadBranchContent();
       setStatus('draft ready', 'ok');
@@ -2591,6 +2628,7 @@ document.getElementById('publish-btn').addEventListener('click', () => {
       document.getElementById('branch-select').value = 'main';
       App.branch = 'main';
       App.current = null;
+      App.composeKey = null;
       renderEditor();
       await loadBranchContent();
       setStatus('published', 'ok');
@@ -2612,11 +2650,13 @@ async function loadBranchContent() {
   updatePublishBtnVisibility();
   setStatus('loading…', 'busy');
   try {
-    // The four sections below (pages, articles, nav, footer) are independent
-    // reads -- running them one after another (the original approach) meant
-    // every additional page/article added its own fully-serial round trip
-    // before the sidebar could even render. Promise.all lets them overlap.
-    const [pages, articles, navFile, footerFile] = await Promise.all([
+    // The sections below (pages, each post kind, nav, footer) are
+    // independent reads -- running them one after another (the original
+    // approach) meant every additional page/article added its own
+    // fully-serial round trip before the sidebar could even render.
+    // Promise.all lets them overlap.
+    const postKindEntries = Object.entries(POST_KINDS);
+    const [pages, postCollections, navFile, footerFile] = await Promise.all([
       (async () => {
         const dir = await gh.getFile(gh.owner, gh.repo, 'pages', App.branch);
         const files = (dir && dir.dir ? dir.dir : []).filter(f => f.name.endsWith('.md'));
@@ -2630,23 +2670,23 @@ async function loadBranchContent() {
         }));
         return pages;
       })(),
-      (async () => {
-        const artDir = await gh.getFile(gh.owner, gh.repo, 'content/articles', App.branch);
-        const artFiles = (artDir && artDir.dir ? artDir.dir : []).filter(f => f.name.endsWith('.md'));
-        const articles = {};
-        await Promise.all(artFiles.map(async f => {
+      Promise.all(postKindEntries.map(async ([, cfg]) => {
+        const dir = await gh.getFile(gh.owner, gh.repo, cfg.dirPath, App.branch);
+        const files = (dir && dir.dir ? dir.dir : []).filter(f => f.name.endsWith('.md'));
+        const posts = {};
+        await Promise.all(files.map(async f => {
           const file = await gh.getFile(gh.owner, gh.repo, f.path, App.branch);
           const { data, body } = parseFrontmatter(file.text);
           const slug = f.name.replace(/\.md$/, '');
-          articles[slug] = { path: f.path, sha: file.sha, data, body: body.trim() };
+          posts[slug] = { path: f.path, sha: file.sha, data, body: body.trim() };
         }));
-        return articles;
-      })(),
+        return posts;
+      })),
       gh.getFile(gh.owner, gh.repo, 'partials/nav.html', App.branch),
       gh.getFile(gh.owner, gh.repo, 'partials/footer.html', App.branch),
     ]);
     App.pages = pages;
-    App.articles = articles;
+    postKindEntries.forEach(([, cfg], i) => { App[cfg.store] = postCollections[i]; });
     App.navDoc = { sha: navFile.sha, doc: new DOMParser().parseFromString(navFile.text, 'text/html') };
     App.footerDoc = { sha: footerFile.sha, doc: new DOMParser().parseFromString(footerFile.text, 'text/html') };
 
@@ -2685,83 +2725,103 @@ function renderSidebar() {
     btn.addEventListener('click', e => { e.stopPropagation(); deletePage(btn.dataset.delPage); });
   });
 
-  const artTree = document.getElementById('article-tree');
-  const artSlugs = Object.keys(App.articles).sort((a, b) => (App.articles[b].data.date || '').localeCompare(App.articles[a].data.date || ''));
-  artTree.innerHTML = artSlugs.length ? artSlugs.map(slug => {
-    const a = App.articles[slug];
-    const active = App.current && App.current.type === 'article' && App.current.slug === slug;
-    return `<div class="tree-item${active ? ' active' : ''}" data-art-slug="${slug}">
-      <span class="tree-item-label">${escHtml(a.data.title || slug)}</span>
-      <button class="icon-btn tree-del-btn" data-del-article="${slug}" title="Delete article">✕</button>
-    </div>`;
-  }).join('') : '<p class="field-hint" style="margin:2px 6px">No articles yet.</p>';
-  artTree.querySelectorAll('.tree-item').forEach(el => {
-    el.addEventListener('click', () => {
-      App.current = { type: 'article', slug: el.dataset.artSlug };
-      renderEditor();
-      refreshPreview();
-    });
-  });
-  artTree.querySelectorAll('[data-del-article]').forEach(btn => {
-    btn.addEventListener('click', e => { e.stopPropagation(); deleteArticle(btn.dataset.delArticle); });
-  });
+  renderPostTree('article', 'article-tree');
+  renderPostTree('case-study', 'case-study-tree');
 
   ['nav', 'footer'].forEach(kind => {
     const el = document.getElementById(kind + '-tree-item');
     el.classList.toggle('active', App.current && App.current.type === kind);
   });
 }
+
+function renderPostTree(kind, treeElId) {
+  const cfg = POST_KINDS[kind];
+  const store = App[cfg.store];
+  const tree = document.getElementById(treeElId);
+  const slugs = Object.keys(store).sort((a, b) => (store[b].data.date || '').localeCompare(store[a].data.date || ''));
+  tree.innerHTML = slugs.length ? slugs.map(slug => {
+    const p = store[slug];
+    const active = App.current && App.current.type === kind && App.current.slug === slug;
+    return `<div class="tree-item${active ? ' active' : ''}" data-slug="${slug}">
+      <span class="tree-item-label">${escHtml(p.data.title || slug)}</span>
+      <button class="icon-btn tree-del-btn" data-del="${slug}" title="Delete ${cfg.label.toLowerCase()}">✕</button>
+    </div>`;
+  }).join('') : `<p class="field-hint" style="margin:2px 6px">No ${cfg.pluralLabel} yet.</p>`;
+  tree.querySelectorAll('.tree-item').forEach(el => {
+    el.addEventListener('click', () => {
+      App.current = { type: kind, slug: el.dataset.slug };
+      App.postViewMode = 'write';
+      renderEditor();
+      refreshPreview();
+    });
+  });
+  tree.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); deletePost(kind, btn.dataset.del); });
+  });
+}
+
 document.getElementById('nav-tree-item').addEventListener('click', () => { App.current = { type: 'nav' }; renderEditor(); refreshPreview(); });
 document.getElementById('footer-tree-item').addEventListener('click', () => { App.current = { type: 'footer' }; renderEditor(); refreshPreview(); });
 
-document.getElementById('add-article-btn').addEventListener('click', () => {
-  const today = new Date().toISOString().slice(0, 10);
-  openModal(`
-    <div class="modal-title">Add an article</div>
-    <div class="field-group"><label class="field-label">Title</label><input class="field-input" id="na-title" placeholder="How we helped Acme Co. grow pipeline"></div>
-    <div class="field-group"><label class="field-label">Slug (used in the URL)</label><input class="field-input" id="na-slug" placeholder="auto-generated from title"></div>
-    <div class="field-group"><label class="field-label">Author</label><input class="field-input" id="na-author" placeholder="Your name"></div>
-    <p class="field-hint">Creates content/articles/&lt;slug&gt;.md. Add the banner image and write the body after creating it.</p>
-    <div class="modal-actions"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="na-confirm">Create article</button></div>
-  `);
-  const titleInput = document.getElementById('na-title');
-  const slugInput = document.getElementById('na-slug');
-  let slugTouched = false;
-  slugInput.addEventListener('input', () => { slugTouched = true; });
-  titleInput.addEventListener('input', () => {
-    if (slugTouched) return;
-    slugInput.value = titleInput.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '');
+// "+ Add article" / "+ Add case study" -- both just gather title/slug/author
+// and create the .md file with a placeholder body; the actual writing then
+// happens in the compose editor (see ensureComposePane) that opens
+// immediately afterward, not in this modal.
+function wireAddPostButton(kind, buttonId) {
+  const cfg = POST_KINDS[kind];
+  document.getElementById(buttonId).addEventListener('click', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    openModal(`
+      <div class="modal-title">Add ${kind === 'article' ? 'an article' : 'a case study'}</div>
+      <div class="field-group"><label class="field-label">Title</label><input class="field-input" id="na-title" placeholder="${kind === 'article' ? 'How we helped Acme Co. grow pipeline' : 'How Acme Co. doubled partner pipeline in 9 months'}"></div>
+      <div class="field-group"><label class="field-label">Slug (used in the URL)</label><input class="field-input" id="na-slug" placeholder="auto-generated from title"></div>
+      <div class="field-group"><label class="field-label">Author</label><input class="field-input" id="na-author" placeholder="Your name"></div>
+      <p class="field-hint">Creates ${cfg.dirPath}/&lt;slug&gt;.md and opens the editor so you can paste in the ${cfg.label.toLowerCase()}'s content.</p>
+      <div class="modal-actions"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="na-confirm">Create ${cfg.label.toLowerCase()}</button></div>
+    `);
+    const titleInput = document.getElementById('na-title');
+    const slugInput = document.getElementById('na-slug');
+    let slugTouched = false;
+    slugInput.addEventListener('input', () => { slugTouched = true; });
+    titleInput.addEventListener('input', () => {
+      if (slugTouched) return;
+      slugInput.value = titleInput.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '');
+    });
+    document.getElementById('na-confirm').addEventListener('click', async () => {
+      const title = titleInput.value.trim();
+      const slug = slugInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      const author = document.getElementById('na-author').value.trim();
+      if (!title || !slug) { toast('Title and slug are required.', 'error'); return; }
+      if (App[cfg.store][slug]) { toast(`A ${cfg.label.toLowerCase()} with that slug already exists.`, 'error'); return; }
+      closeModal();
+      setStatus(`creating ${cfg.label.toLowerCase()}…`, 'busy');
+      try {
+        const data = {
+          title, description: '', author, date: today, banner: '',
+          cssFiles: cfg.cssFiles, bodyClass: 'theme-hero-dark',
+          canonical: `https://blacfox.com/${cfg.prefix}${slug}.html`, pageScripts: [],
+        };
+        const body = '';
+        const content = serializeArticleFrontmatter(data, body);
+        const path = `${cfg.dirPath}/${slug}.md`;
+        const res = await gh.putFile(gh.owner, gh.repo, path, b64EncodeText(content), `Add ${slug} ${kind} via Blacfox CMS`, App.branch);
+        App[cfg.store][slug] = { path, sha: res.content.sha, data, body };
+        renderSidebar();
+        App.current = { type: kind, slug };
+        App.postViewMode = 'write';
+        renderEditor();
+        refreshPreview();
+        setStatus('created', 'ok');
+        toast(`${cfg.label} "${slug}" created — write or paste its content in the editor, then Post.`, 'success');
+      } catch (e) {
+        setStatus('error', 'error');
+        toast(`Could not create ${cfg.label.toLowerCase()}: ` + e.message, 'error');
+      }
+    });
   });
-  document.getElementById('na-confirm').addEventListener('click', async () => {
-    const title = titleInput.value.trim();
-    const slug = slugInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
-    const author = document.getElementById('na-author').value.trim();
-    if (!title || !slug) { toast('Title and slug are required.', 'error'); return; }
-    if (App.articles[slug]) { toast('An article with that slug already exists.', 'error'); return; }
-    closeModal();
-    setStatus('creating article…', 'busy');
-    try {
-      const data = {
-        title, description: '', author, date: today, banner: '',
-        cssFiles: ['assets/css/site.css', 'assets/css/articles.css'],
-        bodyClass: 'theme-hero-dark', canonical: `https://blacfox.com/article-${slug}.html`, pageScripts: [],
-      };
-      const body = '<p>Start writing here, or use "+ Insert block" to add headings, images, and more.</p>';
-      const content = serializeArticleFrontmatter(data, body);
-      const res = await gh.putFile(gh.owner, gh.repo, `content/articles/${slug}.md`, b64EncodeText(content), `Add ${slug} article via Blacfox CMS`, App.branch);
-      App.articles[slug] = { path: `content/articles/${slug}.md`, sha: res.content.sha, data, body };
-      renderSidebar();
-      App.current = { type: 'article', slug };
-      renderEditor();
-      refreshPreview();
-      setStatus('created', 'ok');
-      toast(`Article "${slug}" created.`, 'success');
-    } catch (e) {
-      setStatus('error', 'error');
-      toast('Could not create article: ' + e.message, 'error');
-    }
-  });
-});
+}
+wireAddPostButton('article', 'add-article-btn');
+wireAddPostButton('case-study', 'add-case-study-btn');
 
 async function deletePage(slug) {
   if (slug === 'index') { toast('The home page can’t be deleted.', 'error'); return; }
@@ -2786,19 +2846,20 @@ async function deletePage(slug) {
   }
 }
 
-async function deleteArticle(slug) {
-  if (!confirm(`Delete article "${slug}"? This removes content/articles/${slug}.md from ${App.branch}.`)) return;
+async function deletePost(kind, slug) {
+  const cfg = POST_KINDS[kind];
+  if (!confirm(`Delete ${cfg.label.toLowerCase()} "${slug}"? This removes ${cfg.dirPath}/${slug}.md from ${App.branch}.`)) return;
   setStatus('deleting…', 'busy');
   try {
-    const a = App.articles[slug];
-    await gh.deleteFile(gh.owner, gh.repo, a.path, `Delete ${slug} article via Blacfox CMS`, App.branch, a.sha);
-    delete App.articles[slug];
-    if (App.current && App.current.type === 'article' && App.current.slug === slug) App.current = null;
+    const p = App[cfg.store][slug];
+    await gh.deleteFile(gh.owner, gh.repo, p.path, `Delete ${slug} ${kind} via Blacfox CMS`, App.branch, p.sha);
+    delete App[cfg.store][slug];
+    if (App.current && App.current.type === kind && App.current.slug === slug) { App.current = null; App.composeKey = null; }
     renderSidebar();
     renderEditor();
     refreshPreview();
     setStatus('deleted', 'ok');
-    toast(`Article "${slug}" deleted.`, 'success');
+    toast(`${cfg.label} "${slug}" deleted.`, 'success');
   } catch (e) {
     setStatus('error', 'error');
     toast('Delete failed: ' + e.message, 'error');
@@ -2894,10 +2955,11 @@ function renderEditor() {
     tabsEl.innerHTML = `<div class="editor-tab active">Meta</div>`;
     scroll.innerHTML = renderMetaTab();
     wireTabHandlers();
-  } else if (App.current.type === 'article') {
+  } else if (POST_KINDS[App.current.type]) {
+    const kind = App.current.type;
     tabsEl.innerHTML = `<div class="editor-tab active">Details</div>`;
-    scroll.innerHTML = renderArticleDetailsTab();
-    wireArticleTabHandlers();
+    scroll.innerHTML = renderPostDetailsTab(kind);
+    wirePostTabHandlers(kind);
   } else if (App.current.type === 'nav') {
     tabsEl.innerHTML = '';
     scroll.innerHTML = renderNavTab();
@@ -3515,55 +3577,59 @@ async function commitPage(slug, data, hero, main, message) {
   renderSidebar();
 }
 
-/* ---------- Article tabs ---------- */
-function renderArticleDetailsTab() {
+/* ---------- Post (article / case study) details tab ----------
+   Title now lives at the top of the compose editor (see
+   ensureComposePane), WordPress-style -- this panel is just the
+   remaining SEO/meta fields plus the banner and Post/Delete actions. */
+function renderPostDetailsTab(kind) {
+  const cfg = POST_KINDS[kind];
   const slug = App.current.slug;
-  const d = App.articles[slug].data;
+  const d = App[cfg.store][slug].data;
   return `
-    <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>. Change the article's text, images, and blocks directly in the live preview → — this panel is just for details/SEO fields.</div>
+    <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>. Write or paste the ${cfg.label.toLowerCase()}'s content into the editor → — this panel is for the title, author/date, excerpt, and banner.</div>
 
-    <div class="field-group"><label class="field-label">Title</label><input class="field-input" id="a-title" value="${escHtml(d.title || '')}"></div>
     <div class="field-group"><label class="field-label">Author</label><input class="field-input" id="a-author" value="${escHtml(d.author || '')}"></div>
     <div class="field-group"><label class="field-label">Date</label><input class="field-input" id="a-date" type="date" value="${escHtml(d.date || '')}"></div>
-    <div class="field-group"><label class="field-label">Excerpt <span style="color:#444">(shown on the articles list)</span></label><textarea class="field-textarea" id="a-description" style="min-height:70px">${escHtml(d.description || '')}</textarea></div>
+    <div class="field-group"><label class="field-label">Excerpt <span style="color:#444">(shown on the ${cfg.pluralLabel} list)</span></label><textarea class="field-textarea" id="a-description" style="min-height:70px">${escHtml(d.description || '')}</textarea></div>
 
     <div class="section-divider"></div>
     <div class="section-title">Banner image</div>
     <div class="img-drop" id="banner-drop">
-      <div class="img-drop-lbl" id="banner-drop-lbl">${d.banner ? d.banner + ' (loading preview…)' : 'Click or drop a JPG — shown at the top of the article and on the articles list'}</div>
+      <div class="img-drop-lbl" id="banner-drop-lbl">${d.banner ? d.banner + ' (loading preview…)' : `Click or drop a JPG — shown at the top of the ${cfg.label.toLowerCase()} and on the ${cfg.pluralLabel} list`}</div>
       <input type="file" id="banner-file" accept="image/*">
     </div>
 
     <div class="section-divider"></div>
-    <button class="btn btn-primary" id="save-article-meta-btn" style="width:100%;padding:10px">Save article to ${App.branch}</button>
-    <p class="field-hint" style="text-align:center;margin-top:8px">Saves the details above together with any text/block edits made in the live preview.</p>
-    <button class="btn btn-danger" id="delete-article-btn" style="width:100%;padding:10px;margin-top:8px">Delete article</button>
+    <button class="btn btn-primary" id="save-post-meta-btn" style="width:100%;padding:10px">Post to ${App.branch}</button>
+    <p class="field-hint" style="text-align:center;margin-top:8px">Publishes the title and content from the editor, together with the details above.</p>
+    <button class="btn btn-danger" id="delete-post-btn" style="width:100%;padding:10px;margin-top:8px">Delete ${cfg.label.toLowerCase()}</button>
   `;
 }
-function wireArticleTabHandlers() {
-  document.getElementById('a-title').addEventListener('input', e => { App.articles[App.current.slug].data.title = e.target.value; refreshPreview(); });
-  document.getElementById('a-author').addEventListener('input', e => { App.articles[App.current.slug].data.author = e.target.value; refreshPreview(); });
-  document.getElementById('a-date').addEventListener('input', e => { App.articles[App.current.slug].data.date = e.target.value; refreshPreview(); });
-  document.getElementById('a-description').addEventListener('input', e => { App.articles[App.current.slug].data.description = e.target.value; });
+function wirePostTabHandlers(kind) {
+  const cfg = POST_KINDS[kind];
+  const slug = App.current.slug;
+  document.getElementById('a-author').addEventListener('input', e => { App[cfg.store][slug].data.author = e.target.value; });
+  document.getElementById('a-date').addEventListener('input', e => { App[cfg.store][slug].data.date = e.target.value; });
+  document.getElementById('a-description').addEventListener('input', e => { App[cfg.store][slug].data.description = e.target.value; });
   document.getElementById('banner-drop').addEventListener('click', e => { if (e.target.tagName !== 'INPUT') document.getElementById('banner-file').click(); });
   document.getElementById('banner-file').addEventListener('change', onBannerFilePicked);
-  document.getElementById('save-article-meta-btn').addEventListener('click', saveArticleMeta);
-  document.getElementById('delete-article-btn').addEventListener('click', () => deleteArticle(App.current.slug));
-  loadBannerThumbnail();
+  document.getElementById('save-post-meta-btn').addEventListener('click', () => savePostMeta(kind));
+  document.getElementById('delete-post-btn').addEventListener('click', () => deletePost(kind, slug));
+  loadBannerThumbnail(kind);
 }
 
-async function loadBannerThumbnail() {
-  const a = App.articles[App.current.slug];
-  if (!a.data.banner) return;
-  const uri = await fetchAssetDataUri(a.data.banner);
+async function loadBannerThumbnail(kind) {
+  const p = App[POST_KINDS[kind].store][App.current.slug];
+  if (!p.data.banner) return;
+  const uri = await fetchAssetDataUri(p.data.banner);
   const drop = document.getElementById('banner-drop');
   if (!drop) return; // user navigated away before this resolved
   const lbl = document.getElementById('banner-drop-lbl');
   if (uri) {
     drop.insertAdjacentHTML('afterbegin', `<img src="${uri}">`);
-    if (lbl) lbl.textContent = a.data.banner;
+    if (lbl) lbl.textContent = p.data.banner;
   } else if (lbl) {
-    lbl.textContent = a.data.banner + ' (file not found in repo)';
+    lbl.textContent = p.data.banner + ' (file not found in repo)';
   }
 }
 
@@ -3582,53 +3648,65 @@ function onBannerFilePicked(e) {
   reader.readAsArrayBuffer(file);
 }
 
-async function commitArticle(slug, data, body, message) {
-  const a = App.articles[slug];
+async function commitPost(kind, slug, data, body, message) {
+  const cfg = POST_KINDS[kind];
+  const p = App[cfg.store][slug];
   const content = serializeArticleFrontmatter(data, body);
-  const res = await gh.putFile(gh.owner, gh.repo, a.path, b64EncodeText(content), message, App.branch, a.sha);
-  App.articles[slug] = { path: a.path, sha: res.content.sha, data, body };
+  const res = await gh.putFile(gh.owner, gh.repo, p.path, b64EncodeText(content), message, App.branch, p.sha);
+  App[cfg.store][slug] = { path: p.path, sha: res.content.sha, data, body };
   renderSidebar();
 }
 
-async function saveArticleMeta() {
+// The prominent "Post to <branch>" action -- pulls the title + body straight
+// from the compose editor (not just whatever the debounced input handlers
+// already synced, so a save immediately after typing never misses the
+// latest keystroke), runs the body through the same sanitizer used for
+// pasted content as a final safety net, then commits everything together.
+async function savePostMeta(kind) {
+  const cfg = POST_KINDS[kind];
   const slug = App.current.slug;
-  const a = App.articles[slug];
+  const p = App[cfg.store][slug];
+  const titleEl = document.getElementById('compose-title');
+  const bodyEl = document.getElementById('compose-body');
   const newData = {
-    ...a.data,
-    title: document.getElementById('a-title').value.trim(),
+    ...p.data,
+    title: (titleEl ? titleEl.value : p.data.title || '').trim(),
     author: document.getElementById('a-author').value.trim(),
     date: document.getElementById('a-date').value.trim(),
     description: document.getElementById('a-description').value.trim(),
   };
-  setStatus('saving…', 'busy');
+  if (!newData.title) { toast('Give this ' + cfg.label.toLowerCase() + ' a title before posting.', 'error'); return; }
+  const newBody = sanitizeComposeHtml(bodyEl ? bodyEl.innerHTML : p.body || '');
+  setStatus('posting…', 'busy');
   try {
     if (pendingBannerUpload) {
       const ext = (pendingBannerUpload.name.match(/\.\w+$/) || ['.jpg'])[0];
-      const bannerPath = `assets/articles/${slug}/banner${ext}`;
+      const bannerPath = `${cfg.assetDir}/${slug}/banner${ext}`;
       const existing = await gh.getFile(gh.owner, gh.repo, bannerPath, App.branch);
       await gh.putFile(gh.owner, gh.repo, bannerPath, bytesToB64(pendingBannerUpload.bytes), `Update banner for ${slug} via Blacfox CMS`, App.branch, existing ? existing.sha : undefined);
       newData.banner = bannerPath;
       App.assetCache.delete(`datauri:${App.branch}:${bannerPath}`);
       pendingBannerUpload = null;
     }
-    await commitArticle(slug, newData, a.body, `Update ${slug} details via Blacfox CMS`);
-    toast(`Saved ${slug}.md`, 'success');
-    setStatus('saved', 'ok');
-    refreshPreview();
+    await commitPost(kind, slug, newData, newBody, `Update ${slug} ${kind} via Blacfox CMS`);
+    toast(`${cfg.label} posted — its card is live on the ${cfg.pluralLabel} page.`, 'success');
+    setStatus('posted', 'ok');
+    if (App.postViewMode === 'preview') refreshPreview();
   } catch (e) {
     setStatus('error', 'error');
-    toast('Save failed: ' + e.message, 'error');
+    toast('Post failed: ' + e.message, 'error');
   }
 }
 
-// region: 'main' (pages) or 'body' (articles). insertIndex: a specific
-// block position (from a preview "+" gap click) or null to append at the
-// end (from the sidebar "+ Insert section"/"+ Insert block" button).
+// region: 'main' (pages) or 'body' (posts, from a raw-HTML block insert --
+// posts use the compose editor for everything else). insertIndex: a
+// specific block position (from a preview "+" gap click) or null to append
+// at the end (from the sidebar "+ Insert section"/"+ Insert block" button).
 function openInsertSectionModal(region, insertIndex) {
-  const isArticle = App.current.type === 'article';
-  const compSet = isArticle ? BLOG_COMPONENTS : COMPONENTS;
+  const isPost = !!POST_KINDS[App.current.type];
+  const compSet = isPost ? BLOG_COMPONENTS : COMPONENTS;
   const items = Object.entries(compSet).map(([key, c]) => `<div class="comp-picker-item" data-comp="${key}" title="${escHtml(c.hint || '')}"><strong>${c.label}</strong><div class="wf-mini">${c.preview || ''}</div></div>`).join('');
-  openModal(`<div class="modal-title">Insert ${isArticle ? 'block' : 'section'}</div><div class="comp-picker-grid">${items}</div><div class="modal-actions"><button class="btn btn-ghost" data-close>Cancel</button></div>`);
+  openModal(`<div class="modal-title">Insert ${isPost ? 'block' : 'section'}</div><div class="comp-picker-grid">${items}</div><div class="modal-actions"><button class="btn btn-ghost" data-close>Cancel</button></div>`);
   document.querySelectorAll('.comp-picker-item').forEach(el => el.addEventListener('click', () => {
     const key = el.dataset.comp;
     if (key === 'image') { openArticleImageModal(region, insertIndex); return; }
@@ -4064,7 +4142,7 @@ async function inlineAssetRefs(html) {
   return html;
 }
 
-// Shared by both buildPreviewHTML and buildArticlePreviewHTML: inlines local
+// Shared by both buildPreviewHTML and buildPostPreviewHTML: inlines local
 // stylesheets/scripts as text, then every remaining relative asset reference
 // (images, fonts, SVG backgrounds) as a data: URI fetched through the
 // authenticated API rather than a public raw-content URL -- this is what
@@ -4095,23 +4173,24 @@ async function inlineLocalAssets(html) {
 }
 
 /* ------------------------------------------------------------
-   Article rendering -- must match build.js's renderArticleHero /
-   renderArticlePage / renderArticlesGrid exactly, same reasoning
-   as the page LAYOUTS/renderHead/renderPage mirror above.
+   Post (article/case study) rendering -- must match build.js's
+   renderPostHero / renderPostPage / renderPostsGrid /
+   renderFeaturedCarousel exactly, same reasoning as the page
+   LAYOUTS/renderHead/renderPage mirror above.
    ------------------------------------------------------------ */
-function renderArticleHeroClient(data) {
+function renderPostHeroClient(data, kindLabel) {
   const metaLine = [data.author, formatArticleDate(data.date)].filter(Boolean).join(' — ');
   return `<section class="hero-section article-hero">
   <canvas class="hero-bg-grid"></canvas>
   <div class="section-inner">
-    <p class="section-tag reveal">Article</p>
+    <p class="section-tag reveal">${escHtml(kindLabel)}</p>
     <h1 class="hero-title">${escHtml(data.title || 'Untitled')}</h1>
     ${metaLine ? `<p class="article-meta reveal">${escHtml(metaLine)}</p>` : ''}
   </div>
 </section>
 ${data.banner ? `<div class="article-banner-wrap"><img class="article-banner" src="${data.banner}" alt="${escHtml(data.title || '')}"></div>` : ''}`;
 }
-function renderArticlePageClient(data, bodyHtml, partials) {
+function renderPostPageClient(data, bodyHtml, partials, kindLabel) {
   const layout = LAYOUTS.inner;
   const bodyClassAttr = data.bodyClass ? ` class="${data.bodyClass}"` : '';
   return `<!DOCTYPE html>
@@ -4123,7 +4202,7 @@ ${renderHeadClient(partials.head, data)}
 <div aria-hidden="true" style="position:fixed;top:0;left:0;width:100%;height:8px;z-index:1001;pointer-events:none;background-image:url('assets/icons/accent-strip.svg');background-size:100% 100%;background-repeat:no-repeat;"></div>
 
 ${partials.nav}
-${renderArticleHeroClient(data)}
+${renderPostHeroClient(data, kindLabel)}
 <div id="${layout.spacerId}"></div>
 ${layout.wrapOpen}
 
@@ -4140,23 +4219,53 @@ ${layout.wrapClose}
 </body>
 </html>`;
 }
-// The one piece of "cms-generated" content that gets spliced into a real
-// page (pages/articles.md, at its <!--ARTICLES-GRID--> marker) rather than
-// rendered as its own page -- see the cms-generated skip in
-// collectEditableLeaves/wireBlocks for why it's marked as such.
-function renderArticlesGridClient(articles) {
-  const sorted = articles.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+// The "cms-generated" pieces spliced into a real page (pages/articles.md at
+// <!--ARTICLES-GRID-->, pages/case-studies.md at <!--CASESTUDIES-GRID-->,
+// pages/index.md at <!--FEATURED-CAROUSEL-->) rather than rendered as their
+// own page -- see the cms-generated skip in collectEditableLeaves/wireBlocks
+// for why they're marked as such.
+function renderPostsGridClient(posts, prefix, pluralLabel) {
+  const sorted = posts.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   if (!sorted.length) {
-    return `<p class="section-p cms-generated" style="text-align:center">No articles published yet — check back soon.</p>`;
+    return `<p class="section-p cms-generated" style="text-align:center">No ${pluralLabel} published yet — check back soon.</p>`;
   }
   return `<div class="card-grid-3 stagger article-grid cms-generated">
-${sorted.map(a => `  <a class="dark-card article-card" href="article-${a.slug}.html">
+${sorted.map(a => `  <a class="dark-card article-card" href="${prefix}${a.slug}.html">
     <div class="article-card-thumb">${a.banner ? `<img src="${a.banner}" alt="${escHtml(a.title || '')}" loading="lazy">` : ''}</div>
     <p class="card-num">${escHtml(formatArticleDate(a.date))}</p>
     <p class="card-title">${escHtml(a.title || 'Untitled')}</p>
     <p class="card-body">${escHtml(a.description || '')}</p>
   </a>`).join('\n')}
 </div>`;
+}
+function renderFeaturedCarouselClient(articles, caseStudies) {
+  const items = [
+    ...articles.map(a => ({ ...a, prefix: 'article-', kindLabel: 'Article' })),
+    ...caseStudies.map(c => ({ ...c, prefix: 'case-study-', kindLabel: 'Case Study' })),
+  ].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10);
+  if (!items.length) return '';
+  return `<section class="bg-white featured-carousel-section cms-generated">
+  <div class="section-inner" style="padding-bottom:60px;">
+    <p class="section-tag reveal">From the team</p>
+    <h2 class="section-h reveal">Articles &amp; <em>case studies.</em></h2>
+  </div>
+  <div class="featured-carousel-wrap">
+    <button type="button" class="carousel-arrow carousel-prev" aria-label="Scroll left">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="featured-carousel-track" id="featured-carousel-track">
+${items.map(item => `      <a class="dark-card article-card featured-carousel-card" href="${item.prefix}${item.slug}.html">
+        <div class="article-card-thumb">${item.banner ? `<img src="${item.banner}" alt="${escHtml(item.title || '')}" loading="lazy">` : ''}</div>
+        <p class="card-num">${escHtml(item.kindLabel)} · ${escHtml(formatArticleDate(item.date))}</p>
+        <p class="card-title">${escHtml(item.title || 'Untitled')}</p>
+        <p class="card-body">${escHtml(item.description || '')}</p>
+      </a>`).join('\n')}
+    </div>
+    <button type="button" class="carousel-arrow carousel-next" aria-label="Scroll right">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</section>`;
 }
 
 async function buildPreviewHTML(slug) {
@@ -4172,9 +4281,16 @@ async function buildPreviewHTML(slug) {
   // build.js output at all (this wrapping never happens there).
   const heroWrapped = `<div id="cms-hero-root" style="display:contents">${p.hero}</div>`;
   let mainHtml = p.main;
-  if (mainHtml.includes('<!--ARTICLES-GRID-->')) {
-    const list = Object.entries(App.articles).map(([slug, a]) => ({ slug, ...a.data }));
-    mainHtml = mainHtml.replace('<!--ARTICLES-GRID-->', renderArticlesGridClient(list));
+  for (const cfg of Object.values(POST_KINDS)) {
+    if (mainHtml.includes(cfg.gridMarker)) {
+      const list = Object.entries(App[cfg.store]).map(([slug, a]) => ({ slug, ...a.data }));
+      mainHtml = mainHtml.replace(cfg.gridMarker, renderPostsGridClient(list, cfg.prefix, cfg.pluralLabel));
+    }
+  }
+  if (mainHtml.includes('<!--FEATURED-CAROUSEL-->')) {
+    const articleList = Object.entries(App.articles).map(([slug, a]) => ({ slug, ...a.data }));
+    const caseStudyList = Object.entries(App.caseStudies).map(([slug, a]) => ({ slug, ...a.data }));
+    mainHtml = mainHtml.replace('<!--FEATURED-CAROUSEL-->', renderFeaturedCarouselClient(articleList, caseStudyList));
   }
   let html = renderPageClient(p.data, heroWrapped, mainHtml, { head: headText, nav: navFile.text.trim(), footer: footerFile.text.trim() });
   html = await inlineLocalAssets(html);
@@ -4182,16 +4298,21 @@ async function buildPreviewHTML(slug) {
   return html;
 }
 
-async function buildArticlePreviewHTML(slug) {
-  const a = App.articles[slug];
+// Always rendered read-only (editable=false) -- editing an article/case
+// study happens in the compose editor (#compose-pane), not by clicking into
+// this rendered preview, so there's never a "+" insert-gap or click-to-edit
+// pass to wire here.
+async function buildPostPreviewHTML(kind, slug) {
+  const cfg = POST_KINDS[kind];
+  const p = App[cfg.store][slug];
   const [headText, navFile, footerFile] = await Promise.all([
     fetchAssetText('partials/head.html'),
     gh.getFile(gh.owner, gh.repo, 'partials/nav.html', App.branch),
     gh.getFile(gh.owner, gh.repo, 'partials/footer.html', App.branch),
   ]);
-  let html = renderArticlePageClient(a.data, a.body, { head: headText, nav: navFile.text.trim(), footer: footerFile.text.trim() });
+  let html = renderPostPageClient(p.data, p.body, { head: headText, nav: navFile.text.trim(), footer: footerFile.text.trim() }, cfg.label);
   html = await inlineLocalAssets(html);
-  html = html.replace('</body>', `${buildPreviewEditScript(App.previewEditMode)}</body>`);
+  html = html.replace('</body>', `${buildPreviewEditScript(false)}</body>`);
   return html;
 }
 
@@ -4201,7 +4322,16 @@ function refreshPreview() {
   previewTimer = setTimeout(doRefreshPreview, 250);
 }
 async function doRefreshPreview() {
-  const isPreviewable = App.current && (App.current.type === 'page' || App.current.type === 'article');
+  updatePostViewToggle();
+  const kindCfg = App.current && POST_KINDS[App.current.type];
+  if (kindCfg && App.postViewMode === 'write') {
+    showComposePane();
+    ensureComposePane(App.current.type, App.current.slug);
+    document.getElementById('preview-url').textContent = `Writing “${App.current.slug}” — posts when you click Post`;
+    return;
+  }
+  hideComposePane();
+  const isPreviewable = App.current && (App.current.type === 'page' || kindCfg);
   if (!isPreviewable) {
     document.getElementById('preview-empty').style.display = 'flex';
     document.getElementById('preview-frame').style.display = 'none';
@@ -4209,10 +4339,9 @@ async function doRefreshPreview() {
     return;
   }
   const slug = App.current.slug;
-  const isArticle = App.current.type === 'article';
-  document.getElementById('preview-url').textContent = `${isArticle ? 'article-' + slug : slug}.html — ${App.branch}`;
+  document.getElementById('preview-url').textContent = `${kindCfg ? kindCfg.prefix + slug : slug}.html — ${App.branch}`;
   try {
-    const html = isArticle ? await buildArticlePreviewHTML(slug) : await buildPreviewHTML(slug);
+    const html = kindCfg ? await buildPostPreviewHTML(App.current.type, slug) : await buildPreviewHTML(slug);
     const frame = document.getElementById('preview-frame');
     frame.srcdoc = html;
     frame.style.display = '';
@@ -4246,3 +4375,195 @@ document.getElementById('edit-mode-btn').addEventListener('click', () => {
   refreshPreview();
 });
 updateEditModeBtn();
+
+/* ------------------------------------------------------------
+   Write/Preview toggle -- shown only for articles/case studies.
+   "Write" is the WordPress-style compose editor (#compose-pane);
+   "Preview" swaps in the real rendered page (read-only) so an
+   editor can sanity-check layout/CSS before posting.
+   ------------------------------------------------------------ */
+function updatePostViewToggle() {
+  const isPost = !!(App.current && POST_KINDS[App.current.type]);
+  document.getElementById('post-view-toggle').style.display = isPost ? 'flex' : 'none';
+  document.getElementById('edit-mode-btn').style.display = isPost ? 'none' : '';
+  document.getElementById('refresh-preview-btn').style.display = isPost ? 'none' : '';
+  const writeBtn = document.getElementById('write-mode-btn');
+  const previewBtn = document.getElementById('preview-mode-btn');
+  writeBtn.classList.toggle('btn-primary', App.postViewMode === 'write');
+  writeBtn.classList.toggle('btn-ghost', App.postViewMode !== 'write');
+  previewBtn.classList.toggle('btn-primary', App.postViewMode === 'preview');
+  previewBtn.classList.toggle('btn-ghost', App.postViewMode !== 'preview');
+}
+document.getElementById('write-mode-btn').addEventListener('click', () => { App.postViewMode = 'write'; refreshPreview(); });
+document.getElementById('preview-mode-btn').addEventListener('click', () => { App.postViewMode = 'preview'; refreshPreview(); });
+
+/* ------------------------------------------------------------
+   WordPress-style compose editor for articles/case studies.
+
+   Unlike pages (built from discrete "+ Insert section" blocks,
+   edited live in the rendered preview), a post is one long piece of
+   writing that's usually drafted elsewhere and pasted in -- so
+   instead of the block system, #compose-pane is a single
+   contenteditable surface with a formatting toolbar, standing in
+   for the preview pane while a post is open. There is exactly one
+   #compose-title/#compose-body pair in the DOM (not one per post);
+   switching posts just repopulates them (see ensureComposePane) and
+   every handler below reads whichever post is current at the time
+   it fires, rather than closing over one slug forever.
+   ------------------------------------------------------------ */
+function showComposePane() {
+  document.getElementById('compose-pane').style.display = 'flex';
+  document.getElementById('preview-frame').style.display = 'none';
+  document.getElementById('preview-empty').style.display = 'none';
+}
+function hideComposePane() {
+  document.getElementById('compose-pane').style.display = 'none';
+}
+// Only rebuilds the editor's contents when switching to a DIFFERENT post
+// than whatever it already holds -- re-populating it every time this tab
+// happens to be visible again would blow away in-progress typing (the
+// underlying store is already kept in sync by the input handlers below, so
+// there's nothing to "refresh" here anyway).
+function ensureComposePane(kind, slug) {
+  const key = kind + ':' + slug;
+  if (App.composeKey === key) return;
+  App.composeKey = key;
+  const p = App[POST_KINDS[kind].store][slug];
+  document.getElementById('compose-title').value = (p.data && p.data.title) || '';
+  document.getElementById('compose-body').innerHTML = p.body || '';
+}
+
+// Strips MS Word/Google Docs paste junk (mso-* spans, inline styles,
+// class/id, tracking <div> wrappers, stray <font>/<span> tags, etc.) down to
+// the same plain semantic vocabulary BLOG_COMPONENTS produces by hand, so a
+// pasted doc reads identically to a hand-built article body and matches
+// what .article-body's CSS (articles.css) actually styles. Also run once
+// more on the whole body at Post time, as a safety net against anything
+// typed/formatted directly that isn't plain text.
+const COMPOSE_ALLOWED_TAGS = new Set(['P', 'H2', 'H3', 'H4', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'BLOCKQUOTE', 'IMG', 'BR', 'HR', 'FIGURE', 'FIGCAPTION']);
+const COMPOSE_HEADING_MAP = { H1: 'H2', H5: 'H3', H6: 'H3' };
+function sanitizeComposeNode(node, out) {
+  if (node.nodeType === Node.TEXT_NODE) { out.push(node.ownerDocument.createTextNode(node.nodeValue)); return; }
+  if (node.nodeType !== Node.ELEMENT_NODE) return;
+  const tag = COMPOSE_HEADING_MAP[node.tagName.toUpperCase()] || node.tagName.toUpperCase();
+  const childOut = [];
+  node.childNodes.forEach(child => sanitizeComposeNode(child, childOut));
+  if (!COMPOSE_ALLOWED_TAGS.has(tag)) {
+    // Unrecognised/decorative wrapper (DIV, SPAN, styling from Word/Docs,
+    // etc.) -- drop the wrapper but keep whatever was inside it.
+    out.push(...childOut);
+    return;
+  }
+  const el = node.ownerDocument.createElement(tag);
+  if (tag === 'A') {
+    const href = node.getAttribute('href') || '';
+    if (/^(https?:|mailto:|tel:|\/|#)/i.test(href)) { el.setAttribute('href', href); el.setAttribute('rel', 'noopener'); }
+  }
+  if (tag === 'IMG') {
+    const src = node.getAttribute('src') || '';
+    if (/^(https?:|data:image\/|assets\/)/i.test(src)) el.setAttribute('src', src);
+    el.setAttribute('alt', node.getAttribute('alt') || '');
+    el.setAttribute('loading', 'lazy');
+  }
+  childOut.forEach(c => el.appendChild(c));
+  out.push(el);
+}
+function sanitizeComposeHtml(html) {
+  const container = document.createElement('div');
+  container.innerHTML = html || '';
+  const out = [];
+  container.childNodes.forEach(child => sanitizeComposeNode(child, out));
+  const result = document.createElement('div');
+  out.forEach(n => result.appendChild(n));
+  // Word/Docs pastes often leave paragraphs with nothing but spacing --
+  // drop any that ended up with no text and no image.
+  result.querySelectorAll('p').forEach(p => { if (!p.textContent.trim() && !p.querySelector('img')) p.remove(); });
+  return result.innerHTML;
+}
+
+let composeSavedRange = null;
+function saveComposeSelection() {
+  const sel = window.getSelection();
+  const bodyEl = document.getElementById('compose-body');
+  if (sel.rangeCount && bodyEl.contains(sel.anchorNode)) composeSavedRange = sel.getRangeAt(0).cloneRange();
+}
+function restoreComposeSelection() {
+  const bodyEl = document.getElementById('compose-body');
+  bodyEl.focus();
+  if (!composeSavedRange) return;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(composeSavedRange);
+}
+function syncComposeBody() {
+  const editable = getCurrentEditable();
+  if (editable) editable.body = document.getElementById('compose-body').innerHTML;
+}
+
+function initComposeEditor() {
+  const bodyEl = document.getElementById('compose-body');
+  const titleEl = document.getElementById('compose-title');
+  // Makes Enter produce <p> like a hand-built article body, instead of
+  // Chrome's default bare <div> per line.
+  document.execCommand('defaultParagraphSeparator', false, 'p');
+
+  titleEl.addEventListener('input', () => {
+    const editable = getCurrentEditable();
+    if (editable) editable.data.title = titleEl.value;
+  });
+
+  document.querySelectorAll('#compose-toolbar [data-cmd]').forEach(btn => {
+    btn.addEventListener('mousedown', e => e.preventDefault()); // keep focus/selection in the editor
+    btn.addEventListener('click', () => {
+      bodyEl.focus();
+      if (btn.dataset.cmd === 'createLink') {
+        const url = prompt('Link URL:', 'https://');
+        if (!url) return;
+        document.execCommand('createLink', false, url);
+      } else {
+        document.execCommand(btn.dataset.cmd, false, btn.dataset.val || null);
+      }
+      syncComposeBody();
+    });
+  });
+
+  const imgBtn = document.getElementById('compose-img-btn');
+  const imgInput = document.getElementById('compose-img-file');
+  imgBtn.addEventListener('mousedown', e => { e.preventDefault(); saveComposeSelection(); });
+  imgBtn.addEventListener('click', () => imgInput.click());
+  imgInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    imgInput.value = '';
+    if (!file) return;
+    const kindCfg = App.current && POST_KINDS[App.current.type];
+    if (!kindCfg) return;
+    const slug = App.current.slug;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const ext = (file.name.match(/\.\w+$/) || ['.jpg'])[0];
+        const path = `${kindCfg.assetDir}/${slug}/img-${Date.now()}${ext}`;
+        await gh.putFile(gh.owner, gh.repo, path, bytesToB64(new Uint8Array(reader.result)), `Add image to ${slug} via Blacfox CMS`, App.branch);
+        App.assetCache.delete(`datauri:${App.branch}:${path}`);
+        restoreComposeSelection();
+        document.execCommand('insertHTML', false, `<img src="${path}" alt="" loading="lazy">`);
+        syncComposeBody();
+        toast('Image inserted.', 'success');
+      } catch (err) {
+        toast('Image upload failed: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  bodyEl.addEventListener('input', syncComposeBody);
+  bodyEl.addEventListener('paste', e => {
+    e.preventDefault();
+    const html = e.clipboardData.getData('text/html');
+    const rawHtml = html || (e.clipboardData.getData('text/plain') || '')
+      .split(/\n{2,}/).map(block => `<p>${escHtml(block).replace(/\n/g, '<br>')}</p>`).join('');
+    document.execCommand('insertHTML', false, sanitizeComposeHtml(rawHtml));
+    syncComposeBody();
+  });
+}
+initComposeEditor();

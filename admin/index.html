@@ -145,6 +145,26 @@ a{color:inherit}
 #preview-frame{flex:1;border:none;width:100%;background:#fff}
 #preview-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;text-align:center;padding:40px}
 
+/* ── Compose editor (WordPress-style article/case-study writing surface) ── */
+#compose-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#fff;min-height:0}
+#compose-toolbar{flex-shrink:0;display:flex;align-items:center;gap:3px;flex-wrap:wrap;background:#1a1a1a;border-bottom:1px solid rgba(255,255,255,.08);padding:7px 12px}
+.compose-btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#ddd;border-radius:5px;min-width:28px;height:28px;padding:0 7px;font-size:12px;font-weight:700;cursor:pointer;transition:background .12s}
+.compose-btn:hover{background:rgba(233,92,37,.22);border-color:rgba(233,92,37,.4);color:#fff}
+.compose-toolbar-sep{width:1px;height:18px;background:rgba(255,255,255,.12);margin:0 4px;flex-shrink:0}
+#compose-scroll{flex:1;overflow-y:auto;background:#fff}
+#compose-inner{max-width:760px;margin:0 auto;padding:48px 40px 120px}
+#compose-title{width:100%;border:none;outline:none;font-family:'Montserrat',sans-serif;font-size:34px;font-weight:800;letter-spacing:-0.01em;color:#15130f;margin-bottom:28px;padding:0}
+#compose-title::placeholder{color:#c8c4bc}
+#compose-body{min-height:400px;outline:none;font-family:'Montserrat',sans-serif;font-size:16px;line-height:1.8;color:#3a3730}
+#compose-body:empty:before{content:attr(data-placeholder);color:#aaa;pointer-events:none}
+#compose-body p{margin:0 0 22px}
+#compose-body h2{font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#15130f;margin:36px 0 14px}
+#compose-body h3{font-size:19px;font-weight:700;color:#15130f;margin:28px 0 10px}
+#compose-body blockquote{border-left:3px solid #e95c25;padding:4px 0 4px 20px;margin:26px 0;font-size:18px;font-style:italic;color:#15130f}
+#compose-body img{max-width:100%;border-radius:12px;display:block;margin:22px 0}
+#compose-body ul,#compose-body ol{margin:0 0 22px 22px}
+#compose-body a{color:#e95c25}
+
 /* ── Login screen ── */
 #login-screen{position:fixed;inset:0;background:#0a0a0a;display:flex;align-items:center;justify-content:center;z-index:500}
 #login-screen.hidden{display:none}
@@ -217,6 +237,9 @@ a{color:inherit}
       <div class="sidebar-label" style="margin-top:18px">Articles</div>
       <div id="article-tree"></div>
       <div class="add-page-row" id="add-article-btn">+ Add article</div>
+      <div class="sidebar-label" style="margin-top:18px">Case Studies</div>
+      <div id="case-study-tree"></div>
+      <div class="add-page-row" id="add-case-study-btn">+ Add case study</div>
       <div class="sidebar-label" style="margin-top:18px">Site chrome</div>
       <div class="tree-item" id="nav-tree-item" data-kind="nav">🧭 <span class="tree-item-label">Navigation</span></div>
       <div class="tree-item" id="footer-tree-item" data-kind="footer">🦶 <span class="tree-item-label">Footer</span></div>
@@ -231,11 +254,43 @@ a{color:inherit}
       <div id="preview-toolbar">
         <div class="dots"><span></span><span></span><span></span></div>
         <div class="url-bar" id="preview-url">Select a page to preview</div>
+        <div id="post-view-toggle" style="display:none;gap:6px;">
+          <button type="button" class="btn btn-sm" id="write-mode-btn" title="Write or paste the post's content">✍️ Write</button>
+          <button type="button" class="btn btn-sm" id="preview-mode-btn" title="See the real rendered page">👁 Preview</button>
+        </div>
         <button class="btn btn-ghost btn-sm" id="edit-mode-btn" title="Click text, images, or sections in the preview to edit them in place">✏️ Edit on page</button>
         <button class="btn btn-ghost btn-sm" id="refresh-preview-btn">↻ Refresh</button>
       </div>
       <div id="preview-empty">Live preview renders here — built from this branch's real partials + assets on GitHub.</div>
       <iframe id="preview-frame" style="display:none" sandbox="allow-scripts allow-same-origin"></iframe>
+      <div id="compose-pane" style="display:none">
+        <div id="compose-toolbar">
+          <button type="button" class="compose-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+          <button type="button" class="compose-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+          <button type="button" class="compose-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+          <span class="compose-toolbar-sep"></span>
+          <button type="button" class="compose-btn" data-cmd="formatBlock" data-val="P" title="Paragraph">¶</button>
+          <button type="button" class="compose-btn" data-cmd="formatBlock" data-val="H2" title="Heading">H2</button>
+          <button type="button" class="compose-btn" data-cmd="formatBlock" data-val="H3" title="Subheading">H3</button>
+          <button type="button" class="compose-btn" data-cmd="formatBlock" data-val="BLOCKQUOTE" title="Quote">❝</button>
+          <span class="compose-toolbar-sep"></span>
+          <button type="button" class="compose-btn" data-cmd="insertUnorderedList" title="Bullet list">•≡</button>
+          <button type="button" class="compose-btn" data-cmd="insertOrderedList" title="Numbered list">1≡</button>
+          <button type="button" class="compose-btn" data-cmd="createLink" title="Link">🔗</button>
+          <button type="button" class="compose-btn" id="compose-img-btn" title="Insert image">🖼</button>
+          <input type="file" id="compose-img-file" accept="image/*" style="display:none">
+          <span class="compose-toolbar-sep"></span>
+          <button type="button" class="compose-btn" data-cmd="removeFormat" title="Clear formatting">Tx</button>
+          <button type="button" class="compose-btn" data-cmd="undo" title="Undo">↺</button>
+          <button type="button" class="compose-btn" data-cmd="redo" title="Redo">↻</button>
+        </div>
+        <div id="compose-scroll">
+          <div id="compose-inner">
+            <input type="text" id="compose-title" placeholder="Add title">
+            <div id="compose-body" contenteditable="true" data-placeholder="Write here, or paste in your content from a doc…"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
