@@ -735,7 +735,13 @@ function guessLeafKind(el) {
   // told apart by position instead: the source credit line always starts
   // with "Source:", and among the rest (in document order) the first is the
   // small uppercase eyebrow tag, the second is the bold card heading.
-  if (tag === 'p' && el.parentElement && el.parentElement.classList.contains('glass-card')) {
+  // ".glass-card" alone isn't enough to identify one of these -- the class
+  // is reused all over about.md/contact.md for plain stat/icon cards with
+  // their own unrelated <p> content -- so this also requires the card to
+  // actually contain a chart-stat-row or chart-arc-panel, the two things
+  // that make a glass-card one of these chart cards in the first place.
+  if (tag === 'p' && el.parentElement && el.parentElement.classList.contains('glass-card') &&
+      el.parentElement.querySelector('.chart-stat-row, .chart-arc-panel')) {
     if (el.textContent.trim().startsWith('Source:')) return 'Source';
     const captionPs = Array.from(el.parentElement.children).filter(c => c.tagName === 'P' && !c.textContent.trim().startsWith('Source:'));
     const pos = captionPs.indexOf(el);
@@ -1883,7 +1889,11 @@ function buildFieldIndexMaps(panels, chartRows, chartArcs) {
 // into one bordered box, matching how the live preview visually groups them
 // -- the group is flushed whenever a non-leaf field or a parent change
 // breaks the run.
-function renderInterleavedFieldsHTML(region, root, maps, nextLeafIndex) {
+// `skipEl`, when given, is treated as a hard stop -- the walk neither emits
+// a field for it nor descends into it. Used to carve the intro portion out
+// of a block that also contains a `.chart-pair` (see renderChartPairBlockHTML),
+// so its two chart cards can be rendered as their own separate calls instead.
+function renderInterleavedFieldsHTML(region, root, maps, nextLeafIndex, skipEl) {
   const { panelIndex, rowIndex, arcIndex } = maps;
   const out = [];
   let buffer = [];
@@ -1894,6 +1904,7 @@ function renderInterleavedFieldsHTML(region, root, maps, nextLeafIndex) {
     buffer = [];
   }
   function walk(el) {
+    if (skipEl && el === skipEl) return;
     if (SKIP_CONTAINER_TAGS.has(el.tagName.toUpperCase())) return;
     if (el.classList && el.classList.contains('cms-generated')) return;
     if (panelIndex.has(el)) { flush(); out.push(renderIllustrationField(region, el, panelIndex.get(el), panelIndex.size)); return; }
@@ -1910,6 +1921,36 @@ function renderInterleavedFieldsHTML(region, root, maps, nextLeafIndex) {
   for (const child of root.children) walk(child);
   flush();
   return out.join('');
+}
+// index.md's "S01 The Proof" section pairs an intro (Label/Heading/Text/
+// Callout) with a `.chart-pair` of two chart cards, all inside one real
+// top-level block/<section> -- the chart-pair's CSS grid needs both cards to
+// stay siblings for its two-column layout, so this can't be split into
+// separate top-level blocks without either breaking that layout or changing
+// the page's actual markup for what is purely an editor-organisation
+// concern. Rendered here as three separate chrome-item-card-styled boxes
+// instead -- "Heading + Text" for the intro, one per chart card, each named
+// from that card's own Tag line -- so the sidebar reads the way an editor
+// actually thinks about this section, without touching the real block
+// boundaries move/delete/reorder rely on. None of the three carry their own
+// move/delete controls: unlike a genuine top-level block, "moving" or
+// "deleting" just one of them doesn't correspond to any well-defined edit on
+// the single real block underneath.
+function renderChartPairBlockHTML(region, block, chartPair, maps, nextLeafIndex) {
+  const card = (label, fields) => `<div class="chrome-item-card">
+      <div class="chrome-item-head">
+        <span class="chrome-item-badge">${escHtml(label)}</span>
+      </div>
+      ${fields || '<p class="field-hint">Nothing editable here.</p>'}
+    </div>`;
+  const introFields = renderInterleavedFieldsHTML(region, block, maps, nextLeafIndex, chartPair);
+  const glassCards = Array.from(chartPair.children).filter(c => c.classList.contains('glass-card'));
+  const chartCards = glassCards.map(glassCard => {
+    const tagP = Array.from(glassCard.children).find(c => c.tagName === 'P' && !c.textContent.trim().startsWith('Source:'));
+    const label = tagP ? tagP.textContent.trim() : 'Chart card';
+    return card(label, renderInterleavedFieldsHTML(region, glassCard, maps, nextLeafIndex));
+  });
+  return [card('Heading + Text', introFields), ...chartCards].join('');
 }
 function renderLeafFieldsHTML(region) {
   const html = getRegionHtml(region) || '';
@@ -1929,6 +1970,8 @@ function renderContentBlocksHTML(region) {
   const maps = buildFieldIndexMaps(panels, chartRows, chartArcs);
   let leafIdx = 0;
   return blocks.map((block, blockIdx) => {
+    const chartPair = block.querySelector('.chart-pair');
+    if (chartPair) return renderChartPairBlockHTML(region, block, chartPair, maps, () => leafIdx++);
     const fields = renderInterleavedFieldsHTML(region, block, maps, () => leafIdx++);
     return `<div class="chrome-item-card">
       <div class="chrome-item-head">
