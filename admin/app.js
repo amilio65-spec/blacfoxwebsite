@@ -494,9 +494,10 @@ const App = {
   navDoc: null,        // {sha, doc(DOMParser Document)}
   footerDoc: null,
   current: null,       // {type:'page'|'article', slug} | {type:'nav'} | {type:'footer'}
-  activeTab: 'meta',
   assetCache: new Map(), // `${branch}:${path}` -> text | null
-  previewEditMode: false,
+  // Content editing happens in the live preview, not the sidebar -- default
+  // to on so a freshly-opened page is immediately click-to-edit.
+  previewEditMode: true,
 };
 
 const ARTICLE_META_FIELD_ORDER = ['title', 'description', 'author', 'date', 'banner', 'cssFiles', 'bodyClass', 'canonical', 'pageScripts'];
@@ -529,31 +530,19 @@ function getCurrentEditable() {
   if (App.current.type === 'article') return App.articles[App.current.slug];
   return null;
 }
-function regionTextareaId(region) {
-  if (region === 'hero') return 'b-hero';
-  if (region === 'main') return 'b-main';
-  if (region === 'body') return 'a-body';
-  return null;
-}
 function getRegionHtml(region) {
   const obj = getCurrentEditable();
   return obj ? obj[region] : null;
 }
-// Updates the in-memory draft AND mirrors it into the raw-HTML textarea --
-// for edits that originate somewhere other than that textarea itself
-// (inline preview edits, block add/move/delete). The textarea's own input
-// handler updates the draft directly (see syncBodyDraftAndPreview) without
-// writing back into itself, so typing doesn't fight its own cursor.
+// Updates the in-memory draft for the current page/article -- everything
+// that changes hero/main/body content (inline preview text edits, block
+// add/move/delete, illustration/chart updates) funnels through here. Nothing
+// is committed to GitHub until Save; this only updates the browser's own
+// in-memory copy, which Save (in the Meta/Details panel) always reads fresh.
 function setRegionHtml(region, html) {
   const obj = getCurrentEditable();
   if (!obj) return;
   obj[region] = html;
-  const ta = document.getElementById(regionTextareaId(region));
-  if (ta) ta.value = html;
-}
-function setRegionData(region, html) {
-  const obj = getCurrentEditable();
-  if (obj) obj[region] = html;
 }
 
 /* ------------------------------------------------------------
@@ -645,9 +634,8 @@ function collectEditableLeaves(root, out) {
     // INLINE_PASSENGER_TAGS, so a containing <svg> isn't phrasing-only and
     // gets recursed into) surfaces as its own "editable" leaf, and for an
     // SVG element `.className` is an SVGAnimatedString with no .includes()
-    // -- guessLeafKind would throw on it, which was breaking the ENTIRE
-    // body tab render for any page with inline SVG charts (e.g. index.md's
-    // PMF-wave and doughnut charts) the moment that leaf got labeled.
+    // -- this was throwing and breaking editing entirely for any page with
+    // inline SVG charts (e.g. index.md's PMF-wave and doughnut charts).
     if (typeof SVGElement !== 'undefined' && el instanceof SVGElement) continue;
     // cms-generated content (e.g. the articles grid spliced into the
     // articles page at preview/build time) has no corresponding element in
@@ -657,8 +645,9 @@ function collectEditableLeaves(root, out) {
     // edit. Skip it entirely, both here and in the block-control wiring.
     if (el.classList && el.classList.contains('cms-generated')) continue;
     // Illustration panels (the hero "quote panel", and method.html's
-    // in-body ".section-split-img" placeholders -- see renderIllustrationField)
-    // are addressed by their own dedicated scheme, not a leaf index -- and
+    // in-body ".section-split-img" placeholders -- see wireIllustrationPanels
+    // in buildPreviewEditScript) are addressed by their own dedicated
+    // scheme, not a leaf index -- and
     // their "leaf-ness" would otherwise flip depending on state (an <img>
     // has no textContent, so hasEditableText would drop it the moment an
     // image is uploaded, silently shifting every later leaf's index). Skip
@@ -672,9 +661,9 @@ function collectEditableLeaves(root, out) {
     // without this it reads as one "phrasing-only" leaf below and both
     // spans get flattened into a single garbled editable box (the number's
     // own font-size/color inline styles collide visually with the label's).
-    // Skip the whole row -- it gets its own Description/Value field pair
-    // instead (see renderChartStatRowField), addressed by row position, not
-    // a leaf index.
+    // Skip the whole row -- it gets its own Description/Value editing
+    // instead (see wireChartStatRows in buildPreviewEditScript), addressed
+    // by row position, not a leaf index.
     if (el.classList && el.classList.contains('chart-stat-row')) continue;
     if (isPhrasingOnly(el) && hasEditableText(el)) {
       out.push(el);
@@ -683,89 +672,6 @@ function collectEditableLeaves(root, out) {
     }
   }
   return out;
-}
-
-// Best-effort, cosmetic-only labels so the sidebar reads as "Heading" /
-// "Paragraph" / "Card grid" instead of a class name or a bare tag -- these
-// never affect what gets saved, only how the block list is captioned.
-// getAttribute('class') (not .className) because .className on an SVG
-// element is an SVGAnimatedString, not a plain string -- no .includes().
-function guessBlockLabel(el) {
-  const cls = el.getAttribute('class') || '';
-  const tag = el.tagName.toLowerCase();
-  if (cls.includes('hero-section')) return 'Hero section';
-  if (cls.includes('cta-section')) return 'Closing CTA';
-  if (cls.includes('card-grid')) return 'Card grid';
-  if (cls.includes('stats-section')) return 'Stats row';
-  if (cls.includes('trust-bar')) return 'Trust bar';
-  if (cls.includes('faq-list')) return 'FAQ list';
-  if (cls.includes('hero-ctas')) return 'Button row';
-  if (cls.includes('callout-box')) return 'Callout box';
-  if (cls.includes('pull-quote-block')) return 'Pull quote';
-  if (cls.includes('testimonial-card')) return 'Testimonial';
-  if (cls.includes('service-card')) return 'Service card';
-  if (cls.includes('case-study-card')) return 'Case study card';
-  if (cls.includes('mistakes-grid')) return 'Mistakes grid';
-  if (tag === 'h1' || tag === 'h2') return 'Heading';
-  if (tag === 'h3') return 'Subheading';
-  if (tag === 'p') return 'Paragraph';
-  if (tag === 'blockquote') return 'Quote';
-  if (tag === 'figure' || tag === 'img' || (tag === 'div' && el.querySelector('img'))) return 'Image';
-  return 'Section';
-}
-function guessLeafKind(el) {
-  // Exact class-token match (not a substring check) -- "stat-num" must not
-  // also match "case-stat-num" (the Case Study Card's own, unrelated field).
-  const cls = (el.getAttribute('class') || '').split(/\s+/);
-  const tag = el.tagName.toLowerCase();
-  if (tag === 'h1' || tag === 'h2') return 'Heading';
-  if (tag === 'h3') return 'Subheading';
-  if (tag === 'a') return 'Link text';
-  if (tag === 'blockquote') return 'Quote';
-  if (tag === 'figcaption') return 'Caption';
-  if (cls.includes('section-tag')) return 'Label';
-  if (cls.includes('stat-num')) return 'Heading';
-  if (cls.includes('stat-label')) return 'Subheading';
-  // The Callout Box component's text is a plain <p> with no class of its
-  // own (see COMPONENTS['callout-box'].render) -- only its parent carries
-  // the ".callout-box" class -- so this has to check up one level.
-  if (tag === 'p' && el.parentElement && el.parentElement.classList.contains('callout-box')) return 'Callout';
-  // The chart-pair cards' (.glass-card) eyebrow/heading/source lines are
-  // plain <p>s styled entirely with inline style, no class of their own --
-  // told apart by position instead: the source credit line always starts
-  // with "Source:", and among the rest (in document order) the first is the
-  // small uppercase eyebrow tag, the second is the bold card heading.
-  // ".glass-card" alone isn't enough to identify one of these -- the class
-  // is reused all over about.md/contact.md for plain stat/icon cards with
-  // their own unrelated <p> content -- so this also requires the card to
-  // actually contain a chart-stat-row or chart-arc-panel, the two things
-  // that make a glass-card one of these chart cards in the first place.
-  if (tag === 'p' && el.parentElement && el.parentElement.classList.contains('glass-card') &&
-      el.parentElement.querySelector('.chart-stat-row, .chart-arc-panel')) {
-    if (el.textContent.trim().startsWith('Source:')) return 'Source';
-    const captionPs = Array.from(el.parentElement.children).filter(c => c.tagName === 'P' && !c.textContent.trim().startsWith('Source:'));
-    const pos = captionPs.indexOf(el);
-    if (pos === 0) return 'Tag';
-    if (pos === 1) return 'Heading';
-  }
-  // The arc chart's legend entries (e.g. "Research done pre-contact" /
-  // "Post-contact discovery") are <span>s with no class of their own --
-  // recognised by their fixed dot+span shape (a <div> holding one empty
-  // color-dot <div> then this span) -- and numbered by their order among
-  // that same shape's occurrences in the enclosing .glass-card, so a chart
-  // with more than two legend entries still gets a sensible "Description N".
-  if (isLegendDotSpan(el)) {
-    const glassCard = el.closest('.glass-card');
-    const siblings = glassCard ? Array.from(glassCard.querySelectorAll('span')).filter(isLegendDotSpan) : [el];
-    const pos = siblings.indexOf(el);
-    return `Description ${pos + 1}`;
-  }
-  return 'Text';
-}
-function isLegendDotSpan(el) {
-  const p = el.parentElement;
-  return el.tagName === 'SPAN' && !!p && p.tagName === 'DIV' && p.children.length === 2 &&
-    p.children[0].tagName === 'DIV' && !p.children[0].textContent.trim() && p.children[1] === el;
 }
 
 // Applies an edit reported by the preview iframe back into the real,
@@ -803,15 +709,30 @@ function handleBlockMessage(msg) {
     if (!confirm('Remove this block? Unsaved until you hit Save, but there is no undo once you do.')) return;
     deleteBlock(region, index);
     setStatus('edited (unsaved)', '');
-    refreshRegionUI(region);
     refreshPreview();
   } else if (action === 'move') {
     moveBlock(region, index, msg.dir);
     setStatus('edited (unsaved)', '');
-    refreshRegionUI(region);
     refreshPreview();
   } else if (action === 'insert') {
     openInsertSectionModal(region, index);
+  }
+}
+
+function handleIllustrationMessage(msg) {
+  const { action, region, panelIndex } = msg;
+  if (action === 'upload') {
+    uploadIllustrationFromBytes(region, panelIndex, msg.fileName, msg.bytes);
+  } else if (action === 'size') {
+    transformIllustrationPanel(region, panelIndex, el => {
+      el.classList.remove('size-sm', 'size-md', 'size-lg');
+      el.classList.add('size-' + msg.size);
+    });
+    setStatus('edited (unsaved)', '');
+    refreshPreview();
+  } else if (action === 'remove') {
+    if (!confirm('Remove this illustration and restore the placeholder? The uploaded image file stays in the repo either way.')) return;
+    removeIllustration(region, panelIndex);
   }
 }
 
@@ -820,10 +741,19 @@ window.addEventListener('message', e => {
   if (e.data.type === 'edit') {
     if (applyInlineEdit(e.data.region, e.data.index, e.data.html)) {
       setStatus('edited (unsaved)', '');
-      syncContentFieldBox(e.data.region, e.data.index, e.data.html);
     }
   } else if (e.data.type === 'block') {
     handleBlockMessage(e.data);
+  } else if (e.data.type === 'illustration') {
+    handleIllustrationMessage(e.data);
+  } else if (e.data.type === 'chart-stat') {
+    if (updateChartStatRow(e.data.region, e.data.rowIndex, e.data.field, e.data.value)) {
+      setStatus('edited (unsaved)', '');
+    }
+  } else if (e.data.type === 'chart-arc') {
+    if (updateChartArcPanel(e.data.region, e.data.panelIndex, e.data.value)) {
+      setStatus('edited (unsaved)', '');
+    }
   }
 });
 
@@ -843,9 +773,16 @@ function buildPreviewEditScript(editable) {
   ${editable ? `
   var INLINE_PASSENGER_TAGS = new Set(${JSON.stringify([...INLINE_PASSENGER_TAGS])});
   var SKIP_CONTAINER_TAGS = new Set(${JSON.stringify([...SKIP_CONTAINER_TAGS])});
+  var ILLUSTRATION_SELECTOR = ${JSON.stringify(ILLUSTRATION_PANEL_SELECTOR)};
+  var CHART_ARC_CIRCUMFERENCE = ${CHART_ARC_CIRCUMFERENCE};
+  var CHART_ARC_RADIUS = ${CHART_ARC_RADIUS};
+  var CHART_ARC_CENTER = ${CHART_ARC_CENTER};
   ${isPhrasingOnly.toString()}
   ${hasEditableText.toString()}
   ${collectEditableLeaves.toString()}
+  ${parseRatioValue.toString()}
+  ${recalcChartStatBars.toString()}
+  ${applyArcGeometry.toString()}
 
   var toolbar = document.createElement('div');
   toolbar.id = 'cms-toolbar';
@@ -869,7 +806,18 @@ function buildPreviewEditScript(editable) {
     '#cms-block-toolbar button:disabled:hover{background:none}' +
     '.cms-block-gap{height:16px;margin:-8px 0;position:relative;z-index:9997;display:flex;align-items:center;justify-content:center}' +
     '.cms-block-gap button{opacity:0;width:22px;height:22px;border-radius:50%;background:#e95c25;color:#fff;border:none;cursor:pointer;font-size:15px;line-height:1;font-family:inherit;transition:opacity .12s;box-shadow:0 2px 8px rgba(0,0,0,.35)}' +
-    '.cms-block-gap:hover button{opacity:1}';
+    '.cms-block-gap:hover button{opacity:1}' +
+    '.cms-illustration-panel{position:relative;cursor:pointer;outline:2px dashed transparent;outline-offset:2px;transition:outline-color .1s}' +
+    '.cms-illustration-panel:hover{outline-color:rgba(233,92,37,.55)}' +
+    '#cms-illus-toolbar{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:4px;gap:2px;box-shadow:0 6px 20px rgba(0,0,0,.4)}' +
+    '#cms-illus-toolbar button{background:none;border:none;color:#eee;font-size:11px;font-weight:700;padding:5px 9px;border-radius:5px;cursor:pointer;font-family:inherit;white-space:nowrap}' +
+    '#cms-illus-toolbar button:hover{background:rgba(255,255,255,.12)}' +
+    '#cms-illus-toolbar button.on{background:rgba(233,92,37,.35)}' +
+    '.cms-chart-editable{outline:1px dashed transparent;cursor:text;transition:outline-color .1s}' +
+    '.cms-chart-editable:hover{outline-color:rgba(233,92,37,.5)}' +
+    '.cms-chart-editable.cms-active{outline:2px solid #e95c25;outline-offset:1px}' +
+    '#cms-arc-editor{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(233,92,37,.5);border-radius:7px;padding:3px;box-shadow:0 6px 20px rgba(0,0,0,.4)}' +
+    '#cms-arc-editor input{width:52px;background:none;border:none;color:#e95c25;font-size:13px;font-weight:800;text-align:center;font-family:inherit;outline:none}';
   document.head.appendChild(style);
 
   function toggleWrap(tagName) {
@@ -1033,11 +981,223 @@ function buildPreviewEditScript(editable) {
     });
   }
 
+  // Click-to-edit for a single span, used below by the chart-stat/chart-arc
+  // wiring -- same interaction shape as wireRegion's leaves (click to focus,
+  // debounced send on input, send+release on blur), but addressed by
+  // row/panel position instead of a leaf index, and with an optional
+  // onInput hook for redrawing sibling geometry live as the user types.
+  function makeInlineEditable(el, onCommit, onInput) {
+    if (!el) return;
+    el.classList.add('cms-chart-editable');
+    el.title = 'Click to edit';
+    var sendTimer = null;
+    function send() { onCommit(el); }
+    el.addEventListener('click', function(e) {
+      if (el.contentEditable === 'true') return;
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll('.cms-active').forEach(function(x) { x.contentEditable = 'false'; x.classList.remove('cms-active'); });
+      el.contentEditable = 'true';
+      el.classList.add('cms-active');
+      el.focus();
+    });
+    el.addEventListener('input', function() {
+      if (onInput) onInput(el);
+      clearTimeout(sendTimer);
+      sendTimer = setTimeout(send, 400);
+    });
+    el.addEventListener('blur', function() {
+      clearTimeout(sendTimer);
+      el.contentEditable = 'false';
+      el.classList.remove('cms-active');
+      send();
+    });
+  }
+
+  // The two hand-built homepage charts (S01 The Proof) -- a row's number/
+  // label are made directly click-to-edit in place, matching how plain text
+  // works elsewhere. recalcChartStatBars runs on every keystroke so the bar
+  // redraws live; the canonical string only gets updated (debounced) via
+  // the postMessage, same as a normal text edit.
+  function wireChartStatRows(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    Array.from(root.querySelectorAll('.chart-stat-row')).forEach(function(row, rowIndex) {
+      var desc = row.querySelector('.chart-stat-desc');
+      var num = row.querySelector('.chart-stat-num');
+      makeInlineEditable(desc, function(el) {
+        parent.postMessage({ source: 'blacfox-cms-preview', type: 'chart-stat', region: region, rowIndex: rowIndex, field: 'desc', value: el.innerHTML }, '*');
+      });
+      makeInlineEditable(num, function(el) {
+        parent.postMessage({ source: 'blacfox-cms-preview', type: 'chart-stat', region: region, rowIndex: rowIndex, field: 'num', value: el.innerHTML }, '*');
+      }, function() {
+        var container = row.closest('.glass-card') || row.parentElement;
+        if (container) recalcChartStatBars(container);
+      });
+    });
+  }
+  // The doughnut/arc chart's percentage label lives inside an <svg> (the
+  // whole ".chart-arc-panel" IS the <svg>, and ".chart-arc-text" is an SVG
+  // <text> node) -- contentEditable only works on HTMLElements, not SVG
+  // ones, so a click-to-edit box the way plain text/chart-stat fields work
+  // isn't an option here. Instead, hovering/clicking the arc shows a small
+  // floating HTML input positioned over its center; typing redraws the ring
+  // live via applyArcGeometry, and blur/Enter commits the value.
+  var arcEditor = document.createElement('div');
+  arcEditor.id = 'cms-arc-editor';
+  arcEditor.innerHTML = '<input type="text" inputmode="decimal">';
+  document.body.appendChild(arcEditor);
+  var arcInput = arcEditor.querySelector('input');
+  var arcHideTimer = null;
+  var activeArc = null;
+  function showArcEditor(panel, region, panelIndex, focus) {
+    clearTimeout(arcHideTimer);
+    activeArc = { panel: panel, region: region, panelIndex: panelIndex };
+    var textEl = panel.querySelector('.chart-arc-text');
+    var pct = textEl ? parseRatioValue(textEl.textContent) : null;
+    arcInput.value = pct != null ? pct : '';
+    var r = panel.getBoundingClientRect();
+    arcEditor.style.display = 'flex';
+    arcEditor.style.top = Math.max(4, r.top + r.height / 2 - 15) + 'px';
+    arcEditor.style.left = Math.max(4, r.left + r.width / 2 - 30) + 'px';
+    if (focus) { arcInput.focus(); arcInput.select(); }
+  }
+  function scheduleHideArcEditor() {
+    clearTimeout(arcHideTimer);
+    arcHideTimer = setTimeout(function() { arcEditor.style.display = 'none'; activeArc = null; }, 300);
+  }
+  arcEditor.addEventListener('mouseenter', function() { clearTimeout(arcHideTimer); });
+  arcEditor.addEventListener('mouseleave', scheduleHideArcEditor);
+  arcInput.addEventListener('input', function() {
+    if (!activeArc) return;
+    var pct = Math.max(0, Math.min(100, parseRatioValue(arcInput.value) || 0));
+    applyArcGeometry(activeArc.panel, pct);
+  });
+  function commitArcEditor() {
+    if (!activeArc) return;
+    parent.postMessage({ source: 'blacfox-cms-preview', type: 'chart-arc', region: activeArc.region, panelIndex: activeArc.panelIndex, value: arcInput.value }, '*');
+  }
+  arcInput.addEventListener('blur', commitArcEditor);
+  arcInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { commitArcEditor(); arcInput.blur(); } });
+  function wireChartArcPanels(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    Array.from(root.querySelectorAll('.chart-arc-panel')).forEach(function(panel, panelIndex) {
+      panel.style.cursor = 'pointer';
+      panel.addEventListener('mouseenter', function() { showArcEditor(panel, region, panelIndex, false); });
+      panel.addEventListener('mouseleave', scheduleHideArcEditor);
+      panel.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showArcEditor(panel, region, panelIndex, true);
+      });
+    });
+  }
+
+  // Illustration placeholders (hero quote panel, method.html's in-body
+  // split-image slots) upload/resize/remove via a small floating toolbar on
+  // hover -- an empty placeholder is a single big click target instead. The
+  // iframe reads the file itself (FileReader) and hands the raw bytes to
+  // the parent over postMessage, since only the parent holds the GitHub
+  // token needed to actually upload it.
+  var illusToolbar = document.createElement('div');
+  illusToolbar.id = 'cms-illus-toolbar';
+  document.body.appendChild(illusToolbar);
+  var illusHideTimer = null;
+  var activePanel = null;
+  function renderIllusToolbar(panel) {
+    var hasImage = panel.classList.contains('has-image');
+    var size = panel.classList.contains('size-sm') ? 'sm' : panel.classList.contains('size-lg') ? 'lg' : 'md';
+    var html = '<button data-act="upload">' + (hasImage ? 'Change image' : 'Upload image') + '</button>';
+    if (hasImage) {
+      html += '<button data-act="size" data-size="sm" class="' + (size === 'sm' ? 'on' : '') + '">S</button>';
+      html += '<button data-act="size" data-size="md" class="' + (size === 'md' ? 'on' : '') + '">M</button>';
+      html += '<button data-act="size" data-size="lg" class="' + (size === 'lg' ? 'on' : '') + '">L</button>';
+      html += '<button data-act="remove">Remove</button>';
+    }
+    illusToolbar.innerHTML = html;
+  }
+  function showIllusToolbar(panel) {
+    clearTimeout(illusHideTimer);
+    activePanel = panel;
+    renderIllusToolbar(panel);
+    var r = panel.getBoundingClientRect();
+    illusToolbar.style.display = 'flex';
+    illusToolbar.style.top = Math.max(4, r.top - 34) + 'px';
+    illusToolbar.style.left = Math.max(4, r.left) + 'px';
+  }
+  function scheduleHideIllusToolbar() {
+    clearTimeout(illusHideTimer);
+    illusHideTimer = setTimeout(function() { illusToolbar.style.display = 'none'; activePanel = null; }, 250);
+  }
+  illusToolbar.addEventListener('mouseenter', function() { clearTimeout(illusHideTimer); });
+  illusToolbar.addEventListener('mouseleave', scheduleHideIllusToolbar);
+
+  var illusFileInput = document.createElement('input');
+  illusFileInput.type = 'file';
+  illusFileInput.accept = 'image/*';
+  illusFileInput.style.display = 'none';
+  document.body.appendChild(illusFileInput);
+  var uploadRegion = null, uploadPanelIndex = null;
+  function openIllusFilePicker(region, panelIndex) {
+    uploadRegion = region;
+    uploadPanelIndex = panelIndex;
+    illusFileInput.click();
+  }
+  illusFileInput.addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (!file || uploadRegion == null) return;
+    var reader = new FileReader();
+    reader.onload = function() {
+      parent.postMessage({ source: 'blacfox-cms-preview', type: 'illustration', action: 'upload', region: uploadRegion, panelIndex: uploadPanelIndex, fileName: file.name, bytes: reader.result }, '*');
+    };
+    reader.readAsArrayBuffer(file);
+    illusFileInput.value = '';
+  });
+  illusToolbar.addEventListener('click', function(e) {
+    var btn = e.target.closest('button');
+    if (!btn || !activePanel) return;
+    var region = activePanel.dataset.cmsRegion;
+    var index = parseInt(activePanel.dataset.cmsPanelIndex, 10);
+    var act = btn.dataset.act;
+    if (act === 'upload') {
+      openIllusFilePicker(region, index);
+    } else if (act === 'size') {
+      parent.postMessage({ source: 'blacfox-cms-preview', type: 'illustration', action: 'size', region: region, panelIndex: index, size: btn.dataset.size }, '*');
+    } else if (act === 'remove') {
+      parent.postMessage({ source: 'blacfox-cms-preview', type: 'illustration', action: 'remove', region: region, panelIndex: index }, '*');
+    }
+  });
+  function wireIllustrationPanels(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    Array.from(root.querySelectorAll(ILLUSTRATION_SELECTOR)).forEach(function(panel, index) {
+      panel.classList.add('cms-illustration-panel');
+      panel.dataset.cmsRegion = region;
+      panel.dataset.cmsPanelIndex = index;
+      panel.addEventListener('mouseenter', function() { showIllusToolbar(panel); });
+      panel.addEventListener('mouseleave', scheduleHideIllusToolbar);
+      panel.addEventListener('click', function(e) {
+        if (!panel.classList.contains('has-image')) {
+          e.preventDefault();
+          e.stopPropagation();
+          openIllusFilePicker(region, index);
+        }
+      });
+    });
+  }
+
   wireRegion('#cms-hero-root', 'hero');
   wireRegion('#page-content, .other-page-content', 'main');
   wireBlocks('#page-content, .other-page-content', 'main');
   wireRegion('#cms-article-body-root', 'body');
   wireBlocks('#cms-article-body-root', 'body');
+  wireIllustrationPanels('#cms-hero-root', 'hero');
+  wireIllustrationPanels('#page-content, .other-page-content', 'main');
+  wireChartStatRows('#cms-hero-root', 'hero');
+  wireChartStatRows('#page-content, .other-page-content', 'main');
+  wireChartArcPanels('#cms-hero-root', 'hero');
+  wireChartArcPanels('#page-content, .other-page-content', 'main');
   ` : ''}
 })();
 <\/script>`;
@@ -1259,7 +1419,6 @@ function renderSidebar() {
   tree.querySelectorAll('.tree-item').forEach(el => {
     el.addEventListener('click', () => {
       App.current = { type: 'page', slug: el.dataset.slug };
-      App.activeTab = 'meta';
       renderEditor();
       refreshPreview();
     });
@@ -1281,7 +1440,6 @@ function renderSidebar() {
   artTree.querySelectorAll('.tree-item').forEach(el => {
     el.addEventListener('click', () => {
       App.current = { type: 'article', slug: el.dataset.artSlug };
-      App.activeTab = 'meta';
       renderEditor();
       refreshPreview();
     });
@@ -1336,7 +1494,6 @@ document.getElementById('add-article-btn').addEventListener('click', () => {
       App.articles[slug] = { path: `content/articles/${slug}.md`, sha: res.content.sha, data, body };
       renderSidebar();
       App.current = { type: 'article', slug };
-      App.activeTab = 'meta';
       renderEditor();
       refreshPreview();
       setStatus('created', 'ok');
@@ -1441,7 +1598,6 @@ document.getElementById('add-page-btn').addEventListener('click', () => {
 
       renderSidebar();
       App.current = { type: 'page', slug };
-      App.activeTab = 'meta';
       renderEditor();
       refreshPreview();
       setStatus('created', 'ok');
@@ -1477,14 +1633,12 @@ function renderEditor() {
     return;
   }
   if (App.current.type === 'page') {
-    tabsEl.innerHTML = `<div class="editor-tab${App.activeTab === 'meta' ? ' active' : ''}" data-tab="meta">Meta</div><div class="editor-tab${App.activeTab === 'body' ? ' active' : ''}" data-tab="body">Body</div>`;
-    tabsEl.querySelectorAll('.editor-tab').forEach(t => t.addEventListener('click', () => { App.activeTab = t.dataset.tab; renderEditor(); }));
-    scroll.innerHTML = App.activeTab === 'meta' ? renderMetaTab() : renderBodyTab();
+    tabsEl.innerHTML = `<div class="editor-tab active">Meta</div>`;
+    scroll.innerHTML = renderMetaTab();
     wireTabHandlers();
   } else if (App.current.type === 'article') {
-    tabsEl.innerHTML = `<div class="editor-tab${App.activeTab === 'meta' ? ' active' : ''}" data-tab="meta">Details</div><div class="editor-tab${App.activeTab === 'body' ? ' active' : ''}" data-tab="body">Body</div>`;
-    tabsEl.querySelectorAll('.editor-tab').forEach(t => t.addEventListener('click', () => { App.activeTab = t.dataset.tab; renderEditor(); }));
-    scroll.innerHTML = App.activeTab === 'meta' ? renderArticleDetailsTab() : renderArticleBodyTab();
+    tabsEl.innerHTML = `<div class="editor-tab active">Details</div>`;
+    scroll.innerHTML = renderArticleDetailsTab();
     wireArticleTabHandlers();
   } else if (App.current.type === 'nav') {
     tabsEl.innerHTML = '';
@@ -1504,7 +1658,7 @@ function renderMetaTab() {
   const p = App.pages[slug];
   const d = p.data;
   return `
-    <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>.</div>
+    <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>. Change the page's text, images, and sections directly in the live preview → — this panel is just for SEO/meta fields.</div>
 
     <div class="field-group"><label class="field-label">Title</label><input class="field-input" id="m-title" value="${escHtml(d.title || '')}"></div>
     <div class="field-group"><label class="field-label">Description</label><textarea class="field-textarea" id="m-description" style="min-height:70px">${escHtml(d.description || '')}</textarea></div>
@@ -1537,7 +1691,8 @@ function renderMetaTab() {
     <button class="add-row-btn" id="m-js-add" style="margin-top:6px">+ Add script</button>
 
     <div class="section-divider"></div>
-    <button class="btn btn-primary" id="save-page-btn" style="width:100%;padding:10px">Save to ${App.branch}</button>
+    <button class="btn btn-primary" id="save-page-btn" style="width:100%;padding:10px">Save page to ${App.branch}</button>
+    <p class="field-hint" style="text-align:center;margin-top:8px">Saves the meta fields above together with any text/section edits made in the live preview.</p>
   `;
 }
 function arrayRow(kind, i, value) {
@@ -1549,57 +1704,32 @@ function collectArrayList(containerId) {
 }
 
 function wireTabHandlers() {
-  if (App.activeTab === 'meta') {
-    document.querySelectorAll('#editor-scroll .radio-btn[data-layout]').forEach(b => b.addEventListener('click', () => {
-      if (b.style.pointerEvents === 'none') return;
-      document.querySelectorAll('#editor-scroll .radio-btn[data-layout]').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      App.pages[App.current.slug].data.layout = b.dataset.layout;
-      refreshPreview();
-    }));
-    document.getElementById('m-bodyclass').addEventListener('input', e => {
-      App.pages[App.current.slug].data.bodyClass = e.target.value;
-      refreshPreview();
-    });
-    document.getElementById('m-css-add').addEventListener('click', () => {
-      document.getElementById('m-cssfiles').insertAdjacentHTML('beforeend', arrayRow('css', 999, ''));
-      wireArrayRemove();
-    });
-    document.getElementById('m-js-add').addEventListener('click', () => {
-      document.getElementById('m-pagescripts').insertAdjacentHTML('beforeend', arrayRow('js', 999, ''));
-      wireArrayRemove();
-    });
+  document.querySelectorAll('#editor-scroll .radio-btn[data-layout]').forEach(b => b.addEventListener('click', () => {
+    if (b.style.pointerEvents === 'none') return;
+    document.querySelectorAll('#editor-scroll .radio-btn[data-layout]').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    App.pages[App.current.slug].data.layout = b.dataset.layout;
+    refreshPreview();
+  }));
+  document.getElementById('m-bodyclass').addEventListener('input', e => {
+    App.pages[App.current.slug].data.bodyClass = e.target.value;
+    refreshPreview();
+  });
+  document.getElementById('m-css-add').addEventListener('click', () => {
+    document.getElementById('m-cssfiles').insertAdjacentHTML('beforeend', arrayRow('css', 999, ''));
     wireArrayRemove();
-    document.getElementById('og-drop').addEventListener('click', e => { if (e.target.tagName !== 'INPUT') document.getElementById('og-file').click(); });
-    document.getElementById('og-file').addEventListener('change', onOgFilePicked);
-    document.getElementById('save-page-btn').addEventListener('click', savePageMeta);
-    loadOgThumbnail();
-  } else {
-    document.getElementById('save-body-btn').addEventListener('click', savePageBody);
-    document.getElementById('insert-section-btn').addEventListener('click', () => openInsertSectionModal('main', null));
-    document.getElementById('b-hero').addEventListener('input', syncBodyDraftAndPreview);
-    document.getElementById('b-main').addEventListener('input', syncBodyDraftAndPreview);
-    wireEditableBoxes(document.getElementById('content-blocks-hero'));
-    wireContentBlocksUI('main');
-  }
+  });
+  document.getElementById('m-js-add').addEventListener('click', () => {
+    document.getElementById('m-pagescripts').insertAdjacentHTML('beforeend', arrayRow('js', 999, ''));
+    wireArrayRemove();
+  });
+  wireArrayRemove();
+  document.getElementById('og-drop').addEventListener('click', e => { if (e.target.tagName !== 'INPUT') document.getElementById('og-file').click(); });
+  document.getElementById('og-file').addEventListener('change', onOgFilePicked);
+  document.getElementById('save-page-btn').addEventListener('click', savePageMeta);
+  loadOgThumbnail();
 }
 
-// The preview renders whatever's in the current draft (page hero/main, or
-// an article's body) -- so typing into a raw-HTML box has to update that
-// in-memory draft immediately (not just on Save) for the preview to feel
-// live. Nothing is committed to GitHub until "Save" is clicked; this only
-// updates the browser's own copy. Uses setRegionData (not setRegionHtml) so
-// it doesn't write back into the very textarea the user is typing in.
-function syncBodyDraftAndPreview() {
-  if (!App.current) return;
-  if (App.current.type === 'page') {
-    setRegionData('hero', document.getElementById('b-hero').value);
-    setRegionData('main', document.getElementById('b-main').value);
-  } else if (App.current.type === 'article') {
-    setRegionData('body', document.getElementById('a-body').value);
-  }
-  refreshPreview();
-}
 function wireArrayRemove() {
   document.querySelectorAll('#editor-scroll [data-remove]').forEach(btn => {
     btn.addEventListener('click', () => btn.closest('.array-row').remove());
@@ -1670,37 +1800,30 @@ async function savePageMeta() {
   }
 }
 
-/* ---------- Body tab ---------- */
 /* ------------------------------------------------------------
-   Plain-text content editing for the sidebar -- the whole point is that a
-   non-technical editor should never see a raw tag. A region's text leaves
-   (same leaves collectEditableLeaves finds in the preview, same order, same
-   indices applyInlineEdit expects) render as labeled contenteditable boxes:
-   the actual styled text (an <em> shows as real italic orange text, not as
-   "<em>"), never HTML source. 'hero' gets a flat list of fields (there's
-   only ever one hero, nothing to reorder); 'main'/'body' get that same
-   list grouped into move/delete-able section cards, matching the same
-   block model the live preview's floating toolbar drives.
-
-   The raw HTML textareas (#b-hero/#b-main/#a-body) still exist underneath
-   an "Advanced" disclosure for anyone who needs to hand-edit markup --
-   applyInlineEdit/setRegionHtml already mirror every change into them, so
-   Save (which reads directly from those textareas) keeps working exactly
-   as before regardless of which view was used to make the edit.
+   Illustration panels and the two hand-built homepage charts --
+   the three field types that aren't plain text and so can't go through
+   collectEditableLeaves/applyInlineEdit. All editing for these now happens
+   directly in the live preview (see the illustration/chart-stat/chart-arc
+   wiring in buildPreviewEditScript below); the functions here are the
+   shared state-mutation logic the preview's postMessage handlers call into
+   -- same canonical-string-in, canonical-string-out shape as
+   applyInlineEdit/insertBlockAt, so Save (which always reads straight from
+   App.pages[slug]/App.articles[slug]) keeps working no matter which UI made
+   the edit.
    ------------------------------------------------------------ */
 // The hand-authored illustration placeholder (`<div class="hero-quote-panel
 // is-placeholder"><svg>...</svg><span>Illustration placeholder</span></div>`,
 // identical across all 9 pages' heroes -- see site.css's "stands in for a
 // future custom illustration" comment -- plus the same placeholder markup
 // reused in-body as `.section-split-img` on method.html, 3x) is deliberately
-// skipped by collectEditableLeaves/renderInterleavedFieldsHTML above (a text-edit box
-// would let someone "edit" an SVG icon as raw HTML, and once it holds a
-// real <img> it wouldn't even qualify as a leaf -- an <img> has no
-// textContent -- so its leaf-ness would depend on state, which would shift
-// every later leaf's index the moment an image got uploaded). It gets its
-// own image-upload field instead, addressed by its position among
-// `ILLUSTRATION_PANEL_CLASSES` elements rather than a leaf index, so it's
-// stable in both states.
+// skipped by collectEditableLeaves (a text-edit box would let someone "edit"
+// an SVG icon as raw HTML, and once it holds a real <img> it wouldn't even
+// qualify as a leaf -- an <img> has no textContent -- so its leaf-ness would
+// depend on state, which would shift every later leaf's index the moment an
+// image got uploaded). It gets its own image-upload affordance instead,
+// addressed by its position among `ILLUSTRATION_PANEL_CLASSES` elements
+// rather than a leaf index, so it's stable in both states.
 const PLACEHOLDER_ICON_HTML = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.75"/><path d="M21 15l-5-5L5 21"/></svg>\n      <span>Illustration placeholder</span>';
 const ILLUSTRATION_PANEL_SELECTOR = ILLUSTRATION_PANEL_CLASSES.map(c => '.' + c).join(', ');
 function transformIllustrationPanel(region, panelIndex, mutate) {
@@ -1714,25 +1837,56 @@ function transformIllustrationPanel(region, panelIndex, mutate) {
   setRegionHtml(region, doc.body.innerHTML.trim());
   return true;
 }
-function renderIllustrationField(region, panel, panelIndex, totalPanels) {
-  const img = panel.querySelector('img');
-  const src = img ? img.getAttribute('src') : '';
-  const size = panel.classList.contains('size-sm') ? 'sm' : panel.classList.contains('size-lg') ? 'lg' : 'md';
-  const label = totalPanels > 1 ? `Illustration ${panelIndex + 1}` : 'Illustration';
-  return `<div class="content-field">
-    <label class="content-field-label">${escHtml(label)}</label>
-    <div class="img-drop illustration-drop" data-region="${region}" data-panel-index="${panelIndex}" data-src="${escHtml(src)}">
-      <div class="img-drop-lbl illustration-drop-lbl">${src ? 'Loading preview…' : 'Click or drop a JPG/PNG to replace this placeholder'}</div>
-      <input type="file" class="illustration-file-input" accept="image/*">
-    </div>
-    ${src ? `
-    <div class="radio-row illustration-size-row" data-region="${region}" data-panel-index="${panelIndex}" style="margin-top:8px">
-      <div class="radio-btn illustration-size-btn${size === 'sm' ? ' on' : ''}" data-size="sm">Small</div>
-      <div class="radio-btn illustration-size-btn${size === 'md' ? ' on' : ''}" data-size="md">Medium</div>
-      <div class="radio-btn illustration-size-btn${size === 'lg' ? ' on' : ''}" data-size="lg">Large</div>
-    </div>
-    <button class="btn btn-ghost btn-sm illustration-remove-btn" data-region="${region}" data-panel-index="${panelIndex}" style="margin-top:6px">Remove image</button>` : ''}
-  </div>`;
+// Uploads immediately (like the article image block) rather than deferring
+// to Save -- there's no good way to preview a not-yet-uploaded blob as part
+// of the panel's real src the way the OG/banner fields preview a single
+// known field. Bytes arrive here as a raw ArrayBuffer posted from the
+// preview iframe's own file input (see the illustration toolbar in
+// buildPreviewEditScript) -- the iframe can't reach the GitHub API itself
+// (no token in its scope), so it hands the file off to the parent instead.
+async function uploadIllustrationFromBytes(region, panelIndex, fileName, bytes) {
+  setStatus('uploading…', 'busy');
+  try {
+    const slug = App.current.slug;
+    const ext = (fileName.match(/\.\w+$/) || ['.jpg'])[0];
+    // Keeps the original hero-panel path (region 'hero', index 0) exactly
+    // as-is, since illustrations already live there in the repo -- any
+    // additional panel (e.g. method.html's in-body section-split-img
+    // placeholders) gets a disambiguated path so multiple uploads on one
+    // page never overwrite each other or the hero's own file.
+    const path = (region === 'hero' && panelIndex === 0)
+      ? `assets/hero/${slug}/illustration${ext}`
+      : `assets/hero/${slug}/illustration-${region}-${panelIndex}${ext}`;
+    const existing = await gh.getFile(gh.owner, gh.repo, path, App.branch);
+    await gh.putFile(gh.owner, gh.repo, path, bytesToB64(new Uint8Array(bytes)), `Add illustration for ${slug} via Blacfox CMS`, App.branch, existing ? existing.sha : undefined);
+    App.assetCache.delete(`datauri:${App.branch}:${path}`);
+    const obj = getCurrentEditable();
+    const alt = escHtml((obj && obj.data && obj.data.title) || 'Illustration');
+    transformIllustrationPanel(region, panelIndex, el => {
+      el.classList.remove('is-placeholder');
+      el.classList.add('has-image');
+      el.innerHTML = `<img src="${path}" alt="${alt}">`;
+    });
+    setStatus('edited (unsaved)', '');
+    refreshPreview();
+    toast('Illustration uploaded.', 'success');
+  } catch (err) {
+    setStatus('error', 'error');
+    toast('Upload failed: ' + err.message, 'error');
+  }
+}
+function removeIllustration(region, panelIndex) {
+  transformIllustrationPanel(region, panelIndex, el => {
+    el.classList.remove('has-image', 'size-sm', 'size-md', 'size-lg');
+    // .hero-quote-panel needs the explicit is-placeholder modifier to get
+    // the dashed-box look; .section-split-img has no such modifier -- its
+    // bare class is already styled as the placeholder, so adding one would
+    // just be dead markup.
+    if (el.classList.contains('hero-quote-panel')) el.classList.add('is-placeholder');
+    el.innerHTML = PLACEHOLDER_ICON_HTML;
+  });
+  setStatus('edited (unsaved)', '');
+  refreshPreview();
 }
 
 /* ------------------------------------------------------------
@@ -1745,7 +1899,11 @@ function renderIllustrationField(region, panel, panelIndex, totalPanels) {
    illustration panels above), not a leaf index, since editing a value here
    also needs to rewrite a sibling bar's width/dot position or the arc's
    dashoffset/dot coordinates -- structured state a plain text leaf can't
-   carry.
+   carry. applyArcGeometry/recalcChartStatBars are written to run against a
+   plain live DOM subtree (not App/GitHub state) precisely so the preview
+   iframe can toString() them in and get the bars/arc redrawing on every
+   keystroke, the same live-redraw behavior this feature has always had --
+   see buildPreviewEditScript.
    ------------------------------------------------------------ */
 // Pulls the leading number out of a ratio string like "10:1" or a percent
 // like "70%" -- parseFloat naturally stops at the first non-numeric
@@ -1790,36 +1948,18 @@ function updateChartStatRow(region, rowIndex, field, value) {
   setRegionHtml(region, doc.body.innerHTML.trim());
   return true;
 }
-function renderChartStatRowField(region, row, rowIndex) {
-  const desc = row.querySelector('.chart-stat-desc');
-  const num = row.querySelector('.chart-stat-num');
-  return `<div class="content-field-group">
-    <div class="content-field">
-      <label class="content-field-label">Text</label>
-      <div class="content-editable-box chart-stat-field" contenteditable="true" data-region="${region}" data-chart-row-index="${rowIndex}" data-chart-field="desc">${desc ? desc.innerHTML : ''}</div>
-    </div>
-    <div class="content-field">
-      <label class="content-field-label">Value</label>
-      <div class="content-editable-box chart-stat-field" contenteditable="true" data-region="${region}" data-chart-row-index="${rowIndex}" data-chart-field="num">${num ? num.innerHTML : ''}</div>
-    </div>
-  </div>`;
-}
 // Circle circumference matching the fixed stroke-dasharray already on
 // .arc-fill in index.md (2*pi*78 ~= 489.85, rounded to the same 490 the
 // page already hardcodes there, so a 100% value draws a fully closed ring).
 const CHART_ARC_CIRCUMFERENCE = 490;
 const CHART_ARC_RADIUS = 78;
 const CHART_ARC_CENTER = 100;
-function updateChartArcPanel(region, panelIndex, value) {
-  const raw = getRegionHtml(region);
-  if (raw == null) return false;
-  const doc = new DOMParser().parseFromString(raw, 'text/html');
-  const panels = Array.from(doc.body.querySelectorAll('.chart-arc-panel'));
-  const panel = panels[panelIndex];
-  if (!panel) return false;
-  const pct = Math.max(0, Math.min(100, parseRatioValue(value) || 0));
-  const textEl = panel.querySelector('.chart-arc-text');
-  if (textEl) textEl.textContent = pct + '%';
+// Redraws just the ring fill + endpoint dot for a given percentage --
+// deliberately leaves .chart-arc-text untouched so this is safe to call on
+// every keystroke of the very box the user is typing into (see applyArcValue
+// below for the version that also normalizes the displayed text, used
+// wherever nothing is mid-edit).
+function applyArcGeometry(panel, pct) {
   const fillEl = panel.querySelector('.arc-fill');
   if (fillEl) fillEl.style.setProperty('--arc-target', String(Math.round(CHART_ARC_CIRCUMFERENCE * (1 - pct / 100))));
   const dotEl = panel.querySelector('#arcDotEnd');
@@ -1833,385 +1973,24 @@ function updateChartArcPanel(region, panelIndex, value) {
     dotEl.setAttribute('cx', (CHART_ARC_CENTER + CHART_ARC_RADIUS * Math.cos(angleRad)).toFixed(1));
     dotEl.setAttribute('cy', (CHART_ARC_CENTER + CHART_ARC_RADIUS * Math.sin(angleRad)).toFixed(1));
   }
+}
+function applyArcValue(panel, value) {
+  const pct = Math.max(0, Math.min(100, parseRatioValue(value) || 0));
+  const textEl = panel.querySelector('.chart-arc-text');
+  if (textEl) textEl.textContent = pct + '%';
+  applyArcGeometry(panel, pct);
+  return pct;
+}
+function updateChartArcPanel(region, panelIndex, value) {
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const panels = Array.from(doc.body.querySelectorAll('.chart-arc-panel'));
+  const panel = panels[panelIndex];
+  if (!panel) return false;
+  applyArcValue(panel, value);
   setRegionHtml(region, doc.body.innerHTML.trim());
   return true;
-}
-function renderChartArcField(region, panel, panelIndex) {
-  const textEl = panel.querySelector('.chart-arc-text');
-  const pct = textEl ? parseRatioValue(textEl.textContent) : null;
-  return `<div class="content-field">
-    <label class="content-field-label">Value</label>
-    <div class="content-editable-box chart-arc-field" contenteditable="true" data-region="${region}" data-chart-arc-index="${panelIndex}">${pct != null ? pct : ''}</div>
-  </div>`;
-}
-function renderContentFieldForLeaf(region, leaf, index) {
-  return `<div class="content-field">
-    <label class="content-field-label">${escHtml(guessLeafKind(leaf))}</label>
-    <div class="content-editable-box" contenteditable="true" data-region="${region}" data-leaf-index="${index}">${leaf.innerHTML}</div>
-  </div>`;
-}
-// Shared by renderLeafFieldsHTML (hero -- flat) and renderContentBlocksHTML
-// (main/body -- grouped per block) so both regions get illustration/chart
-// fields wherever those panels actually live, not just wherever the feature
-// happened to be wired in first. Returns them still tagged with their
-// GLOBAL region-wide index (matching what a fresh, independent re-parse via
-// updateChartStatRow/updateChartArcPanel/transformIllustrationPanel would
-// enumerate), since that's what those transform functions address by -- a
-// per-block-local index would silently target the wrong panel the moment a
-// page has more than one block containing one.
-function renderNonLeafFieldsHTML(doc) {
-  const panels = Array.from(doc.body.querySelectorAll(ILLUSTRATION_PANEL_SELECTOR));
-  const chartRows = Array.from(doc.body.querySelectorAll('.chart-stat-row'));
-  const chartArcs = Array.from(doc.body.querySelectorAll('.chart-arc-panel'));
-  return { panels, chartRows, chartArcs };
-}
-// Maps each illustration panel/chart-stat-row/chart-arc-panel element to its
-// GLOBAL region-wide index (array position === what a fresh re-parse via
-// querySelectorAll would enumerate), so the interleaved walk below can look
-// up "which one is this" by identity as it stumbles on each in document order.
-function buildFieldIndexMaps(panels, chartRows, chartArcs) {
-  return {
-    panelIndex: new Map(panels.map((el, i) => [el, i])),
-    rowIndex: new Map(chartRows.map((el, i) => [el, i])),
-    arcIndex: new Map(chartArcs.map((el, i) => [el, i])),
-  };
-}
-// Walks a subtree in document order, emitting one field per stop -- a plain
-// leaf paragraph/heading, an illustration panel, a chart stat row, or a
-// chart arc panel -- interleaved exactly as they appear on the page. This
-// replaces computing each field type over the whole subtree separately and
-// concatenating them, which put a chart-pair card's Source line ahead of its
-// own two stat rows (Tag/Heading/Source share one immediate parent and so
-// were read as consecutive "leaves", while the stat rows in between aren't
-// leaves at all -- they're skipped by collectEditableLeaves and rendered
-// from a wholly separate list appended after all the leaf fields).
-// Consecutive leaves sharing the same immediate parent are still grouped
-// into one bordered box, matching how the live preview visually groups them
-// -- the group is flushed whenever a non-leaf field or a parent change
-// breaks the run.
-// `skipEl`, when given, is treated as a hard stop -- the walk neither emits
-// a field for it nor descends into it. Used to carve the intro portion out
-// of a block that also contains a `.chart-pair` (see renderChartPairBlockHTML),
-// so its two chart cards can be rendered as their own separate calls instead.
-function renderInterleavedFieldsHTML(region, root, maps, nextLeafIndex, skipEl) {
-  const { panelIndex, rowIndex, arcIndex } = maps;
-  const out = [];
-  let buffer = [];
-  function flush() {
-    if (!buffer.length) return;
-    const group = buffer.map(leaf => renderContentFieldForLeaf(region, leaf, nextLeafIndex())).join('');
-    out.push(buffer.length > 1 ? `<div class="content-field-group">${group}</div>` : group);
-    buffer = [];
-  }
-  function walk(el) {
-    if (skipEl && el === skipEl) return;
-    if (SKIP_CONTAINER_TAGS.has(el.tagName.toUpperCase())) return;
-    if (el.classList && el.classList.contains('cms-generated')) return;
-    if (panelIndex.has(el)) { flush(); out.push(renderIllustrationField(region, el, panelIndex.get(el), panelIndex.size)); return; }
-    if (rowIndex.has(el)) { flush(); out.push(renderChartStatRowField(region, el, rowIndex.get(el))); return; }
-    if (arcIndex.has(el)) { flush(); out.push(renderChartArcField(region, el, arcIndex.get(el))); return; }
-    if (typeof SVGElement !== 'undefined' && el instanceof SVGElement) return;
-    if (isPhrasingOnly(el) && hasEditableText(el)) {
-      if (buffer.length && buffer[buffer.length - 1].parentElement !== el.parentElement) flush();
-      buffer.push(el);
-      return;
-    }
-    for (const child of el.children) walk(child);
-  }
-  for (const child of root.children) walk(child);
-  flush();
-  return out.join('');
-}
-// index.md's "S01 The Proof" section pairs an intro (Label/Heading/Text/
-// Callout) with a `.chart-pair` of two chart cards, all inside one real
-// top-level block/<section> -- the chart-pair's CSS grid needs both cards to
-// stay siblings for its two-column layout, so this can't be split into
-// separate top-level blocks without either breaking that layout or changing
-// the page's actual markup for what is purely an editor-organisation
-// concern. Rendered here as three separate chrome-item-card-styled boxes
-// instead -- "Heading + Text" for the intro, one per chart card, each named
-// from that card's own Tag line -- so the sidebar reads the way an editor
-// actually thinks about this section, without touching the real block
-// boundaries move/delete/reorder rely on. None of the three carry their own
-// move/delete controls: unlike a genuine top-level block, "moving" or
-// "deleting" just one of them doesn't correspond to any well-defined edit on
-// the single real block underneath.
-function renderChartPairBlockHTML(region, block, chartPair, maps, nextLeafIndex) {
-  const card = (label, fields) => `<div class="chrome-item-card">
-      <div class="chrome-item-head">
-        <span class="chrome-item-badge">${escHtml(label)}</span>
-      </div>
-      ${fields || '<p class="field-hint">Nothing editable here.</p>'}
-    </div>`;
-  const introFields = renderInterleavedFieldsHTML(region, block, maps, nextLeafIndex, chartPair);
-  const glassCards = Array.from(chartPair.children).filter(c => c.classList.contains('glass-card'));
-  const chartCards = glassCards.map(glassCard => {
-    const tagP = Array.from(glassCard.children).find(c => c.tagName === 'P' && !c.textContent.trim().startsWith('Source:'));
-    const label = tagP ? tagP.textContent.trim() : 'Chart card';
-    return card(label, renderInterleavedFieldsHTML(region, glassCard, maps, nextLeafIndex));
-  });
-  return [card('Heading + Text', introFields), ...chartCards].join('');
-}
-function renderLeafFieldsHTML(region) {
-  const html = getRegionHtml(region) || '';
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const { panels, chartRows, chartArcs } = renderNonLeafFieldsHTML(doc);
-  const maps = buildFieldIndexMaps(panels, chartRows, chartArcs);
-  let leafIdx = 0;
-  const fields = renderInterleavedFieldsHTML(region, doc.body, maps, () => leafIdx++);
-  return fields || '<p class="field-hint">Nothing editable here yet.</p>';
-}
-function renderContentBlocksHTML(region) {
-  const html = getRegionHtml(region) || '';
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const blocks = Array.from(doc.body.children);
-  if (!blocks.length) return '<p class="field-hint" style="margin:2px 0 10px">Nothing here yet — use the button below to add the first section.</p>';
-  const { panels, chartRows, chartArcs } = renderNonLeafFieldsHTML(doc);
-  const maps = buildFieldIndexMaps(panels, chartRows, chartArcs);
-  let leafIdx = 0;
-  return blocks.map((block, blockIdx) => {
-    const chartPair = block.querySelector('.chart-pair');
-    if (chartPair) return renderChartPairBlockHTML(region, block, chartPair, maps, () => leafIdx++);
-    const fields = renderInterleavedFieldsHTML(region, block, maps, () => leafIdx++);
-    return `<div class="chrome-item-card">
-      <div class="chrome-item-head">
-        <span class="chrome-item-badge">${escHtml(guessBlockLabel(block))}</span>
-        <div class="move-btns">
-          <button data-block-move="up" data-block-index="${blockIdx}" title="Move up" ${blockIdx === 0 ? 'disabled' : ''}>↑</button>
-          <button data-block-move="down" data-block-index="${blockIdx}" title="Move down" ${blockIdx === blocks.length - 1 ? 'disabled' : ''}>↓</button>
-          <button data-block-del data-block-index="${blockIdx}" title="Remove section">✕</button>
-        </div>
-      </div>
-      ${fields || '<p class="field-hint">No plain text in this section — use the live preview to change it, or Advanced HTML below.</p>'}
-    </div>`;
-  }).join('');
-}
-function wireEditableBoxes(container) {
-  if (!container) return;
-  // :not(...) here because chart-stat-field/chart-arc-field are also
-  // .content-editable-box (for shared styling) but carry no data-leaf-index
-  // -- they're wired separately below, addressed by row/panel position.
-  container.querySelectorAll('.content-editable-box:not(.chart-stat-field):not(.chart-arc-field)').forEach(box => {
-    let sendTimer = null;
-    const commit = () => {
-      applyInlineEdit(box.dataset.region, parseInt(box.dataset.leafIndex, 10), box.innerHTML);
-      refreshPreview();
-    };
-    box.addEventListener('input', () => { clearTimeout(sendTimer); sendTimer = setTimeout(commit, 400); });
-    box.addEventListener('blur', () => { clearTimeout(sendTimer); commit(); });
-  });
-  wireIllustrationFields(container);
-  wireChartFields(container);
-}
-function wireChartFields(container) {
-  container.querySelectorAll('.chart-stat-field').forEach(box => {
-    let sendTimer = null;
-    const commit = () => {
-      updateChartStatRow(box.dataset.region, parseInt(box.dataset.chartRowIndex, 10), box.dataset.chartField, box.innerHTML);
-      refreshPreview();
-    };
-    box.addEventListener('input', () => { clearTimeout(sendTimer); sendTimer = setTimeout(commit, 400); });
-    box.addEventListener('blur', () => { clearTimeout(sendTimer); commit(); });
-  });
-  container.querySelectorAll('.chart-arc-field').forEach(box => {
-    let sendTimer = null;
-    const commit = () => {
-      updateChartArcPanel(box.dataset.region, parseInt(box.dataset.chartArcIndex, 10), box.textContent);
-      refreshPreview();
-    };
-    box.addEventListener('input', () => { clearTimeout(sendTimer); sendTimer = setTimeout(commit, 400); });
-    box.addEventListener('blur', () => { clearTimeout(sendTimer); commit(); });
-  });
-}
-function wireIllustrationFields(container) {
-  container.querySelectorAll('.illustration-drop').forEach(drop => {
-    const region = drop.dataset.region;
-    const panelIndex = parseInt(drop.dataset.panelIndex, 10);
-    const src = drop.dataset.src;
-    if (src) {
-      fetchAssetDataUri(src).then(uri => {
-        const lbl = drop.querySelector('.illustration-drop-lbl');
-        if (!lbl) return; // user navigated away, or the field was re-rendered, before this resolved
-        if (uri) {
-          drop.insertAdjacentHTML('afterbegin', `<img src="${uri}">`);
-          lbl.textContent = src;
-        } else {
-          lbl.textContent = src + ' (file not found in repo)';
-        }
-      });
-    }
-    drop.addEventListener('click', e => { if (e.target.tagName !== 'INPUT') drop.querySelector('.illustration-file-input').click(); });
-    drop.querySelector('.illustration-file-input').addEventListener('change', e => onIllustrationFilePicked(e, region, panelIndex, drop));
-  });
-  container.querySelectorAll('.illustration-remove-btn').forEach(btn => {
-    btn.addEventListener('click', () => removeIllustration(btn.dataset.region, parseInt(btn.dataset.panelIndex, 10)));
-  });
-  container.querySelectorAll('.illustration-size-row').forEach(row => {
-    const region = row.dataset.region;
-    const panelIndex = parseInt(row.dataset.panelIndex, 10);
-    row.querySelectorAll('.illustration-size-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        transformIllustrationPanel(region, panelIndex, el => {
-          el.classList.remove('size-sm', 'size-md', 'size-lg');
-          el.classList.add('size-' + btn.dataset.size);
-        });
-        row.querySelectorAll('.illustration-size-btn').forEach(b => b.classList.toggle('on', b === btn));
-        refreshPreview();
-      });
-    });
-  });
-}
-// Uploads immediately (like the article image block) rather than deferring
-// to Save -- there's no good way to preview a not-yet-uploaded blob as part
-// of the panel's real src the way the OG/banner fields preview a single
-// known field, and the dropzone already shows an "Uploading…" state.
-function onIllustrationFilePicked(e, region, panelIndex, drop) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const lbl = drop.querySelector('.illustration-drop-lbl');
-    if (lbl) lbl.textContent = 'Uploading…';
-    try {
-      const slug = App.current.slug;
-      const ext = (file.name.match(/\.\w+$/) || ['.jpg'])[0];
-      // Keeps the original hero-panel path (region 'hero', index 0) exactly
-      // as-is, since illustrations already live there in the repo -- any
-      // additional panel (e.g. method.html's in-body section-split-img
-      // placeholders) gets a disambiguated path so multiple uploads on one
-      // page never overwrite each other or the hero's own file.
-      const path = (region === 'hero' && panelIndex === 0)
-        ? `assets/hero/${slug}/illustration${ext}`
-        : `assets/hero/${slug}/illustration-${region}-${panelIndex}${ext}`;
-      const existing = await gh.getFile(gh.owner, gh.repo, path, App.branch);
-      await gh.putFile(gh.owner, gh.repo, path, bytesToB64(new Uint8Array(reader.result)), `Add illustration for ${slug} via Blacfox CMS`, App.branch, existing ? existing.sha : undefined);
-      App.assetCache.delete(`datauri:${App.branch}:${path}`);
-      const obj = getCurrentEditable();
-      const alt = escHtml((obj && obj.data && obj.data.title) || 'Illustration');
-      transformIllustrationPanel(region, panelIndex, el => {
-        el.classList.remove('is-placeholder');
-        el.classList.add('has-image');
-        el.innerHTML = `<img src="${path}" alt="${alt}">`;
-      });
-      refreshRegionUI(region);
-      refreshPreview();
-      toast('Illustration uploaded.', 'success');
-    } catch (err) {
-      const lbl2 = drop.querySelector('.illustration-drop-lbl');
-      if (lbl2) lbl2.textContent = 'Upload failed — try again';
-      toast('Upload failed: ' + err.message, 'error');
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-function removeIllustration(region, panelIndex) {
-  if (!confirm('Remove this illustration and restore the placeholder? The uploaded image file stays in the repo either way.')) return;
-  transformIllustrationPanel(region, panelIndex, el => {
-    el.classList.remove('has-image', 'size-sm', 'size-md', 'size-lg');
-    // .hero-quote-panel needs the explicit is-placeholder modifier to get
-    // the dashed-box look; .section-split-img has no such modifier -- its
-    // bare class is already styled as the placeholder, so adding one would
-    // just be dead markup.
-    if (el.classList.contains('hero-quote-panel')) el.classList.add('is-placeholder');
-    el.innerHTML = PLACEHOLDER_ICON_HTML;
-  });
-  refreshRegionUI(region);
-  refreshPreview();
-}
-function refreshLeafFieldsUI(region) {
-  const container = document.getElementById('content-blocks-' + region);
-  if (!container) return;
-  container.innerHTML = renderLeafFieldsHTML(region);
-  wireEditableBoxes(container);
-}
-function wireContentBlocksUI(region) {
-  const container = document.getElementById('content-blocks-' + region);
-  if (!container) return;
-  container.querySelectorAll('[data-block-move]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      moveBlock(region, parseInt(btn.dataset.blockIndex, 10), btn.dataset.blockMove);
-      refreshContentBlocksUI(region);
-      refreshPreview();
-    });
-  });
-  container.querySelectorAll('[data-block-del]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (!confirm('Remove this section? Unsaved until you hit Save.')) return;
-      deleteBlock(region, parseInt(btn.dataset.blockIndex, 10));
-      refreshContentBlocksUI(region);
-      refreshPreview();
-    });
-  });
-  wireEditableBoxes(container);
-}
-function refreshContentBlocksUI(region) {
-  const container = document.getElementById('content-blocks-' + region);
-  if (!container) return;
-  container.innerHTML = renderContentBlocksHTML(region);
-  wireContentBlocksUI(region);
-}
-// region: 'hero' has no block chrome (only ever one section, nothing to
-// reorder); 'main'/'body' get the full card list. Used after any
-// structural change (block add/move/delete) wherever it came from -- the
-// sidebar (if that tab happens to be open) and the live preview's floating
-// toolbar both funnel through here.
-function refreshRegionUI(region) {
-  if (region === 'hero') refreshLeafFieldsUI(region);
-  else refreshContentBlocksUI(region);
-}
-// A single text edit (from the preview's click-to-edit, not a structural
-// change) only needs its one matching sidebar box updated, not a full
-// re-render -- and only if it's not the box currently being typed into.
-function syncContentFieldBox(region, index, html) {
-  const box = document.querySelector(`.content-editable-box[data-region="${region}"][data-leaf-index="${index}"]`);
-  if (box && document.activeElement !== box) box.innerHTML = html;
-}
-
-function renderBodyTab() {
-  const slug = App.current.slug;
-  const p = App.pages[slug];
-  return `
-    <div class="callout-box">Click any text below — or directly in the live preview — to edit it. Use the arrows to reorder a section, ✕ to remove it, and “+ Insert section” to add a new one.</div>
-
-    <div class="section-title">Hero</div>
-    <div id="content-blocks-hero">${renderLeafFieldsHTML('hero')}</div>
-
-    <div class="section-divider"></div>
-    <div class="section-title">Main content</div>
-    <div id="content-blocks-main">${renderContentBlocksHTML('main')}</div>
-    <button class="btn btn-ghost" id="insert-section-btn" style="width:100%;margin:10px 0">+ Insert section</button>
-
-    <details>
-      <summary>Advanced: edit raw HTML</summary>
-      <div class="field-group" style="margin-top:10px">
-        <label class="field-label">Hero <span style="color:#444">(before the content wrap)</span></label>
-        <textarea class="field-textarea tall" id="b-hero">${escHtml(p.hero)}</textarea>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Main content <span style="color:#444">(after the content wrap, before the footer)</span></label>
-        <textarea class="field-textarea tall" id="b-main" style="min-height:360px">${escHtml(p.main)}</textarea>
-      </div>
-    </details>
-
-    <button class="btn btn-primary" id="save-body-btn" style="width:100%;padding:10px;margin-top:10px">Save to ${App.branch}</button>
-  `;
-}
-
-async function savePageBody() {
-  const slug = App.current.slug;
-  const p = App.pages[slug];
-  const hero = document.getElementById('b-hero').value;
-  const main = document.getElementById('b-main').value;
-  setStatus('saving…', 'busy');
-  try {
-    await commitPage(slug, p.data, hero, main, `Update ${slug} body via Blacfox CMS`);
-    toast(`Saved ${slug}.md`, 'success');
-    setStatus('saved', 'ok');
-    refreshPreview();
-  } catch (e) {
-    setStatus('error', 'error');
-    toast('Save failed: ' + e.message, 'error');
-  }
 }
 
 async function commitPage(slug, data, hero, main, message) {
@@ -2227,7 +2006,7 @@ function renderArticleDetailsTab() {
   const slug = App.current.slug;
   const d = App.articles[slug].data;
   return `
-    <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>.</div>
+    <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>. Change the article's text, images, and blocks directly in the live preview → — this panel is just for details/SEO fields.</div>
 
     <div class="field-group"><label class="field-label">Title</label><input class="field-input" id="a-title" value="${escHtml(d.title || '')}"></div>
     <div class="field-group"><label class="field-label">Author</label><input class="field-input" id="a-author" value="${escHtml(d.author || '')}"></div>
@@ -2242,47 +2021,21 @@ function renderArticleDetailsTab() {
     </div>
 
     <div class="section-divider"></div>
-    <button class="btn btn-primary" id="save-article-meta-btn" style="width:100%;padding:10px">Save to ${App.branch}</button>
+    <button class="btn btn-primary" id="save-article-meta-btn" style="width:100%;padding:10px">Save article to ${App.branch}</button>
+    <p class="field-hint" style="text-align:center;margin-top:8px">Saves the details above together with any text/block edits made in the live preview.</p>
     <button class="btn btn-danger" id="delete-article-btn" style="width:100%;padding:10px;margin-top:8px">Delete article</button>
   `;
 }
-function renderArticleBodyTab() {
-  const slug = App.current.slug;
-  const a = App.articles[slug];
-  return `
-    <div class="callout-box">Click any text below — or directly in the live preview — to edit it. Use the arrows to reorder a block, ✕ to remove it, and “+ Insert block” to add headings, images, quotes, or buttons.</div>
-
-    <div id="content-blocks-body">${renderContentBlocksHTML('body')}</div>
-    <button class="btn btn-ghost" id="insert-block-btn" style="width:100%;margin:10px 0">+ Insert block</button>
-
-    <details>
-      <summary>Advanced: edit raw HTML</summary>
-      <div class="field-group" style="margin-top:10px">
-        <label class="field-label">Body</label>
-        <textarea class="field-textarea tall" id="a-body" style="min-height:420px">${escHtml(a.body)}</textarea>
-      </div>
-    </details>
-
-    <button class="btn btn-primary" id="save-article-body-btn" style="width:100%;padding:10px;margin-top:10px">Save to ${App.branch}</button>
-  `;
-}
 function wireArticleTabHandlers() {
-  if (App.activeTab === 'meta') {
-    document.getElementById('a-title').addEventListener('input', e => { App.articles[App.current.slug].data.title = e.target.value; refreshPreview(); });
-    document.getElementById('a-author').addEventListener('input', e => { App.articles[App.current.slug].data.author = e.target.value; refreshPreview(); });
-    document.getElementById('a-date').addEventListener('input', e => { App.articles[App.current.slug].data.date = e.target.value; refreshPreview(); });
-    document.getElementById('a-description').addEventListener('input', e => { App.articles[App.current.slug].data.description = e.target.value; });
-    document.getElementById('banner-drop').addEventListener('click', e => { if (e.target.tagName !== 'INPUT') document.getElementById('banner-file').click(); });
-    document.getElementById('banner-file').addEventListener('change', onBannerFilePicked);
-    document.getElementById('save-article-meta-btn').addEventListener('click', saveArticleMeta);
-    document.getElementById('delete-article-btn').addEventListener('click', () => deleteArticle(App.current.slug));
-    loadBannerThumbnail();
-  } else {
-    document.getElementById('save-article-body-btn').addEventListener('click', saveArticleBody);
-    document.getElementById('insert-block-btn').addEventListener('click', () => openInsertSectionModal('body', null));
-    document.getElementById('a-body').addEventListener('input', syncBodyDraftAndPreview);
-    wireContentBlocksUI('body');
-  }
+  document.getElementById('a-title').addEventListener('input', e => { App.articles[App.current.slug].data.title = e.target.value; refreshPreview(); });
+  document.getElementById('a-author').addEventListener('input', e => { App.articles[App.current.slug].data.author = e.target.value; refreshPreview(); });
+  document.getElementById('a-date').addEventListener('input', e => { App.articles[App.current.slug].data.date = e.target.value; refreshPreview(); });
+  document.getElementById('a-description').addEventListener('input', e => { App.articles[App.current.slug].data.description = e.target.value; });
+  document.getElementById('banner-drop').addEventListener('click', e => { if (e.target.tagName !== 'INPUT') document.getElementById('banner-file').click(); });
+  document.getElementById('banner-file').addEventListener('change', onBannerFilePicked);
+  document.getElementById('save-article-meta-btn').addEventListener('click', saveArticleMeta);
+  document.getElementById('delete-article-btn').addEventListener('click', () => deleteArticle(App.current.slug));
+  loadBannerThumbnail();
 }
 
 async function loadBannerThumbnail() {
@@ -2354,22 +2107,6 @@ async function saveArticleMeta() {
   }
 }
 
-async function saveArticleBody() {
-  const slug = App.current.slug;
-  const a = App.articles[slug];
-  const body = document.getElementById('a-body').value;
-  setStatus('saving…', 'busy');
-  try {
-    await commitArticle(slug, a.data, body, `Update ${slug} body via Blacfox CMS`);
-    toast(`Saved ${slug}.md`, 'success');
-    setStatus('saved', 'ok');
-    refreshPreview();
-  } catch (e) {
-    setStatus('error', 'error');
-    toast('Save failed: ' + e.message, 'error');
-  }
-}
-
 // region: 'main' (pages) or 'body' (articles). insertIndex: a specific
 // block position (from a preview "+" gap click) or null to append at the
 // end (from the sidebar "+ Insert section"/"+ Insert block" button).
@@ -2399,7 +2136,6 @@ function openComponentForm(compSet, key, region, insertIndex) {
     const html = c.render(values);
     insertBlockAt(region, insertIndex, html);
     closeModal();
-    refreshRegionUI(region);
     refreshPreview();
     toast(`${c.label} inserted — check the preview, then Save when you're happy with it.`, 'success');
   });
@@ -2455,7 +2191,6 @@ function openArticleImageModal(region, insertIndex) {
         : `<img src="${path}" alt="${alt}" loading="lazy">`;
       insertBlockAt(region, insertIndex, html);
       closeModal();
-      refreshRegionUI(region);
       refreshPreview();
       toast('Image inserted — Save when you\'re happy with it.', 'success');
     } catch (e) {
@@ -2891,7 +2626,7 @@ function updateEditModeBtn() {
   const btn = document.getElementById('edit-mode-btn');
   btn.classList.toggle('btn-primary', App.previewEditMode);
   btn.classList.toggle('btn-ghost', !App.previewEditMode);
-  btn.textContent = App.previewEditMode ? '✏️ Editing on page — click text to edit' : '✏️ Edit on page';
+  btn.textContent = App.previewEditMode ? '✏️ Editing on page — click anything to edit' : '✏️ Edit on page';
 }
 document.getElementById('edit-mode-btn').addEventListener('click', () => {
   App.previewEditMode = !App.previewEditMode;

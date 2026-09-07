@@ -71,7 +71,6 @@ a{color:inherit}
 .field-input,.field-select,.field-textarea{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:7px;color:#fff;font-size:12px;padding:8px 10px;width:100%;outline:none;transition:border-color .15s}
 .field-input:focus,.field-select:focus,.field-textarea:focus{border-color:rgba(233,92,37,.6)}
 .field-textarea{font-family:'SF Mono',Consolas,monospace;font-size:11px;line-height:1.55;min-height:120px;resize:vertical;white-space:pre}
-.field-textarea.tall{min-height:280px}
 .field-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .section-divider{height:1px;background:rgba(255,255,255,.07);margin:16px 0}
 .section-title{font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#888;margin-bottom:10px}
@@ -95,28 +94,6 @@ a{color:inherit}
 .move-btns button:hover{color:#e95c25}
 .move-btns button:disabled{opacity:.2;cursor:default}
 
-.content-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
-.content-field-group{border:1px solid rgba(255,255,255,.08);border-radius:7px;background:rgba(255,255,255,.015);padding:9px 9px 0;margin-bottom:10px}
-.content-field-group .content-field:last-child{margin-bottom:9px}
-.content-field-label{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#666}
-.content-editable-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:7px;color:#fff;font-size:13px;line-height:1.55;padding:8px 10px;font-family:'Montserrat',sans-serif;outline:none;cursor:text;transition:border-color .15s,background .15s;min-height:18px}
-.content-editable-box:hover{border-color:rgba(255,255,255,.22)}
-.content-editable-box:focus{border-color:rgba(233,92,37,.6);background:rgba(255,255,255,.06)}
-.content-editable-box em{color:#e95c25;font-style:italic}
-.content-editable-box strong,.content-editable-box b{font-weight:800}
-/* Decorative inline SVGs (the hand-drawn "strike through pixels" line, tiny
-   button-arrow icons, etc.) rely on the site's own CSS to sit positioned
-   over/beside the text -- this box has none of that loaded, so they render
-   unpositioned and look like stray broken squiggles. Hiding them here only
-   affects this editor view; the underlying HTML (and the live site's
-   actual effect) is untouched, since we're hiding a rendering, not
-   deleting a node. */
-.content-editable-box svg{display:none}
-#editor-scroll details{margin:6px 0 14px;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:2px 12px}
-#editor-scroll details summary{cursor:pointer;padding:9px 0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#777}
-#editor-scroll details[open] summary{color:#aaa}
-#editor-scroll details > .field-group:last-child{margin-bottom:12px}
-
 .img-drop{border:1px dashed rgba(255,255,255,.18);border-radius:8px;padding:12px;text-align:center;cursor:pointer;position:relative;transition:all .15s}
 .img-drop:hover{border-color:rgba(233,92,37,.4)}
 .img-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
@@ -127,9 +104,6 @@ a{color:inherit}
 .comp-picker-item{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px;font-size:10px;color:#aaa;cursor:pointer;text-align:left;transition:all .12s}
 .comp-picker-item:hover{background:rgba(233,92,37,.1);border-color:rgba(233,92,37,.35);color:#fff}
 .comp-picker-item strong{display:block;font-size:10px;color:#ddd;margin-bottom:2px}
-
-.insert-target-row{display:flex;gap:6px;margin-top:8px}
-.insert-target-row select{flex:1}
 
 .callout-box{background:rgba(233,92,37,.06);border:1px solid rgba(233,92,37,.2);border-radius:8px;padding:10px 12px;font-size:11px;color:#e0a888;line-height:1.5;margin-bottom:12px}
 .callout-box.warn{background:rgba(255,180,60,.08);border-color:rgba(255,180,60,.25);color:#ffcf8a}
@@ -230,7 +204,7 @@ a{color:inherit}
       <div id="preview-toolbar">
         <div class="dots"><span></span><span></span><span></span></div>
         <div class="url-bar" id="preview-url">Select a page to preview</div>
-        <button class="btn btn-ghost btn-sm" id="edit-mode-btn" title="Click text in the preview to edit it in place">✏️ Edit on page</button>
+        <button class="btn btn-ghost btn-sm" id="edit-mode-btn" title="Click text, images, or sections in the preview to edit them in place">✏️ Edit on page</button>
         <button class="btn btn-ghost btn-sm" id="refresh-preview-btn">↻ Refresh</button>
       </div>
       <div id="preview-empty">Live preview renders here — built from this branch's real partials + assets on GitHub.</div>
