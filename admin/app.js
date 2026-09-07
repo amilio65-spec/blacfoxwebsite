@@ -685,21 +685,6 @@ function collectEditableLeaves(root, out) {
   return out;
 }
 
-// Same "is this element itself a leaf, or do I need to look inside it"
-// check collectEditableLeaves applies to each child of its root -- exposed
-// separately so the sidebar's block-card view can ask it of one specific
-// block and get exactly the slice of the flat leaf list that block
-// contributes, in the same order applyInlineEdit's indices assume.
-function leavesForBlock(block) {
-  if (SKIP_CONTAINER_TAGS.has(block.tagName.toUpperCase())) return [];
-  if (typeof SVGElement !== 'undefined' && block instanceof SVGElement) return [];
-  if (block.classList && block.classList.contains('cms-generated')) return [];
-  if (block.classList && (block.classList.contains('hero-quote-panel') || block.classList.contains('section-split-img'))) return [];
-  if (block.classList && block.classList.contains('chart-stat-row')) return [];
-  if (isPhrasingOnly(block) && hasEditableText(block)) return [block];
-  return collectEditableLeaves(block);
-}
-
 // Best-effort, cosmetic-only labels so the sidebar reads as "Heading" /
 // "Paragraph" / "Card grid" instead of a class name or a bare tag -- these
 // never affect what gets saved, only how the block list is captioned.
@@ -745,7 +730,36 @@ function guessLeafKind(el) {
   // own (see COMPONENTS['callout-box'].render) -- only its parent carries
   // the ".callout-box" class -- so this has to check up one level.
   if (tag === 'p' && el.parentElement && el.parentElement.classList.contains('callout-box')) return 'Callout';
+  // The chart-pair cards' (.glass-card) eyebrow/heading/source lines are
+  // plain <p>s styled entirely with inline style, no class of their own --
+  // told apart by position instead: the source credit line always starts
+  // with "Source:", and among the rest (in document order) the first is the
+  // small uppercase eyebrow tag, the second is the bold card heading.
+  if (tag === 'p' && el.parentElement && el.parentElement.classList.contains('glass-card')) {
+    if (el.textContent.trim().startsWith('Source:')) return 'Source';
+    const captionPs = Array.from(el.parentElement.children).filter(c => c.tagName === 'P' && !c.textContent.trim().startsWith('Source:'));
+    const pos = captionPs.indexOf(el);
+    if (pos === 0) return 'Tag';
+    if (pos === 1) return 'Heading';
+  }
+  // The arc chart's legend entries (e.g. "Research done pre-contact" /
+  // "Post-contact discovery") are <span>s with no class of their own --
+  // recognised by their fixed dot+span shape (a <div> holding one empty
+  // color-dot <div> then this span) -- and numbered by their order among
+  // that same shape's occurrences in the enclosing .glass-card, so a chart
+  // with more than two legend entries still gets a sensible "Description N".
+  if (isLegendDotSpan(el)) {
+    const glassCard = el.closest('.glass-card');
+    const siblings = glassCard ? Array.from(glassCard.querySelectorAll('span')).filter(isLegendDotSpan) : [el];
+    const pos = siblings.indexOf(el);
+    return `Description ${pos + 1}`;
+  }
   return 'Text';
+}
+function isLegendDotSpan(el) {
+  const p = el.parentElement;
+  return el.tagName === 'SPAN' && !!p && p.tagName === 'DIV' && p.children.length === 2 &&
+    p.children[0].tagName === 'DIV' && !p.children[0].textContent.trim() && p.children[1] === el;
 }
 
 // Applies an edit reported by the preview iframe back into the real,
@@ -1673,7 +1687,7 @@ async function savePageMeta() {
 // identical across all 9 pages' heroes -- see site.css's "stands in for a
 // future custom illustration" comment -- plus the same placeholder markup
 // reused in-body as `.section-split-img` on method.html, 3x) is deliberately
-// skipped by collectEditableLeaves/leavesForBlock above (a text-edit box
+// skipped by collectEditableLeaves/renderInterleavedFieldsHTML above (a text-edit box
 // would let someone "edit" an SVG icon as raw HTML, and once it holds a
 // real <img> it wouldn't even qualify as a leaf -- an <img> has no
 // textContent -- so its leaf-ness would depend on state, which would shift
@@ -1775,7 +1789,7 @@ function renderChartStatRowField(region, row, rowIndex) {
   const num = row.querySelector('.chart-stat-num');
   return `<div class="content-field-group">
     <div class="content-field">
-      <label class="content-field-label">Description</label>
+      <label class="content-field-label">Text</label>
       <div class="content-editable-box chart-stat-field" contenteditable="true" data-region="${region}" data-chart-row-index="${rowIndex}" data-chart-field="desc">${desc ? desc.innerHTML : ''}</div>
     </div>
     <div class="content-field">
@@ -1820,7 +1834,7 @@ function renderChartArcField(region, panel, panelIndex) {
   const textEl = panel.querySelector('.chart-arc-text');
   const pct = textEl ? parseRatioValue(textEl.textContent) : null;
   return `<div class="content-field">
-    <label class="content-field-label">Percentage</label>
+    <label class="content-field-label">Value</label>
     <div class="content-editable-box chart-arc-field" contenteditable="true" data-region="${region}" data-chart-arc-index="${panelIndex}">${pct != null ? pct : ''}</div>
   </div>`;
 }
@@ -1829,30 +1843,6 @@ function renderContentFieldForLeaf(region, leaf, index) {
     <label class="content-field-label">${escHtml(guessLeafKind(leaf))}</label>
     <div class="content-editable-box" contenteditable="true" data-region="${region}" data-leaf-index="${index}">${leaf.innerHTML}</div>
   </div>`;
-}
-// leavesForBlock flattens a block down to one leaf per editable text node,
-// in document order, with no memory of which ones were siblings in the
-// source markup -- e.g. a stats row's 4x (number, caption) pairs all come
-// back as 8 leaves in a row. That's fine for indexing (applyInlineEdit just
-// needs the flat order), but rendering them flat makes the panel read as 8
-// unrelated fields instead of the 4 grouped stats the live preview shows.
-// This re-groups the panel view only: consecutive leaves that share the
-// same immediate parent element (and there's more than one of them, so a
-// lone paragraph directly under the block isn't boxed for no reason) get
-// wrapped in one bordered .content-field-group, mirroring how the parent
-// markup (e.g. .stat-item) groups them visually on the page.
-function groupLeafFieldsHTML(region, leaves, nextIndex) {
-  const out = [];
-  let i = 0;
-  while (i < leaves.length) {
-    const parent = leaves[i].parentElement;
-    let j = i + 1;
-    while (j < leaves.length && leaves[j].parentElement === parent) j++;
-    const group = leaves.slice(i, j).map(leaf => renderContentFieldForLeaf(region, leaf, nextIndex())).join('');
-    out.push(j - i > 1 ? `<div class="content-field-group">${group}</div>` : group);
-    i = j;
-  }
-  return out.join('');
 }
 // Shared by renderLeafFieldsHTML (hero -- flat) and renderContentBlocksHTML
 // (main/body -- grouped per block) so both regions get illustration/chart
@@ -1869,16 +1859,66 @@ function renderNonLeafFieldsHTML(doc) {
   const chartArcs = Array.from(doc.body.querySelectorAll('.chart-arc-panel'));
   return { panels, chartRows, chartArcs };
 }
+// Maps each illustration panel/chart-stat-row/chart-arc-panel element to its
+// GLOBAL region-wide index (array position === what a fresh re-parse via
+// querySelectorAll would enumerate), so the interleaved walk below can look
+// up "which one is this" by identity as it stumbles on each in document order.
+function buildFieldIndexMaps(panels, chartRows, chartArcs) {
+  return {
+    panelIndex: new Map(panels.map((el, i) => [el, i])),
+    rowIndex: new Map(chartRows.map((el, i) => [el, i])),
+    arcIndex: new Map(chartArcs.map((el, i) => [el, i])),
+  };
+}
+// Walks a subtree in document order, emitting one field per stop -- a plain
+// leaf paragraph/heading, an illustration panel, a chart stat row, or a
+// chart arc panel -- interleaved exactly as they appear on the page. This
+// replaces computing each field type over the whole subtree separately and
+// concatenating them, which put a chart-pair card's Source line ahead of its
+// own two stat rows (Tag/Heading/Source share one immediate parent and so
+// were read as consecutive "leaves", while the stat rows in between aren't
+// leaves at all -- they're skipped by collectEditableLeaves and rendered
+// from a wholly separate list appended after all the leaf fields).
+// Consecutive leaves sharing the same immediate parent are still grouped
+// into one bordered box, matching how the live preview visually groups them
+// -- the group is flushed whenever a non-leaf field or a parent change
+// breaks the run.
+function renderInterleavedFieldsHTML(region, root, maps, nextLeafIndex) {
+  const { panelIndex, rowIndex, arcIndex } = maps;
+  const out = [];
+  let buffer = [];
+  function flush() {
+    if (!buffer.length) return;
+    const group = buffer.map(leaf => renderContentFieldForLeaf(region, leaf, nextLeafIndex())).join('');
+    out.push(buffer.length > 1 ? `<div class="content-field-group">${group}</div>` : group);
+    buffer = [];
+  }
+  function walk(el) {
+    if (SKIP_CONTAINER_TAGS.has(el.tagName.toUpperCase())) return;
+    if (el.classList && el.classList.contains('cms-generated')) return;
+    if (panelIndex.has(el)) { flush(); out.push(renderIllustrationField(region, el, panelIndex.get(el), panelIndex.size)); return; }
+    if (rowIndex.has(el)) { flush(); out.push(renderChartStatRowField(region, el, rowIndex.get(el))); return; }
+    if (arcIndex.has(el)) { flush(); out.push(renderChartArcField(region, el, arcIndex.get(el))); return; }
+    if (typeof SVGElement !== 'undefined' && el instanceof SVGElement) return;
+    if (isPhrasingOnly(el) && hasEditableText(el)) {
+      if (buffer.length && buffer[buffer.length - 1].parentElement !== el.parentElement) flush();
+      buffer.push(el);
+      return;
+    }
+    for (const child of el.children) walk(child);
+  }
+  for (const child of root.children) walk(child);
+  flush();
+  return out.join('');
+}
 function renderLeafFieldsHTML(region) {
   const html = getRegionHtml(region) || '';
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const leaves = collectEditableLeaves(doc.body);
-  const textFields = leaves.map((leaf, i) => renderContentFieldForLeaf(region, leaf, i)).join('');
   const { panels, chartRows, chartArcs } = renderNonLeafFieldsHTML(doc);
-  const illustrationFields = panels.map((panel, i) => renderIllustrationField(region, panel, i, panels.length)).join('');
-  const chartStatFields = chartRows.map((row, i) => renderChartStatRowField(region, row, i)).join('');
-  const chartArcFields = chartArcs.map((panel, i) => renderChartArcField(region, panel, i)).join('');
-  return (textFields + illustrationFields + chartStatFields + chartArcFields) || '<p class="field-hint">Nothing editable here yet.</p>';
+  const maps = buildFieldIndexMaps(panels, chartRows, chartArcs);
+  let leafIdx = 0;
+  const fields = renderInterleavedFieldsHTML(region, doc.body, maps, () => leafIdx++);
+  return fields || '<p class="field-hint">Nothing editable here yet.</p>';
 }
 function renderContentBlocksHTML(region) {
   const html = getRegionHtml(region) || '';
@@ -1886,25 +1926,10 @@ function renderContentBlocksHTML(region) {
   const blocks = Array.from(doc.body.children);
   if (!blocks.length) return '<p class="field-hint" style="margin:2px 0 10px">Nothing here yet — use the button below to add the first section.</p>';
   const { panels, chartRows, chartArcs } = renderNonLeafFieldsHTML(doc);
-  let idx = 0;
+  const maps = buildFieldIndexMaps(panels, chartRows, chartArcs);
+  let leafIdx = 0;
   return blocks.map((block, blockIdx) => {
-    const textFields = groupLeafFieldsHTML(region, leavesForBlock(block), () => idx++);
-    const illustrationFields = panels
-      .map((panel, gi) => [panel, gi])
-      .filter(([panel]) => block.contains(panel))
-      .map(([panel, gi]) => renderIllustrationField(region, panel, gi, panels.length))
-      .join('');
-    const chartStatFields = chartRows
-      .map((row, gi) => [row, gi])
-      .filter(([row]) => block.contains(row))
-      .map(([row, gi]) => renderChartStatRowField(region, row, gi))
-      .join('');
-    const chartArcFields = chartArcs
-      .map((panel, gi) => [panel, gi])
-      .filter(([panel]) => block.contains(panel))
-      .map(([panel, gi]) => renderChartArcField(region, panel, gi))
-      .join('');
-    const fields = textFields + illustrationFields + chartStatFields + chartArcFields;
+    const fields = renderInterleavedFieldsHTML(region, block, maps, () => leafIdx++);
     return `<div class="chrome-item-card">
       <div class="chrome-item-head">
         <span class="chrome-item-badge">${escHtml(guessBlockLabel(block))}</span>
