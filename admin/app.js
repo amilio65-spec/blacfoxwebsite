@@ -1174,31 +1174,42 @@ async function loadBranchContent() {
   updatePublishBtnVisibility();
   setStatus('loading…', 'busy');
   try {
-    const dir = await gh.getFile(gh.owner, gh.repo, 'pages', App.branch);
-    const files = (dir && dir.dir ? dir.dir : []).filter(f => f.name.endsWith('.md'));
-    App.pages = {};
-    await Promise.all(files.map(async f => {
-      const file = await gh.getFile(gh.owner, gh.repo, f.path, App.branch);
-      const { data, body } = parseFrontmatter(file.text);
-      const { hero, main } = splitBody(body);
-      const slug = f.name.replace(/\.md$/, '');
-      App.pages[slug] = { path: f.path, sha: file.sha, data, hero, main };
-    }));
-
-    const artDir = await gh.getFile(gh.owner, gh.repo, 'content/articles', App.branch);
-    const artFiles = (artDir && artDir.dir ? artDir.dir : []).filter(f => f.name.endsWith('.md'));
-    App.articles = {};
-    await Promise.all(artFiles.map(async f => {
-      const file = await gh.getFile(gh.owner, gh.repo, f.path, App.branch);
-      const { data, body } = parseFrontmatter(file.text);
-      const slug = f.name.replace(/\.md$/, '');
-      App.articles[slug] = { path: f.path, sha: file.sha, data, body: body.trim() };
-    }));
-
-    const navFile = await gh.getFile(gh.owner, gh.repo, 'partials/nav.html', App.branch);
+    // The four sections below (pages, articles, nav, footer) are independent
+    // reads -- running them one after another (the original approach) meant
+    // every additional page/article added its own fully-serial round trip
+    // before the sidebar could even render. Promise.all lets them overlap.
+    const [pages, articles, navFile, footerFile] = await Promise.all([
+      (async () => {
+        const dir = await gh.getFile(gh.owner, gh.repo, 'pages', App.branch);
+        const files = (dir && dir.dir ? dir.dir : []).filter(f => f.name.endsWith('.md'));
+        const pages = {};
+        await Promise.all(files.map(async f => {
+          const file = await gh.getFile(gh.owner, gh.repo, f.path, App.branch);
+          const { data, body } = parseFrontmatter(file.text);
+          const { hero, main } = splitBody(body);
+          const slug = f.name.replace(/\.md$/, '');
+          pages[slug] = { path: f.path, sha: file.sha, data, hero, main };
+        }));
+        return pages;
+      })(),
+      (async () => {
+        const artDir = await gh.getFile(gh.owner, gh.repo, 'content/articles', App.branch);
+        const artFiles = (artDir && artDir.dir ? artDir.dir : []).filter(f => f.name.endsWith('.md'));
+        const articles = {};
+        await Promise.all(artFiles.map(async f => {
+          const file = await gh.getFile(gh.owner, gh.repo, f.path, App.branch);
+          const { data, body } = parseFrontmatter(file.text);
+          const slug = f.name.replace(/\.md$/, '');
+          articles[slug] = { path: f.path, sha: file.sha, data, body: body.trim() };
+        }));
+        return articles;
+      })(),
+      gh.getFile(gh.owner, gh.repo, 'partials/nav.html', App.branch),
+      gh.getFile(gh.owner, gh.repo, 'partials/footer.html', App.branch),
+    ]);
+    App.pages = pages;
+    App.articles = articles;
     App.navDoc = { sha: navFile.sha, doc: new DOMParser().parseFromString(navFile.text, 'text/html') };
-
-    const footerFile = await gh.getFile(gh.owner, gh.repo, 'partials/footer.html', App.branch);
     App.footerDoc = { sha: footerFile.sha, doc: new DOMParser().parseFromString(footerFile.text, 'text/html') };
 
     renderSidebar();
@@ -2627,8 +2638,12 @@ async function inlineAssetRefs(html) {
   const paths = new Set();
   let m;
   while ((m = re.exec(html))) paths.add(m[1] || m[3]);
-  for (const path of paths) {
-    const uri = await fetchAssetDataUri(path);
+  // Fetched in parallel -- these are independent GitHub API calls, and doing
+  // them one-at-a-time (the original approach) turned every image/icon on
+  // the page into its own sequential network round-trip, which is what made
+  // the preview take ages to reveal on anything but a bare-bones page.
+  const entries = await Promise.all([...paths].map(async path => [path, await fetchAssetDataUri(path)]));
+  for (const [path, uri] of entries) {
     if (uri) html = html.split(path).join(uri);
   }
   return html;
@@ -2640,22 +2655,26 @@ async function inlineAssetRefs(html) {
 // authenticated API rather than a public raw-content URL -- this is what
 // makes the preview work against a private repo.
 async function inlineLocalAssets(html) {
+  // Both passes below fetch every matched file in parallel (Promise.all)
+  // rather than one at a time -- a page can reference several stylesheets
+  // and scripts, and awaiting each in turn stacked up their full GitHub API
+  // round-trip latencies instead of overlapping them.
   const linkRe = /<link rel="stylesheet" href="([^"]+)">/g;
-  const linkMatches = [...html.matchAll(linkRe)];
-  for (const m of linkMatches) {
-    const href = m[1];
-    if (/^https?:/.test(href)) continue; // external (Google Fonts) — leave as-is, real MIME type
-    const text = await fetchAssetText(href);
-    html = html.replace(m[0], text != null ? `<style>/* ${href} */\n${text}\n</style>` : '');
-  }
+  const linkMatches = [...html.matchAll(linkRe)].filter(m => !/^https?:/.test(m[1])); // external (Google Fonts) — leave as-is, real MIME type
+  const linkTexts = await Promise.all(linkMatches.map(m => fetchAssetText(m[1])));
+  linkMatches.forEach((m, i) => {
+    const text = linkTexts[i];
+    html = html.replace(m[0], text != null ? `<style>/* ${m[1]} */\n${text}\n</style>` : '');
+  });
+
   const scriptRe = /<script src="([^"]+)"[^>]*><\/script>/g;
-  const scriptMatches = [...html.matchAll(scriptRe)];
-  for (const m of scriptMatches) {
-    const src = m[1];
-    if (/^https?:/.test(src)) continue;
-    const text = await fetchAssetText(src);
+  const scriptMatches = [...html.matchAll(scriptRe)].filter(m => !/^https?:/.test(m[1]));
+  const scriptTexts = await Promise.all(scriptMatches.map(m => fetchAssetText(m[1])));
+  scriptMatches.forEach((m, i) => {
+    const text = scriptTexts[i];
     html = html.replace(m[0], text != null ? `<script>${text}</script>` : '');
-  }
+  });
+
   html = await inlineAssetRefs(html);
   return html;
 }
