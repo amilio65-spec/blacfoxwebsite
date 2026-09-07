@@ -3676,7 +3676,11 @@ async function savePostMeta(kind) {
     description: document.getElementById('a-description').value.trim(),
   };
   if (!newData.title) { toast('Give this ' + cfg.label.toLowerCase() + ' a title before posting.', 'error'); return; }
-  const newBody = sanitizeComposeHtml(bodyEl ? bodyEl.innerHTML : p.body || '');
+  // composeHtmlWithRealPaths first: bodyEl's live img[src] may still be a
+  // display-only data:/blob: URI (see hydrateComposeBodyImages) -- sanitizing
+  // that directly would drop the src entirely, since it isn't a real repo
+  // path or an allowed inline data: image.
+  const newBody = sanitizeComposeHtml(bodyEl ? composeHtmlWithRealPaths(bodyEl) : p.body || '');
   setStatus('posting…', 'busy');
   try {
     if (pendingBannerUpload) {
@@ -4430,7 +4434,41 @@ function ensureComposePane(kind, slug) {
   App.composeKey = key;
   const p = App[POST_KINDS[kind].store][slug];
   document.getElementById('compose-title').value = (p.data && p.data.title) || '';
-  document.getElementById('compose-body').innerHTML = p.body || '';
+  const bodyEl = document.getElementById('compose-body');
+  bodyEl.innerHTML = p.body || '';
+  hydrateComposeBodyImages(bodyEl);
+}
+
+// #compose-body renders directly in the admin page, not inside the
+// sandboxed/asset-inlined preview iframe -- so a plain repo-relative
+// <img src="assets/articles/slug/photo.jpg"> (exactly what's stored, and
+// what the real built page correctly uses) can't actually load there: it's
+// relative to the site root, not /admin/, and a private repo needs an
+// authenticated fetch anyway. This swaps in a fetched data: URI purely for
+// on-screen display, stashing the real path in data-cms-path so it can
+// always be restored before anything is stored or saved (see
+// composeHtmlWithRealPaths) -- the saved article body itself never holds a
+// data:/blob: URI for an uploaded image, only the real relative path.
+async function hydrateComposeBodyImages(bodyEl) {
+  const imgs = Array.from(bodyEl.querySelectorAll('img[src^="assets/"]:not([data-cms-path])'));
+  await Promise.all(imgs.map(async img => {
+    const realPath = img.getAttribute('src');
+    img.dataset.cmsPath = realPath;
+    const uri = await fetchAssetDataUri(realPath);
+    if (uri) img.src = uri;
+  }));
+}
+// Reverses hydrateComposeBodyImages (and the blob: URL used for a
+// freshly-inserted image) on a detached clone, so reading this never
+// disturbs the live editor -- used any time compose-body's content is
+// about to be stored or sanitized (syncComposeBody, savePostMeta).
+function composeHtmlWithRealPaths(bodyEl) {
+  const clone = bodyEl.cloneNode(true);
+  clone.querySelectorAll('img[data-cms-path]').forEach(img => {
+    img.setAttribute('src', img.dataset.cmsPath);
+    img.removeAttribute('data-cms-path');
+  });
+  return clone.innerHTML;
 }
 
 // Strips MS Word/Google Docs paste junk (mso-* spans, inline styles,
@@ -4497,7 +4535,7 @@ function restoreComposeSelection() {
 }
 function syncComposeBody() {
   const editable = getCurrentEditable();
-  if (editable) editable.body = document.getElementById('compose-body').innerHTML;
+  if (editable) editable.body = composeHtmlWithRealPaths(document.getElementById('compose-body'));
 }
 
 function initComposeEditor() {
@@ -4546,7 +4584,11 @@ function initComposeEditor() {
         await gh.putFile(gh.owner, gh.repo, path, bytesToB64(new Uint8Array(reader.result)), `Add image to ${slug} via Blacfox CMS`, App.branch);
         App.assetCache.delete(`datauri:${App.branch}:${path}`);
         restoreComposeSelection();
-        document.execCommand('insertHTML', false, `<img src="${path}" alt="" loading="lazy">`);
+        // Shows instantly from the file already in hand (no round trip back
+        // to GitHub) -- data-cms-path carries the real repo path, which is
+        // what actually gets saved (see composeHtmlWithRealPaths).
+        const displaySrc = URL.createObjectURL(file);
+        document.execCommand('insertHTML', false, `<img src="${displaySrc}" data-cms-path="${path}" alt="" loading="lazy">`);
         syncComposeBody();
         toast('Image inserted.', 'success');
       } catch (err) {
