@@ -1179,7 +1179,7 @@ function collectEditableLeaves(root, out) {
     // Add/remove UI injected live by wireStatsGroups/wireFaqGroups (buttons
     // that exist only in the rendered preview DOM, never in the saved HTML
     // string) -- skip so they don't get treated as stray editable text leaves.
-    if (el.classList && (el.classList.contains('cms-stat-del') || el.classList.contains('cms-stat-add') || el.classList.contains('cms-faq-del') || el.classList.contains('cms-faq-add'))) continue;
+    if (el.classList && (el.classList.contains('cms-stat-del') || el.classList.contains('cms-stat-add') || el.classList.contains('cms-faq-del') || el.classList.contains('cms-faq-add') || el.classList.contains('cms-card-del') || el.classList.contains('cms-card-add'))) continue;
     if (isPhrasingOnly(el) && hasEditableText(el)) {
       out.push(el);
     } else {
@@ -1292,6 +1292,11 @@ window.addEventListener('message', e => {
     if (setCardIcon(e.data.region, e.data.groupIndex, e.data.cardIndex, e.data.icon)) {
       setStatus('edited (unsaved)', ''); refreshPreview();
     }
+  } else if (e.data.type === 'card-item') {
+    const ok = e.data.action === 'add'
+      ? addCardItem(e.data.region, e.data.groupIndex)
+      : removeCardItem(e.data.region, e.data.groupIndex, e.data.cardIndex);
+    if (ok) { setStatus('edited (unsaved)', ''); refreshPreview(); }
   }
 });
 
@@ -1375,6 +1380,10 @@ function buildPreviewEditScript(editable) {
     '.cms-cardgrp-toolbar button.on{background:rgba(233,92,37,.3);color:#e95c25}' +
     '.cms-card-icon-picker{cursor:pointer;outline:1px dashed transparent;border-radius:6px;transition:outline-color .1s}' +
     '.cms-card-icon-picker:hover{outline-color:rgba(233,92,37,.5)}' +
+    '.cms-card-del{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:#e95c25;color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s;z-index:20;font-family:inherit}' +
+    '.dark-card:hover .cms-card-del{opacity:1}' +
+    '.cms-card-add{display:block;margin:16px auto 0;background:rgba(233,92,37,.1);border:1px dashed rgba(233,92,37,.4);color:#e95c25;border-radius:6px;padding:7px 16px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}' +
+    '.cms-card-add:hover{background:rgba(233,92,37,.18)}' +
     '#cms-card-icon-popup{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(233,92,37,.5);border-radius:8px;padding:8px;box-shadow:0 8px 26px rgba(0,0,0,.45);width:190px}' +
     '#cms-card-icon-popup .icon-pick-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}' +
     '#cms-card-icon-popup button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:5px;color:#aaa;padding:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}' +
@@ -1942,7 +1951,8 @@ function buildPreviewEditScript(editable) {
         if (!btn || !activeCardGroup) return;
         parent.postMessage({ source: 'blacfox-cms-preview', type: 'card-marker-mode', region: region, groupIndex: activeCardGroup.groupIndex, mode: btn.dataset.mode }, '*');
       };
-      Array.from(group.querySelectorAll(':scope > .dark-card')).forEach(function(card, cardIndex) {
+      var cards = Array.from(group.querySelectorAll(':scope > .dark-card'));
+      cards.forEach(function(card, cardIndex) {
         var marker = card.querySelector(':scope > .cms-card-icon');
         if (marker) {
           marker.classList.add('cms-card-icon-picker');
@@ -1952,7 +1962,27 @@ function buildPreviewEditScript(editable) {
             showIconPopup(marker, region, groupIndex, cardIndex);
           });
         }
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'cms-card-del';
+        del.title = 'Remove this card';
+        del.textContent = '✕';
+        del.addEventListener('click', function(e) {
+          e.preventDefault(); e.stopPropagation();
+          if (cards.length <= 1) return;
+          parent.postMessage({ source: 'blacfox-cms-preview', type: 'card-item', action: 'remove', region: region, groupIndex: groupIndex, cardIndex: cardIndex }, '*');
+        });
+        card.appendChild(del);
       });
+      var addCardBtn = document.createElement('button');
+      addCardBtn.type = 'button';
+      addCardBtn.className = 'cms-card-add';
+      addCardBtn.textContent = '+ Add card';
+      addCardBtn.addEventListener('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        parent.postMessage({ source: 'blacfox-cms-preview', type: 'card-item', action: 'add', region: region, groupIndex: groupIndex }, '*');
+      });
+      group.parentElement.appendChild(addCardBtn);
     });
   }
 
@@ -2883,7 +2913,44 @@ function removeFaqItem(region, groupIndex, itemIndex) {
    send these. The chosen icon is kept as a data-cms-icon attribute
    on the card (not just in the marker's rendered SVG) so it isn't
    lost if the mode is switched away and back.
+
+   Add/remove keeps the column count in sync with however many cards
+   are left: 1 -> 1 col, 2 -> 2 col, 3+ -> a fixed 3-col grid (extra
+   cards wrap onto new rows, same as CSS grid always did for 4+
+   items in a 3-column template) -- via the same scoped <style>#id
+   trick the 'stats' component uses, retrofitted onto a pre-existing
+   hand-authored grid the first time it's edited this way. Numbered
+   markers are renumbered after every change so removing card 2 of 3
+   doesn't leave a "01, 03" gap.
    ------------------------------------------------------------ */
+function renumberCardMarkers(group) {
+  const cards = Array.from(group.querySelectorAll(':scope > .dark-card'));
+  cards.forEach((card, i) => {
+    const num = card.querySelector(':scope > .card-num');
+    if (num) num.textContent = String(i + 1).padStart(2, '0');
+  });
+}
+function ensureCardGridScopedStyle(group, doc) {
+  let id = group.getAttribute('id');
+  if (!id) {
+    id = 'cardgrid-' + Math.random().toString(36).slice(2, 9);
+    group.setAttribute('id', id);
+  }
+  const n = Math.max(group.querySelectorAll(':scope > .dark-card').length, 1);
+  const cols = n === 1 ? 1 : n === 2 ? 2 : 3;
+  // The 768px/640px steps mirror .card-grid-3's own existing responsive
+  // fallback (site.css) -- re-declared here because our id selector has
+  // higher specificity and would otherwise win at every width, not just
+  // desktop, silently breaking the site's normal tablet/mobile collapse.
+  const css = `#${id}{grid-template-columns:repeat(${cols},1fr);}@media(max-width:768px){#${id}{grid-template-columns:repeat(2,1fr);}}@media(max-width:640px){#${id}{grid-template-columns:1fr;}}`;
+  const parent = group.parentElement;
+  let styleEl = Array.from(parent.children).find(el => el.tagName === 'STYLE' && el.textContent.includes(`#${id}`));
+  if (!styleEl) {
+    styleEl = doc.createElement('style');
+    parent.insertBefore(styleEl, group);
+  }
+  styleEl.textContent = css;
+}
 function mutateCardGroup(region, groupIndex, mutate) {
   const raw = getRegionHtml(region);
   if (raw == null) return false;
@@ -2891,8 +2958,34 @@ function mutateCardGroup(region, groupIndex, mutate) {
   const group = Array.from(doc.body.querySelectorAll('.card-grid-3, .card-grid-2'))[groupIndex];
   if (!group) return false;
   mutate(group, doc);
+  renumberCardMarkers(group);
+  ensureCardGridScopedStyle(group, doc);
   setRegionHtml(region, doc.body.innerHTML.trim());
   return true;
+}
+function addCardItem(region, groupIndex) {
+  return mutateCardGroup(region, groupIndex, (group, doc) => {
+    const cards = Array.from(group.querySelectorAll(':scope > .dark-card'));
+    const sample = cards[0];
+    const div = doc.createElement('div');
+    div.className = 'dark-card';
+    let markerHtml = '';
+    if (sample && sample.querySelector(':scope > .cms-card-icon')) {
+      markerHtml = `<div class="cms-card-icon" style="color:var(--orange);margin-bottom:10px;">${renderIcon('target', 28)}</div>`;
+      div.setAttribute('data-cms-icon', 'target');
+    } else if (!sample || sample.querySelector(':scope > .card-num')) {
+      markerHtml = `<p class="card-num">${String(cards.length + 1).padStart(2, '0')}</p>`;
+    }
+    div.innerHTML = `${markerHtml}<p class="card-title">New card heading</p>\n      <p class="card-body">Describe this card.</p>`;
+    group.appendChild(div);
+  });
+}
+function removeCardItem(region, groupIndex, cardIndex) {
+  return mutateCardGroup(region, groupIndex, group => {
+    const cards = Array.from(group.querySelectorAll(':scope > .dark-card'));
+    if (cards.length <= 1) return;
+    if (cards[cardIndex]) cards[cardIndex].remove();
+  });
 }
 function setCardMarkerMode(region, groupIndex, mode) {
   return mutateCardGroup(region, groupIndex, (group, doc) => {
