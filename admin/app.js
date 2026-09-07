@@ -316,6 +316,53 @@ ${layout.wrapClose}
    ------------------------------------------------------------ */
 function escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+/* ------------------------------------------------------------
+   Curated icon library for component "icon" fields (e.g. the
+   marker on a 3-col card) -- thin-stroke, single style, matching
+   the site's existing hand-drawn inline icons (About page team
+   grid). Every entry is just its own shapes in a 22x22 viewBox;
+   fill/stroke/etc. are supplied once by the wrapping <svg> in
+   renderIcon, since those are inheritable SVG presentation props.
+   ------------------------------------------------------------ */
+const ICON_LIBRARY = {
+  target:    { label: 'Target',      svg: '<circle cx="11" cy="11" r="8"/><circle cx="11" cy="11" r="2.5"/><path d="M11 3v3M11 16v3M3 11h3M16 11h3"/>' },
+  search:    { label: 'Search',      svg: '<circle cx="9" cy="9" r="6"/><path d="M14 14l5 5"/>' },
+  message:   { label: 'Message',     svg: '<path d="M4 3h14a1 1 0 011 1v9a1 1 0 01-1 1H7l-4 4V4a1 1 0 011-1z"/><path d="M7 8h8M7 11h5"/>' },
+  edit:      { label: 'Edit',        svg: '<path d="M15 2l5 5L8 19H3v-5L15 2z"/><path d="M13 4l5 5"/>' },
+  network:   { label: 'Network',     svg: '<circle cx="18" cy="4" r="2.5"/><circle cx="4" cy="11" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6.3 10l9.5-4.5M6.3 12l9.5 4.5"/>' },
+  phone:     { label: 'Phone',       svg: '<path d="M4 4.5C4 3.67 4.67 3 5.5 3h2C8.33 3 9 3.67 9 4.5L8 8c-.5.83-1 1-1.5 1.5S5 11 8.5 14.5 13.5 18 14 17.5s.67-1 1.5-1.5l3.5-1c.83 0 1.5.67 1.5 1.5v2c0 .83-.67 1.5-1.5 1.5C9.5 19.5 2.5 12.5 2.5 5.5c0-.56.2-1.07.52-1.46L4 4.5z"/>' },
+  trending:  { label: 'Growth',      svg: '<path d="M2 15l6-6 4 4 6-8"/><path d="M15 5h5v5"/>' },
+  lock:      { label: 'Lock',        svg: '<rect x="2" y="8" width="18" height="12" rx="2"/><path d="M8 8V6a3 3 0 116 0v2"/><path d="M2 13h18"/>' },
+  check:     { label: 'Check',       svg: '<circle cx="11" cy="11" r="8"/><path d="M7 11.2l2.6 2.6L15 8.4"/>' },
+  idea:      { label: 'Idea',        svg: '<path d="M8.5 17h5M9.3 19.5h3.4"/><path d="M11 3.5a5.5 5.5 0 00-2.8 10.2c.6.4 1 1.1 1 1.8h3.6c0-.7.4-1.4 1-1.8A5.5 5.5 0 0011 3.5z"/>' },
+  announce:  { label: 'Announce',    svg: '<path d="M3 9v4h2.6l6.4 3.5V5.5L5.6 9H3z"/><path d="M15.5 8a3.5 3.5 0 010 6"/>' },
+  layers:    { label: 'Layers',      svg: '<path d="M3 7.5L11 3l8 4.5-8 4.5-8-4.5z"/><path d="M3 12l8 4.5 8-4.5"/>' },
+  calendar:  { label: 'Calendar',    svg: '<rect x="3" y="4.5" width="16" height="14" rx="2"/><path d="M3 9h16M7.5 2.5v4M14.5 2.5v4"/>' },
+  clock:     { label: 'Clock',       svg: '<circle cx="11" cy="11" r="8"/><path d="M11 6.5v4.5l3 2.5"/>' },
+  flag:      { label: 'Flag',        svg: '<path d="M4.5 2.5v17"/><path d="M4.5 3.5H15l-2 3.5L15 10.5H4.5"/>' },
+  star:      { label: 'Star',        svg: '<path d="M11 2.7l2.3 4.9 5.4.6-4 3.7 1.1 5.3L11 14.5l-4.8 2.7 1.1-5.3-4-3.7 5.4-.6L11 2.7z"/>' },
+  briefcase: { label: 'Briefcase',   svg: '<rect x="2.5" y="7.5" width="17" height="11" rx="2"/><path d="M7.5 7.5V6a2 2 0 012-2h3a2 2 0 012 2v1.5"/>' },
+  funnel:    { label: 'Funnel',      svg: '<path d="M3 3.5h16l-6 7v6l-4 2v-8l-6-7z"/>' },
+  gear:      { label: 'Settings',    svg: '<circle cx="11" cy="11" r="3"/><path d="M11 2.5v3M11 16.5v3M3.7 3.7l2.1 2.1M15.2 15.2l2.1 2.1M2.5 11h3M16.5 11h3M3.7 18.3l2.1-2.1M15.2 6.8l2.1-2.1"/>' },
+  mail:      { label: 'Mail',        svg: '<rect x="2.5" y="4.5" width="16" height="13" rx="2"/><path d="M2.5 6l8 5.5 8-5.5"/>' },
+  pin:       { label: 'Location',    svg: '<path d="M11 19.5s6-6.3 6-10.5a6 6 0 10-12 0c0 4.2 6 10.5 6 10.5z"/><circle cx="11" cy="9" r="2.2"/>' },
+  refresh:   { label: 'Refresh',     svg: '<path d="M3.5 3.5v4.3h4.3"/><path d="M18.5 18.5v-4.3h-4.3"/><path d="M4.5 13.3A7 7 0 0017.5 15M17.5 8.7A7 7 0 004.5 7"/>' },
+  award:     { label: 'Award',       svg: '<circle cx="11" cy="7.5" r="4.5"/><path d="M8.2 11.3L6.5 19l4.5-2.7 4.5 2.7-1.7-7.7"/>' },
+  globe:     { label: 'Globe',       svg: '<circle cx="11" cy="11" r="8"/><path d="M3 11h16M11 3a12.6 12.6 0 010 16 12.6 12.6 0 010-16z"/>' },
+  link:      { label: 'Link',        svg: '<path d="M8.3 13.7l5.4-5.4"/><path d="M7.3 10.7l-1.8 1.8a2.7 2.7 0 003.8 3.8l1.8-1.8"/><path d="M14.7 11.3l1.8-1.8a2.7 2.7 0 00-3.8-3.8l-1.8 1.8"/>' },
+  box:       { label: 'Package',     svg: '<path d="M3 7.2l8-4.5 8 4.5v7.6l-8 4.5-8-4.5V7.2z"/><path d="M3 7.2l8 4.5 8-4.5M11 11.7v7.6"/>' },
+  users:     { label: 'Team',        svg: '<circle cx="7.5" cy="8.5" r="3"/><path d="M2.5 18.5c0-2.8 2.2-4.7 5-4.7s5 1.9 5 4.7"/><circle cx="15.5" cy="8.5" r="2.3"/><path d="M13.5 13.6c2.5.3 4.5 2 4.5 4.9"/>' },
+  arrow:     { label: 'Arrow',       svg: '<circle cx="11" cy="11" r="8"/><path d="M8 11h6M12 8.3l2.7 2.7-2.7 2.7"/>' },
+  barchart:  { label: 'Bar Chart',   svg: '<path d="M4 18.5V10M11 18.5V3.5M18 18.5v-6.5"/>' },
+  piechart:  { label: 'Pie Chart',   svg: '<circle cx="11" cy="11" r="8"/><path d="M11 3a8 8 0 018 8h-8V3z"/>' },
+  partners:  { label: 'Partnership', svg: '<circle cx="8.3" cy="11" r="5"/><circle cx="13.7" cy="11" r="5"/>' },
+};
+function renderIcon(key, size) {
+  const icon = ICON_LIBRARY[key];
+  if (!icon) return '';
+  return `<svg width="${size || 22}" height="${size || 22}" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${icon.svg}</svg>`;
+}
+
 const COMPONENTS = {
   'section-tag': {
     label: 'Section Tag', hint: 'The small orange label above a heading, e.g. “How We Help”.',
@@ -333,11 +380,36 @@ const COMPONENTS = {
     render: f => `<p class="section-p reveal">${f.html}</p>`,
   },
   'stats': {
-    label: 'Stats Row', hint: '3–4 big numbers with a caption under each.',
-    fields: [{ key: 'items', label: 'Stats (value | label, one per line)', type: 'textarea', default: '10:1 | pipeline ACV return\n15+ | years experience\nB2B. | Tech only' }],
+    label: 'Stats Row', hint: 'A row of big numbers with a caption under each. Add or remove stats and the row stays evenly balanced (HTML allowed in the number for <em> highlighting).',
+    fields: [
+      { key: 'items', label: 'Stats', type: 'list', itemLabel: 'Stat', default: [
+        { value: '<em>10:1</em>', label: 'pipeline ACV return on campaign spend' },
+        { value: 'Paid <em>on outcomes</em>', label: "we don't get paid until you do" },
+        { value: '15<em>+</em>', label: 'years inside Microsoft & SAP' },
+        { value: 'B2B<em>.</em>', label: 'Tech only. No generalists.' },
+      ], itemFields: [
+        { key: 'value', label: 'Big number / title (HTML allowed for <em>)', type: 'text' },
+        { key: 'label', label: 'Caption', type: 'text' },
+      ] },
+    ],
     render: f => {
-      const rows = f.items.split('\n').map(l => l.split('|').map(s => s.trim())).filter(r => r[0]);
-      return `<div class="stats-section bg-white">\n  <div class="stats-inner stagger">\n${rows.map(([v, l]) => `    <div class="stat-item">\n      <div class="stat-num">${v}</div>\n      <p class="stat-label">${escHtml(l || '')}</p>\n    </div>`).join('\n')}\n  </div>\n</div>`;
+      const rows = (f.items || []).filter(r => r.value);
+      const n = Math.max(rows.length, 1);
+      // Grid column count is per-instance, so it's set via a scoped <style>
+      // (not an inline grid-template-columns, which would also win over the
+      // site's own max-width:640px rule that forces 2 columns on mobile --
+      // this repeats that same rule at equal specificity so mobile still
+      // stacks to 2 columns regardless of how many stats were added here).
+      const uid = 'stats-' + Math.random().toString(36).slice(2, 9);
+      return `<div class="stats-section bg-white">
+  <style>#${uid}{grid-template-columns:repeat(${n},1fr);}@media(max-width:640px){#${uid}{grid-template-columns:repeat(2,1fr);}}</style>
+  <div class="stats-inner stagger" id="${uid}">
+${rows.map(r => `    <div class="stat-item">
+      <div class="stat-num">${r.value}</div>
+      <p class="stat-label">${escHtml(r.label)}</p>
+    </div>`).join('\n')}
+  </div>
+</div>`;
     },
   },
   'trust-bar': {
@@ -357,11 +429,34 @@ const COMPONENTS = {
     },
   },
   'faq': {
-    label: 'FAQ List', hint: 'One Q&A per pair of lines, separated by a blank line.',
-    fields: [{ key: 'items', label: 'Q/A pairs (question, then answer, blank line between pairs)', type: 'textarea', default: 'Question one?\nAnswer one.\n\nQuestion two?\nAnswer two.' }],
+    label: 'Heading + Text + FAQ', hint: 'Section tag, heading, and an FAQ accordion. Add or remove questions freely.',
+    fields: [
+      { key: 'tag', label: 'Label', type: 'text', default: 'Common questions' },
+      { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'What people <em>ask us</em> before they call.' },
+      { key: 'items', label: 'Questions', type: 'list', itemLabel: 'Question', default: [
+        { q: 'Question one?', a: 'Answer one.' },
+        { q: 'Question two?', a: 'Answer two.' },
+      ], itemFields: [
+        { key: 'q', label: 'Question', type: 'text' },
+        { key: 'a', label: 'Answer', type: 'textarea' },
+      ] },
+      { key: 'bg', label: 'Background', type: 'select', options: ['white', 'grey'], default: 'white' },
+    ],
     render: f => {
-      const pairs = f.items.split(/\n\s*\n/).map(block => block.split('\n')).filter(p => p[0]);
-      return `<div class="faq-list stagger">\n${pairs.map(([q, ...a]) => `  <div class="faq-item">\n    <p class="faq-q">${escHtml(q)}</p>\n    <p class="faq-a">${escHtml(a.join(' '))}</p>\n  </div>`).join('\n')}\n</div>`;
+      const bg = f.bg === 'grey' ? 'bg-grey' : 'bg-white';
+      const pairs = (f.items || []).filter(p => p.q);
+      return `<section class="${bg}">
+  <div class="section-inner">
+    <p class="section-tag reveal">${escHtml(f.tag)}</p>
+    <h2 class="section-h reveal">${f.heading}</h2>
+    <div class="faq-list stagger">
+${pairs.map(p => `      <div class="faq-item">
+        <p class="faq-q">${escHtml(p.q)}</p>
+        <p class="faq-a">${escHtml(p.a)}</p>
+      </div>`).join('\n')}
+    </div>
+  </div>
+</section>`;
     },
   },
   'button-row': {
@@ -375,7 +470,7 @@ const COMPONENTS = {
     render: f => `<div class="hero-ctas">\n  <a href="${escHtml(f.primaryUrl)}" class="btn-primary">${escHtml(f.primaryText)} →</a>${f.secondaryText ? `\n  <a href="${escHtml(f.secondaryUrl)}" class="btn-ghost">${escHtml(f.secondaryText)}</a>` : ''}\n</div>`,
   },
   'closing-cta': {
-    label: 'Closing CTA Section', hint: 'The dark full-width CTA band used at the bottom of pages.',
+    label: 'CTA', hint: 'The dark full-width CTA band used at the bottom of pages. Click the button in the preview afterward to change where it links.',
     fields: [
       { key: 'headingHtml', label: 'Heading (HTML allowed)', type: 'text', default: 'Ready to <em>get started?</em>' },
       { key: 'body', label: 'Body', type: 'textarea', default: "No slide deck. We'll tell you honestly if we're a fit." },
@@ -448,6 +543,417 @@ const COMPONENTS = {
     render: f => {
       const pairs = f.items.split(/\n\s*\n/).map(block => block.split('\n')).filter(p => p[0]);
       return `<div class="mistakes-grid reveal">\n${pairs.map(([q, ...a], i) => `  <div class="mistake-card">\n    <div class="mistake-bg-num">${i + 1}</div>\n    <div class="mistake-num">Mistake ${String(i + 1).padStart(2, '0')}</div>\n    <div class="mistake-q">${escHtml(q)}</div>\n    <div class="mistake-a">${escHtml(a.join(' '))}</div>\n  </div>`).join('\n')}\n</div>`;
+    },
+  },
+  'hero': {
+    label: 'Hero', hint: 'Full hero: heading, sub text, one or two buttons, and an image placeholder in a 2-column layout. Deletes/replaces the page’s existing hero — click the button in the preview afterward to set its link.',
+    fields: [
+      { key: 'lines', label: 'Heading lines', type: 'list', itemLabel: 'Line', default: [
+        { text: "We don't" },
+        { text: 'sell pixels.' },
+        { text: 'We sell <em>pipeline.</em>' },
+      ], itemFields: [
+        { key: 'text', label: 'Line text (HTML allowed for <em>)', type: 'text' },
+      ] },
+      { key: 'sub', label: 'Sub text', type: 'textarea', default: 'A B2B tech growth consultancy for Microsoft & SAP partners, and the ISVs they sell.' },
+      { key: 'primaryText', label: 'Button text', type: 'text', default: 'Book a 20-min call' },
+      { key: 'primaryUrl', label: 'Button link', type: 'text', default: 'contact.html' },
+      { key: 'secondaryText', label: 'Second button text (optional)', type: 'text', default: '' },
+      { key: 'secondaryUrl', label: 'Second button link (optional)', type: 'text', default: '' },
+    ],
+    render: f => {
+      const lines = (f.lines || []).filter(l => l.text);
+      return `<section id="hero" style="overflow:hidden;">
+  <canvas class="hero-bg-grid"></canvas>
+  <div class="hero-split" style="position:relative;z-index:1;width:100%;max-width:1240px;margin:0 auto;">
+    <div>
+      <h1 class="hero-title">
+${lines.map(l => `        <span class="line"><span class="word">${l.text}</span></span>`).join('\n')}
+      </h1>
+      <p class="hero-sub">${escHtml(f.sub)}</p>
+      <div class="hero-ctas">
+        <a href="${escHtml(f.primaryUrl)}" class="btn-primary">${escHtml(f.primaryText)} →</a>${f.secondaryText ? `
+        <a href="${escHtml(f.secondaryUrl)}" class="btn-ghost">${escHtml(f.secondaryText)}</a>` : ''}
+      </div>
+    </div>
+    <div class="hero-quote-panel is-placeholder">
+      ${PLACEHOLDER_ICON_HTML}
+    </div>
+  </div>
+</section>`;
+    },
+  },
+  'proof-cards': {
+    label: 'Heading + Text + Callout + Card', hint: 'Section tag, heading, body text, a callout box, and two data cards side by side — a bar/line comparison and a doughnut chart. Fully editable live in the preview afterward.',
+    fields: [
+      { key: 'tag', label: 'Label', type: 'text', default: 'The proof, not the pitch' },
+      { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'The average B2B marketing agency returns 3:1. <em>We return 10:1.</em>' },
+      { key: 'body', label: 'Body text', type: 'textarea', default: 'Most B2B marketing agencies report on impressions and lead volume. We report on pipeline ACV against campaign spend.' },
+      { key: 'calloutHtml', label: 'Callout box text (HTML allowed for <em>)', type: 'textarea', default: "If your B2B marketing agency can't tell you their pipeline-to-spend ratio, <em>they don't have one.</em>" },
+      { key: 'eyebrow1', label: 'Card 1 — small label', type: 'text', default: 'Pipeline Performance' },
+      { key: 'subtitle1', label: 'Card 1 — subtitle', type: 'text', default: 'Pipeline ACV return on campaign spend' },
+      { key: 'row1Desc', label: 'Card 1 — row 1 description', type: 'text', default: 'Blacfox portfolio average (n=11)' },
+      { key: 'row1Value', label: 'Card 1 — row 1 value', type: 'text', default: '10:1' },
+      { key: 'row2Desc', label: 'Card 1 — row 2 description', type: 'text', default: 'B2B industry benchmark (Gartner, 2026)' },
+      { key: 'row2Value', label: 'Card 1 — row 2 value', type: 'text', default: '3:1' },
+      { key: 'source1', label: 'Card 1 — source line', type: 'text', default: 'Source: Blacfox portfolio, n=11 (May 2025–May 2026) · Gartner B2B Marketing Spend Report, 2026' },
+      { key: 'eyebrow2', label: 'Card 2 — small label', type: 'text', default: 'B2B Buyer Behaviour' },
+      { key: 'subtitle2', label: 'Card 2 — subtitle', type: 'text', default: 'Research completed before first vendor contact' },
+      { key: 'percent', label: 'Card 2 — percentage (0–100)', type: 'text', default: '70' },
+      { key: 'legendA', label: 'Card 2 — legend A', type: 'text', default: 'Research done pre-contact' },
+      { key: 'legendB', label: 'Card 2 — legend B', type: 'text', default: 'Post-contact discovery' },
+      { key: 'source2', label: 'Card 2 — source line', type: 'text', default: 'Source: Blacfox Copy Deck, 2026' },
+      { key: 'bg', label: 'Background', type: 'select', options: ['white', 'grey'], default: 'white' },
+    ],
+    render: f => {
+      const num = s => { const n = parseFloat(String(s || '').replace(/,/g, '')); return Number.isFinite(n) ? n : 0; };
+      const v1 = num(f.row1Value), v2 = num(f.row2Value);
+      const max = Math.max(v1, v2, 0.0001);
+      const pct1 = Math.max(0, Math.min(100, (v1 / max) * 100));
+      const pct2 = Math.max(0, Math.min(100, (v2 / max) * 100));
+      const pct = Math.max(0, Math.min(100, num(f.percent)));
+      const arcTarget = Math.round(490 * (1 - pct / 100));
+      const angleRad = (-90 + (pct / 100) * 360) * Math.PI / 180;
+      const dotCx = (100 + 78 * Math.cos(angleRad)).toFixed(1);
+      const dotCy = (100 + 78 * Math.sin(angleRad)).toFixed(1);
+      const bg = f.bg === 'grey' ? 'bg-grey' : 'bg-white';
+      const gradId = 'arcGrad' + Math.random().toString(36).slice(2, 9);
+      // .chart-pair/.bar-*/.arc-fill are only defined in index.css today, not
+      // in every page's stylesheet -- embedding them here (verbatim from
+      // index.css) is what lets this card render correctly no matter which
+      // page it's inserted on, instead of silently losing its styling.
+      const style = `<style>
+.chart-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:32px;}
+@media(max-width:640px){.chart-pair{grid-template-columns:1fr;}}
+@keyframes barGrow{to{width:var(--bar-target,100%);}}
+@keyframes benchGrow{to{width:var(--bar-target,30%);}}
+@keyframes dotFade{to{opacity:1;}}
+.bar-blacfox{position:absolute;top:0;height:100%;width:0;border-radius:2px;background:linear-gradient(to right,var(--orange) 70%,rgba(233,92,37,0.55) 100%);box-shadow:0 0 10px rgba(233,92,37,0.35);animation:barGrow 1.5s cubic-bezier(0.22,0.61,0.36,1) 0.4s forwards;}
+.bar-dot-blacfox{position:absolute;top:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:var(--orange);box-shadow:0 0 18px rgba(233,92,37,0.9),0 0 6px rgba(233,92,37,1);opacity:0;animation:dotFade 0.2s ease 1.85s forwards;}
+.bar-bench{position:absolute;top:0;height:100%;width:0;border-radius:1px;background:rgba(10,10,10,0.18);animation:benchGrow 1.3s cubic-bezier(0.22,0.61,0.36,1) 0.6s forwards;}
+.bar-dot-bench{position:absolute;top:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:50%;background:rgba(10,10,10,0.28);opacity:0;animation:dotFade 0.2s ease 1.75s forwards;}
+@keyframes arcGrow{to{stroke-dashoffset:var(--arc-target,147);}}
+@keyframes arcDotFade{to{opacity:1;}}
+.arc-fill{stroke-dasharray:490;stroke-dashoffset:490;animation:arcGrow 1.5s cubic-bezier(0.22,0.61,0.36,1) 0.4s forwards;filter:drop-shadow(0 0 10px rgba(233,92,37,0.35));}
+#arcDotEnd{opacity:0;animation:arcDotFade 0.2s ease 1.85s forwards;filter:drop-shadow(0 0 18px rgba(233,92,37,0.9)) drop-shadow(0 0 6px rgba(233,92,37,1));}
+</style>`;
+      return `<section class="${bg}">
+  ${style}
+  <div class="section-inner">
+    <p class="section-tag reveal">${escHtml(f.tag)}</p>
+    <h2 class="section-h reveal">${f.heading}</h2>
+    <p class="section-p reveal">${escHtml(f.body)}</p>
+    <div class="callout-box reveal" style="margin-top:48px;">
+      <p>${f.calloutHtml}</p>
+    </div>
+
+    <div class="chart-pair reveal">
+
+      <div class="glass-card" style="border-radius:20px;padding:32px;overflow:visible;">
+        <p style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--orange);margin-bottom:6px;">${escHtml(f.eyebrow1)}</p>
+        <p style="font-size:15px;font-weight:700;color:var(--light);margin-bottom:36px;line-height:1.3;">${escHtml(f.subtitle1)}</p>
+
+        <div class="chart-stat-row" style="margin-bottom:36px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+            <span class="chart-stat-desc" style="font-size:11px;color:#38352f;font-weight:500;letter-spacing:0.01em;">${escHtml(f.row1Desc)}</span>
+            <span class="chart-stat-num" style="font-size:34px;font-weight:900;color:var(--orange);letter-spacing:-0.03em;line-height:1;text-shadow:0 0 24px rgba(233,92,37,0.45);">${escHtml(f.row1Value)}</span>
+          </div>
+          <div style="position:relative;height:2px;background:rgba(10,10,10,0.07);border-radius:2px;overflow:visible;">
+            <div class="bar-blacfox chart-stat-fill" style="left:0;--bar-target:${pct1.toFixed(0)}%;"></div>
+            <div class="bar-dot-blacfox chart-stat-dot" style="left:${pct1.toFixed(0)}%;"></div>
+          </div>
+        </div>
+
+        <div class="chart-stat-row">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+            <span class="chart-stat-desc" style="font-size:11px;color:#38352f;font-weight:500;letter-spacing:0.01em;">${escHtml(f.row2Desc)}</span>
+            <span class="chart-stat-num" style="font-size:24px;font-weight:700;color:rgba(10,10,10,0.62);letter-spacing:-0.03em;line-height:1;">${escHtml(f.row2Value)}</span>
+          </div>
+          <div style="position:relative;height:1px;background:rgba(10,10,10,0.07);border-radius:1px;overflow:visible;">
+            <div class="bar-bench chart-stat-fill" style="left:0;--bar-target:${pct2.toFixed(0)}%;"></div>
+            <div class="bar-dot-bench chart-stat-dot" style="left:${pct2.toFixed(0)}%;"></div>
+          </div>
+        </div>
+
+        <p style="font-size:9px;color:#4a473f;margin-top:28px;letter-spacing:0.08em;text-transform:uppercase;">${escHtml(f.source1)}</p>
+      </div>
+
+      <div class="glass-card" style="border-radius:20px;padding:32px;">
+        <p style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--orange);margin-bottom:6px;">${escHtml(f.eyebrow2)}</p>
+        <p style="font-size:15px;font-weight:700;color:var(--light);margin-bottom:20px;line-height:1.3;">${escHtml(f.subtitle2)}</p>
+        <svg class="chart-arc-panel" viewBox="0 0 200 200" height="190" style="display:block;margin:0 auto;overflow:visible;">
+          <defs>
+            <linearGradient id="${gradId}" x1="50%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#e95c25" stop-opacity="0.95"/>
+              <stop offset="100%" stop-color="#e95c25" stop-opacity="0.45"/>
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r="78" fill="none" stroke="rgba(10,10,10,0.08)" stroke-width="2"/>
+          <circle cx="100" cy="100" r="78" fill="none" stroke="url(#${gradId})" stroke-width="2.5"
+            stroke-linecap="round" transform="rotate(-90 100 100)" class="arc-fill" style="--arc-target:${arcTarget};"/>
+          <circle id="arcDotEnd" cx="${dotCx}" cy="${dotCy}" r="6" fill="#e95c25"/>
+          <text x="100" y="100" text-anchor="middle" dominant-baseline="central" class="chart-arc-text"
+            style="font-size:32px;font-weight:900;fill:#e95c25;font-family:'Montserrat',sans-serif;filter:drop-shadow(0 0 22px rgba(233,92,37,0.5));">${Math.round(pct)}%</text>
+        </svg>
+        <div style="display:flex;gap:20px;justify-content:center;margin-top:14px;">
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 8px rgba(233,92,37,0.6);flex-shrink:0;"></div>
+            <span style="font-size:10px;color:#38352f;">${escHtml(f.legendA)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:rgba(10,10,10,0.16);flex-shrink:0;"></div>
+            <span style="font-size:10px;color:#38352f;">${escHtml(f.legendB)}</span>
+          </div>
+        </div>
+        <p style="font-size:9px;color:#4a473f;margin-top:12px;letter-spacing:0.08em;text-transform:uppercase;text-align:center;">${escHtml(f.source2)}</p>
+      </div>
+
+    </div>
+  </div>
+</section>`;
+    },
+  },
+  'agency-comparison': {
+    label: 'Heading + Text + Comparison', hint: 'Section tag, heading, body text, and two side-by-side comparison columns (each with its own list of numbered steps). Add or remove steps in either column freely.',
+    fields: [
+      { key: 'tag', label: 'Label', type: 'text', default: 'Our model' },
+      { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'Are we a B2B marketing agency? <em>No.</em>' },
+      { key: 'body1', label: 'Body text — paragraph 1', type: 'textarea', default: "We're a B2B tech growth consultancy. We use our own specialists to build the work, but we'll work alongside your in-house team or current agency if that's the fastest path to results." },
+      { key: 'body2', label: 'Body text — paragraph 2 (optional)', type: 'textarea', default: "Here's the uncomfortable truth: most B2B marketing agencies stop at leads. We don't. We stay involved until sales is in real conversations with real buyers." },
+      { key: 'badLabel', label: 'Column 1 — label', type: 'text', default: 'Most B2B Marketing Agencies' },
+      { key: 'badTitle', label: 'Column 1 — title (HTML allowed for <br>)', type: 'text', default: 'Stop at leads.<br>Then shrug.' },
+      { key: 'badSteps', label: 'Column 1 — steps', type: 'list', itemLabel: 'Step', default: [
+        { text: 'Campaigns', sub: 'Impressions, clicks, CPM reports' },
+        { text: 'Leads', sub: 'MQL volume. Spreadsheet of names.' },
+        { text: 'Handover', sub: 'Dropped into the CRM. Job done.' },
+        { text: '(Shrug)', sub: 'Sales team inherits the problem.' },
+      ], itemFields: [
+        { key: 'text', label: 'Step title', type: 'text' },
+        { key: 'sub', label: 'Step caption', type: 'text' },
+      ] },
+      { key: 'badQuote', label: 'Column 1 — closing quote', type: 'textarea', default: "If your agency can't tell you their pipeline-to-spend ratio, they don't have one." },
+      { key: 'goodLabel', label: 'Column 2 — label', type: 'text', default: 'Blacfox' },
+      { key: 'goodTitle', label: 'Column 2 — title (HTML allowed for <br>)', type: 'text', default: 'Stays in the room<br>until sales is talking.' },
+      { key: 'goodSteps', label: 'Column 2 — steps', type: 'list', itemLabel: 'Step', default: [
+        { text: 'Research', sub: 'Real buyer interviews. Decision-maker language.' },
+        { text: 'Positioning', sub: 'PMF built from buyer research. Sales can repeat it.' },
+        { text: 'Campaigns', sub: 'Built on the PMF. Measured on pipeline ACV.' },
+        { text: 'Follow-up', sub: 'SDR outbound. Real conversations, not cold lists.' },
+        { text: 'Sales-ready meetings', sub: 'Decision-makers who are ready to talk. The actual job.' },
+      ], itemFields: [
+        { key: 'text', label: 'Step title', type: 'text' },
+        { key: 'sub', label: 'Step caption', type: 'text' },
+      ] },
+      { key: 'goodOutcomeNum', label: 'Column 2 — outcome number', type: 'text', default: '10:1' },
+      { key: 'goodOutcomeText', label: 'Column 2 — outcome text', type: 'textarea', default: 'Pipeline ACV return on campaign spend, guaranteed or we keep working.' },
+      { key: 'bg', label: 'Background', type: 'select', options: ['white', 'grey'], default: 'grey' },
+    ],
+    render: f => {
+      const bg = f.bg === 'grey' ? 'bg-grey' : 'bg-white';
+      const badSteps = (f.badSteps || []).filter(s => s.text);
+      const goodSteps = (f.goodSteps || []).filter(s => s.text);
+      // .compare-infographic/.cmp-* are only defined in index.css today, not
+      // every page's stylesheet -- embedded so this renders correctly no
+      // matter which page it lands on.
+      const style = `<style>
+.compare-infographic{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:48px;}
+@media(max-width:900px){.compare-infographic{grid-template-columns:1fr;}}
+.cmp-col{padding:40px 36px;display:flex;flex-direction:column;border-radius:20px;background:var(--card);border:1px solid var(--border);}
+.cmp-col.good{border-color:var(--orange);}
+.cmp-col-label{font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:20px;}
+.cmp-col.bad .cmp-col-label{color:var(--muted2);}
+.cmp-col.good .cmp-col-label{color:var(--orange-dark);}
+.cmp-col-title{font-size:22px;font-weight:900;letter-spacing:-0.02em;margin-bottom:32px;color:var(--light);}
+.cmp-steps{display:flex;flex-direction:column;}
+.cmp-step{display:flex;align-items:flex-start;gap:16px;padding:18px 0;border-bottom:1px solid var(--border);}
+.cmp-step:last-child{border-bottom:none;}
+.cmp-step-num{font-size:10px;font-weight:800;letter-spacing:0.12em;width:24px;flex-shrink:0;padding-top:2px;}
+.cmp-col.bad .cmp-step-num{color:var(--muted2);}
+.cmp-col.good .cmp-step-num{color:var(--orange-dark);}
+.cmp-step-text{font-size:15px;font-weight:700;color:var(--light);}
+.cmp-step-sub{font-size:11px;color:var(--muted);margin-top:3px;font-weight:500;}
+.cmp-step-icon{font-size:14px;margin-left:auto;flex-shrink:0;}
+.cmp-dead-end{margin-top:32px;padding:18px 22px;background:var(--bg-alt);border-radius:10px;border:1px solid var(--border);font-size:12px;color:var(--muted2);font-style:italic;}
+.cmp-outcome{margin-top:32px;padding:20px 22px;background:transparent;border-radius:10px;border:1px solid var(--orange);font-size:12px;color:var(--light);font-weight:700;}
+.cmp-outcome-num{font-size:28px;font-weight:900;letter-spacing:-0.02em;color:var(--orange-dark);}
+</style>`;
+      const stepsHtml = (steps, iconColor) => steps.map((s, i) => `          <div class="cmp-step">
+            <div class="cmp-step-num">${String(i + 1).padStart(2, '0')}</div>
+            <div><div class="cmp-step-text">${escHtml(s.text)}</div><div class="cmp-step-sub">${escHtml(s.sub || '')}</div></div>
+            <div class="cmp-step-icon" style="color:${iconColor};">${i === steps.length - 1 ? (iconColor === 'var(--orange)' ? '✓' : '✕') : '→'}</div>
+          </div>`).join('\n');
+      return `<section class="${bg}">
+  ${style}
+  <div class="section-inner">
+    <p class="section-tag reveal">${escHtml(f.tag)}</p>
+    <h2 class="section-h reveal">${f.heading}</h2>
+    <p class="section-p reveal">${escHtml(f.body1)}</p>
+    ${f.body2 ? `<p class="section-p reveal" style="margin-top:16px;">${escHtml(f.body2)}</p>` : ''}
+
+    <div class="compare-infographic reveal">
+      <div class="cmp-col bad">
+        <div class="cmp-col-label">${escHtml(f.badLabel)}</div>
+        <div class="cmp-col-title">${f.badTitle}</div>
+        <div class="cmp-steps">
+${stepsHtml(badSteps, 'var(--muted2)')}
+        </div>
+        <div class="cmp-dead-end">${escHtml(f.badQuote)}</div>
+      </div>
+      <div class="cmp-col good">
+        <div class="cmp-col-label">${escHtml(f.goodLabel)}</div>
+        <div class="cmp-col-title">${f.goodTitle}</div>
+        <div class="cmp-steps">
+${stepsHtml(goodSteps, 'var(--orange)')}
+        </div>
+        <div class="cmp-outcome">
+          <div class="cmp-outcome-num">${escHtml(f.goodOutcomeNum)}</div>
+          ${escHtml(f.goodOutcomeText)}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>`;
+    },
+  },
+  'three-col-cards': {
+    label: 'Heading + Text + 3-col Cards', hint: 'Section tag, heading, body text, and three cards, each with its own heading and text. Choose whether each card is topped with a number, an icon, or nothing.',
+    fields: [
+      { key: 'tag', label: 'Label', type: 'text', default: 'What we do' },
+      { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'Conversions depend on a <em>good story.</em>' },
+      { key: 'body', label: 'Body text', type: 'textarea', default: 'Not the creative-writing kind. The kind that makes a B2B buyer think: "This is for me. This solves my problem. This feels low-risk."' },
+      { key: 'markerMode', label: 'Card marker', type: 'select', options: ['number', 'icon', 'plain'], default: 'number' },
+      { key: 'card1Title', label: 'Card 1 — heading', type: 'text', default: 'We interview your real decision-makers, not assumptions' },
+      { key: 'card1Body', label: 'Card 1 — text', type: 'textarea', default: 'We go directly to your buyers. Their language, their trade-offs, their fears. Not personas from a template.' },
+      { key: 'card1Icon', label: 'Card 1 — icon (used when marker = icon)', type: 'icon', default: 'search' },
+      { key: 'card2Title', label: 'Card 2 — heading', type: 'text', default: 'We turn buyer research into messaging your sales team can repeat' },
+      { key: 'card2Body', label: 'Card 2 — text', type: 'textarea', default: 'Research becomes a Positioning & Messaging Framework your whole team speaks from, consistently.' },
+      { key: 'card2Icon', label: 'Card 2 — icon (used when marker = icon)', type: 'icon', default: 'message' },
+      { key: 'card3Title', label: 'Card 3 — heading', type: 'text', default: 'We build the campaigns and the follow-through, and measure on pipeline' },
+      { key: 'card3Body', label: 'Card 3 — text', type: 'textarea', default: 'We stay in the room. Campaigns, SDR follow-up, sales-ready meetings. Measured on pipeline ACV, not leads.' },
+      { key: 'card3Icon', label: 'Card 3 — icon (used when marker = icon)', type: 'icon', default: 'trending' },
+      { key: 'bg', label: 'Background', type: 'select', options: ['white', 'grey'], default: 'white' },
+    ],
+    render: f => {
+      const bg = f.bg === 'grey' ? 'bg-grey' : 'bg-white';
+      const cards = [
+        { title: f.card1Title, body: f.card1Body, icon: f.card1Icon },
+        { title: f.card2Title, body: f.card2Body, icon: f.card2Icon },
+        { title: f.card3Title, body: f.card3Body, icon: f.card3Icon },
+      ];
+      const marker = (c, i) => {
+        if (f.markerMode === 'icon') return `<div style="color:var(--orange);margin-bottom:10px;">${renderIcon(c.icon, 28)}</div>`;
+        if (f.markerMode === 'plain') return '';
+        return `<p class="card-num">${String(i + 1).padStart(2, '0')}</p>`;
+      };
+      return `<section class="${bg}">
+  <div class="section-inner">
+    <p class="section-tag reveal">${escHtml(f.tag)}</p>
+    <h2 class="section-h reveal">${f.heading}</h2>
+    <p class="section-p reveal">${escHtml(f.body)}</p>
+    <div class="card-grid-3 stagger" style="margin-top:48px;">
+${cards.map((c, i) => `      <div class="dark-card">
+        ${marker(c, i)}
+        <p class="card-title">${escHtml(c.title)}</p>
+        <p class="card-body">${escHtml(c.body)}</p>
+      </div>`).join('\n')}
+    </div>
+  </div>
+</section>`;
+    },
+  },
+  'pmf-timeline': {
+    label: 'Heading + Text + Timeline Swoosh', hint: 'Section tag, heading, body text, and an animated step-by-step wave. Add or remove steps — each caption is a normal text field, fully editable (fixes the old version where the text under the wave couldn’t be clicked).',
+    fields: [
+      { key: 'tag', label: 'Label', type: 'text', default: 'The method' },
+      { key: 'heading', label: 'Heading (HTML allowed for <em>)', type: 'text', default: 'From buyer research to <em>PMF</em>, in six moves.' },
+      { key: 'body', label: 'Body text', type: 'textarea', default: 'Our Positioning & Messaging Framework is built in eight structured steps, from market context to the 4 Ps. Every move has a purpose.' },
+      { key: 'steps', label: 'Steps (the last one is always styled as the output)', type: 'list', itemLabel: 'Step', default: [
+        { name: 'Context', sub: 'Market & Timing' },
+        { name: 'Company', sub: 'Credible Claims' },
+        { name: 'Competitors', sub: "Where They're Weak" },
+        { name: 'Customers', sub: 'Buyer Interviews' },
+        { name: 'Segment', sub: 'Who We Go After' },
+        { name: 'Position', sub: '"Why You" Story' },
+        { name: '4 Ps', sub: 'Price, Product, Place, Promo' },
+        { name: 'PMF', sub: 'The Message Blueprint' },
+      ], itemFields: [
+        { key: 'name', label: 'Step name', type: 'text' },
+        { key: 'sub', label: 'Step caption', type: 'text' },
+      ] },
+      { key: 'buttonText', label: 'Button text (optional)', type: 'text', default: 'See the full method' },
+      { key: 'buttonUrl', label: 'Button link', type: 'text', default: 'method.html' },
+    ],
+    render: f => {
+      const steps = (f.steps || []).filter(s => s.name);
+      const n = Math.max(steps.length, 2);
+      const W = 1600, HIGH = 95, LOW = 215, MID = 155;
+      const xs = steps.map((s, i) => (i / (n - 1)) * W);
+      const ys = steps.map((s, i) => i === n - 1 ? MID : (i % 2 === 0 ? LOW : HIGH));
+      let d = `M ${xs[0].toFixed(0)},${ys[0].toFixed(0)}`;
+      for (let i = 1; i < n; i++) {
+        const segW = xs[i] - xs[i - 1];
+        const c1x = xs[i - 1] + segW * 0.4, c1y = ys[i - 1];
+        const c2x = xs[i] - segW * 0.4, c2y = ys[i];
+        d += ` C ${c1x.toFixed(0)},${c1y.toFixed(0)} ${c2x.toFixed(0)},${c2y.toFixed(0)} ${xs[i].toFixed(0)},${ys[i].toFixed(0)}`;
+      }
+      const uid = 'pmfw' + Math.random().toString(36).slice(2, 9);
+      const dots = steps.map((s, i) => i === n - 1
+        ? `<circle cx="${xs[i].toFixed(0)}" cy="${ys[i].toFixed(0)}" r="22" fill="rgba(233,92,37,0.2)"/><circle cx="${xs[i].toFixed(0)}" cy="${ys[i].toFixed(0)}" r="13" fill="#e95c25"/>`
+        : `<circle cx="${xs[i].toFixed(0)}" cy="${ys[i].toFixed(0)}" r="5" fill="#ffffff" stroke="rgba(10,10,10,0.35)" stroke-width="2"/>`
+      ).join('');
+      const labels = steps.map((s, i) => {
+        const pct = (xs[i] / W) * 100;
+        const align = i === 0 ? 'flex-start' : i === n - 1 ? 'flex-end' : 'center';
+        const tx = i === 0 ? '0%' : i === n - 1 ? '-100%' : '-50%';
+        const isOutput = i === n - 1;
+        return `      <div style="position:absolute;left:${pct.toFixed(1)}%;transform:translateX(${tx});display:flex;flex-direction:column;align-items:${align};max-width:140px;">
+        <p class="reveal" style="font-size:10px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:${isOutput ? '#e95c25' : '#666'};margin-bottom:4px;">${isOutput ? 'Output' : `Step ${String(i + 1).padStart(2, '0')}`}</p>
+        <p class="reveal" style="font-size:14px;font-weight:700;color:${isOutput ? '#e95c25' : '#15130f'};font-style:${isOutput ? 'italic' : 'normal'};margin-bottom:2px;">${escHtml(s.name)}</p>
+        <p class="reveal" style="font-size:9px;font-weight:500;letter-spacing:0.06em;color:${isOutput ? '#e95c25' : '#555'};">${escHtml((s.sub || '').toUpperCase())}</p>
+      </div>`;
+      }).join('\n');
+      return `<section class="bg-grey" id="${uid}" style="overflow:hidden;">
+  <div class="section-inner" style="padding-bottom:48px;">
+    <p class="section-tag reveal">${escHtml(f.tag)}</p>
+    <h2 class="section-h reveal">${f.heading}</h2>
+    <p class="section-p reveal">${escHtml(f.body)}</p>
+  </div>
+
+  <div style="max-width:1240px;margin:0 auto;padding:0 60px;">
+    <svg viewBox="0 0 ${W} 260" preserveAspectRatio="xMidYMid meet" style="width:100%;display:block;overflow:visible;">
+      <path class="${uid}-path" d="${d}" stroke="rgba(10,10,10,0.72)" stroke-width="1.5" fill="none" stroke-dasharray="9999" stroke-dashoffset="9999"/>
+      ${dots}
+    </svg>
+    <div style="position:relative;height:60px;margin-top:12px;border-top:1px solid rgba(10,10,10,0.1);">
+${labels}
+    </div>
+  </div>
+
+  ${f.buttonText ? `<div style="text-align:center;padding:32px 60px 48px;">
+    <a href="${escHtml(f.buttonUrl)}" class="btn-ghost">${escHtml(f.buttonText)} →</a>
+  </div>` : ''}
+
+  <script>
+  (function(){
+    var root = document.getElementById(${JSON.stringify(uid)});
+    if (!root) return;
+    var path = root.querySelector('.${uid}-path');
+    if (!path) return;
+    function draw() {
+      var len = path.getTotalLength();
+      path.style.transition = 'none';
+      path.style.strokeDasharray = len;
+      path.style.strokeDashoffset = len;
+      void path.getBoundingClientRect();
+      path.style.transition = 'stroke-dashoffset 1.6s cubic-bezier(0.4,0,0.2,1)';
+      path.style.strokeDashoffset = '0';
+    }
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function(entries){ if (entries[0].isIntersecting) draw(); }, { threshold: 0.25 }).observe(root);
+    } else { draw(); }
+  })();
+  <\/script>
+</section>`;
     },
   },
 };
@@ -665,6 +1171,11 @@ function collectEditableLeaves(root, out) {
     // instead (see wireChartStatRows in buildPreviewEditScript), addressed
     // by row position, not a leaf index.
     if (el.classList && el.classList.contains('chart-stat-row')) continue;
+    // Buttons (hero/CTA links styled .btn-primary/.btn-ghost/.btn-white) get
+    // their own click-to-edit popup (see wireLinkButtons below) that edits
+    // both the label and the href together -- skip them here so a click
+    // doesn't ALSO trigger plain inline text-editing on the same element.
+    if (el.tagName === 'A' && (el.classList.contains('btn-primary') || el.classList.contains('btn-ghost') || el.classList.contains('btn-white'))) continue;
     if (isPhrasingOnly(el) && hasEditableText(el)) {
       out.push(el);
     } else {
@@ -754,6 +1265,11 @@ window.addEventListener('message', e => {
     if (updateChartArcPanel(e.data.region, e.data.panelIndex, e.data.value)) {
       setStatus('edited (unsaved)', '');
     }
+  } else if (e.data.type === 'button-link') {
+    if (updateLinkButton(e.data.region, e.data.index, e.data.text, e.data.url)) {
+      setStatus('edited (unsaved)', '');
+      refreshPreview();
+    }
   }
 });
 
@@ -817,7 +1333,12 @@ function buildPreviewEditScript(editable) {
     '.cms-chart-editable:hover{outline-color:rgba(233,92,37,.5)}' +
     '.cms-chart-editable.cms-active{outline:2px solid #e95c25;outline-offset:1px}' +
     '#cms-arc-editor{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(233,92,37,.5);border-radius:7px;padding:3px;box-shadow:0 6px 20px rgba(0,0,0,.4)}' +
-    '#cms-arc-editor input{width:52px;background:none;border:none;color:#e95c25;font-size:13px;font-weight:800;text-align:center;font-family:inherit;outline:none}';
+    '#cms-arc-editor input{width:52px;background:none;border:none;color:#e95c25;font-size:13px;font-weight:800;text-align:center;font-family:inherit;outline:none}' +
+    '#cms-link-popup{position:fixed;z-index:99999;display:none;flex-direction:column;gap:6px;background:#1a1a1a;border:1px solid rgba(233,92,37,.5);border-radius:9px;padding:10px;box-shadow:0 8px 26px rgba(0,0,0,.45);width:230px}' +
+    '#cms-link-popup input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:6px;color:#eee;font-size:12px;padding:6px 8px;font-family:inherit;outline:none}' +
+    '#cms-link-popup input:focus{border-color:#e95c25}' +
+    '#cms-link-popup button{background:#e95c25;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:6px;cursor:pointer;font-family:inherit}' +
+    '#cms-link-popup label{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:-3px}';
   document.head.appendChild(style);
 
   function toggleWrap(tagName) {
@@ -1187,8 +1708,62 @@ function buildPreviewEditScript(editable) {
     });
   }
 
+  // Buttons (.btn-primary/.btn-ghost/.btn-white anchors, e.g. hero and CTA
+  // buttons) are skipped by collectEditableLeaves above, so they never
+  // become plain inline-text leaves -- instead a click here opens a small
+  // floating popup with the label text AND the link URL together, since
+  // "click the button to edit it" needs to cover both.
+  var linkPopup = document.createElement('div');
+  linkPopup.id = 'cms-link-popup';
+  linkPopup.innerHTML = '<label>Button text</label><input type="text" id="cms-link-text">' +
+    '<label>Link URL</label><input type="text" id="cms-link-url" placeholder="e.g. contact.html">' +
+    '<button type="button" data-act="apply">Apply</button>';
+  document.body.appendChild(linkPopup);
+  var linkTextInput = linkPopup.querySelector('#cms-link-text');
+  var linkUrlInput = linkPopup.querySelector('#cms-link-url');
+  var linkHideTimer = null;
+  var activeLinkBtn = null;
+  function showLinkPopup(el, region, index) {
+    clearTimeout(linkHideTimer);
+    activeLinkBtn = { region: region, index: index };
+    linkTextInput.value = el.textContent.trim();
+    linkUrlInput.value = el.getAttribute('href') || '';
+    var r = el.getBoundingClientRect();
+    linkPopup.style.display = 'flex';
+    linkPopup.style.top = Math.max(4, r.bottom + 8) + 'px';
+    linkPopup.style.left = Math.max(4, Math.min(r.left, window.innerWidth - 246)) + 'px';
+  }
+  function scheduleHideLinkPopup() {
+    clearTimeout(linkHideTimer);
+    linkHideTimer = setTimeout(function() { linkPopup.style.display = 'none'; activeLinkBtn = null; }, 300);
+  }
+  linkPopup.addEventListener('mouseenter', function() { clearTimeout(linkHideTimer); });
+  linkPopup.addEventListener('mouseleave', scheduleHideLinkPopup);
+  function commitLinkPopup() {
+    if (!activeLinkBtn) return;
+    parent.postMessage({ source: 'blacfox-cms-preview', type: 'button-link', region: activeLinkBtn.region, index: activeLinkBtn.index, text: linkTextInput.value, url: linkUrlInput.value }, '*');
+    linkPopup.style.display = 'none';
+    activeLinkBtn = null;
+  }
+  linkPopup.querySelector('[data-act="apply"]').addEventListener('click', commitLinkPopup);
+  linkUrlInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') commitLinkPopup(); });
+  linkTextInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') commitLinkPopup(); });
+  function wireLinkButtons(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    Array.from(root.querySelectorAll('a.btn-primary, a.btn-ghost, a.btn-white')).forEach(function(a, index) {
+      a.style.cursor = 'pointer';
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showLinkPopup(a, region, index);
+      });
+    });
+  }
+
   wireRegion('#cms-hero-root', 'hero');
   wireRegion('#page-content, .other-page-content', 'main');
+  wireBlocks('#cms-hero-root', 'hero');
   wireBlocks('#page-content, .other-page-content', 'main');
   wireRegion('#cms-article-body-root', 'body');
   wireBlocks('#cms-article-body-root', 'body');
@@ -1198,6 +1773,8 @@ function buildPreviewEditScript(editable) {
   wireChartStatRows('#page-content, .other-page-content', 'main');
   wireChartArcPanels('#cms-hero-root', 'hero');
   wireChartArcPanels('#page-content, .other-page-content', 'main');
+  wireLinkButtons('#cms-hero-root', 'hero');
+  wireLinkButtons('#page-content, .other-page-content', 'main');
   ` : ''}
 })();
 <\/script>`;
@@ -1993,6 +2570,29 @@ function updateChartArcPanel(region, panelIndex, value) {
   return true;
 }
 
+// Applies an edit from the button link-popup (see wireLinkButtons in
+// buildPreviewEditScript) -- these anchors are skipped by
+// collectEditableLeaves, so this is the only path that changes their label
+// or href. Only the first text node is touched (not el.textContent as a
+// whole), so a trailing arrow icon -- a literal "→" character or an inline
+// <svg> -- survives untouched.
+function updateLinkButton(region, index, text, url) {
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const btns = Array.from(doc.body.querySelectorAll('a.btn-primary, a.btn-ghost, a.btn-white'));
+  const btn = btns[index];
+  if (!btn) return false;
+  if (url != null) btn.setAttribute('href', url);
+  if (text != null) {
+    const textNode = Array.from(btn.childNodes).find(n => n.nodeType === 3 && n.textContent.trim());
+    if (textNode) textNode.textContent = text;
+    else btn.insertBefore(doc.createTextNode(text), btn.firstChild);
+  }
+  setRegionHtml(region, doc.body.innerHTML.trim());
+  return true;
+}
+
 async function commitPage(slug, data, hero, main, message) {
   const p = App.pages[slug];
   const content = serializeFrontmatter(data, joinBody(hero, main));
@@ -2122,17 +2722,109 @@ function openInsertSectionModal(region, insertIndex) {
   }));
 }
 
+/* ------------------------------------------------------------
+   Generic "list" field type -- a repeatable set of sub-fields
+   (e.g. one row per stat, per FAQ, per comparison step), with its
+   own add/remove/reorder UI, reusing the same chrome-item-card
+   pattern already used for Nav/Footer's array editors. Generic
+   "icon" field type -- a click-to-pick grid over ICON_LIBRARY.
+   Both plug into openComponentForm below via f.type.
+   ------------------------------------------------------------ */
+function renderListField(f) {
+  const rows = (f.default || []).map((row, i) => listFieldRow(f, row, i)).join('');
+  return `<div class="field-group">
+    <label class="field-label">${f.label}</label>
+    <div class="array-list" id="cf-list-${f.key}">${rows}</div>
+    <button type="button" class="add-row-btn" data-list-add-key="${f.key}" style="margin-top:6px">+ Add ${escHtml(f.itemLabel || 'item')}</button>
+  </div>`;
+}
+function listFieldRow(f, row, i) {
+  row = row || {};
+  const inputs = f.itemFields.map(sf => {
+    const val = escHtml(row[sf.key] || '');
+    return sf.type === 'textarea'
+      ? `<textarea class="field-textarea list-subfield" data-key="${sf.key}" placeholder="${escHtml(sf.label)}" style="min-height:56px">${val}</textarea>`
+      : `<input class="field-input list-subfield" data-key="${sf.key}" placeholder="${escHtml(sf.label)}" value="${val}">`;
+  }).join('');
+  return `<div class="chrome-item-card" data-i="${i}">
+    <div class="chrome-item-head"><span class="chrome-item-badge">${escHtml(f.itemLabel || 'Item')} ${i + 1}</span>
+      <div class="move-btns"><button type="button" data-move="up">↑</button><button type="button" data-move="down">↓</button><button type="button" data-list-remove>✕</button></div>
+    </div>
+    ${inputs}
+  </div>`;
+}
+function wireListField(f) {
+  const container = document.getElementById(`cf-list-${f.key}`);
+  function renumber() {
+    const cards = container.querySelectorAll('.chrome-item-card');
+    cards.forEach((c, i) => {
+      c.querySelector('.chrome-item-badge').textContent = `${f.itemLabel || 'Item'} ${i + 1}`;
+      const up = c.querySelector('[data-move="up"]'), down = c.querySelector('[data-move="down"]');
+      up.disabled = i === 0; down.disabled = i === cards.length - 1;
+      c.querySelector('[data-list-remove]').disabled = cards.length <= 1;
+    });
+  }
+  function wireRow(card) {
+    card.querySelector('[data-move="up"]').onclick = () => { const prev = card.previousElementSibling; if (prev) container.insertBefore(card, prev); renumber(); };
+    card.querySelector('[data-move="down"]').onclick = () => { const next = card.nextElementSibling; if (next) container.insertBefore(next, card); renumber(); };
+    card.querySelector('[data-list-remove]').onclick = () => { if (container.querySelectorAll('.chrome-item-card').length <= 1) return; card.remove(); renumber(); };
+  }
+  container.querySelectorAll('.chrome-item-card').forEach(wireRow);
+  renumber();
+  document.querySelector(`[data-list-add-key="${f.key}"]`).addEventListener('click', () => {
+    const idx = container.querySelectorAll('.chrome-item-card').length;
+    const blank = {};
+    f.itemFields.forEach(sf => { blank[sf.key] = ''; });
+    container.insertAdjacentHTML('beforeend', listFieldRow(f, blank, idx));
+    wireRow(container.lastElementChild);
+    renumber();
+  });
+}
+function collectListField(f) {
+  return Array.from(document.querySelectorAll(`#cf-list-${f.key} .chrome-item-card`)).map(card => {
+    const obj = {};
+    f.itemFields.forEach(sf => { obj[sf.key] = card.querySelector(`[data-key="${sf.key}"]`).value.trim(); });
+    return obj;
+  });
+}
+function renderIconPickerField(f) {
+  const current = f.default || '';
+  const options = Object.entries(ICON_LIBRARY).map(([key, icon]) => `<button type="button" class="icon-pick-btn${key === current ? ' on' : ''}" data-icon-key="${key}" title="${escHtml(icon.label)}">${renderIcon(key, 20)}</button>`).join('');
+  return `<div class="field-group">
+    <label class="field-label">${f.label}</label>
+    <input type="hidden" id="cf-${f.key}" value="${escHtml(current)}">
+    <div class="icon-pick-grid" id="cf-${f.key}-grid">${options}</div>
+  </div>`;
+}
+function wireIconPickerField(f) {
+  const grid = document.getElementById(`cf-${f.key}-grid`);
+  const hidden = document.getElementById(`cf-${f.key}`);
+  grid.querySelectorAll('.icon-pick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      grid.querySelectorAll('.icon-pick-btn').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      hidden.value = btn.dataset.iconKey;
+    });
+  });
+}
+
 function openComponentForm(compSet, key, region, insertIndex) {
   const c = compSet[key];
   const fieldsHtml = c.fields.map(f => {
+    if (f.type === 'list') return renderListField(f);
+    if (f.type === 'icon') return renderIconPickerField(f);
     if (f.type === 'textarea') return `<div class="field-group"><label class="field-label">${f.label}</label><textarea class="field-textarea" id="cf-${f.key}" style="min-height:90px">${escHtml(f.default)}</textarea></div>`;
     if (f.type === 'select') return `<div class="field-group"><label class="field-label">${f.label}</label><select class="field-select" id="cf-${f.key}">${f.options.map(o => `<option${o === f.default ? ' selected' : ''}>${o}</option>`).join('')}</select></div>`;
     return `<div class="field-group"><label class="field-label">${f.label}</label><input class="field-input" id="cf-${f.key}" value="${escHtml(f.default)}"></div>`;
   }).join('');
   openModal(`<div class="modal-title">${c.label}</div>${fieldsHtml}<div class="modal-actions"><button class="btn btn-ghost" data-close>Back</button><button class="btn btn-primary" id="cf-insert">Insert</button></div>`);
+  c.fields.forEach(f => {
+    if (f.type === 'list') wireListField(f);
+    if (f.type === 'icon') wireIconPickerField(f);
+  });
   document.getElementById('cf-insert').addEventListener('click', () => {
     const values = {};
-    c.fields.forEach(f => { values[f.key] = document.getElementById('cf-' + f.key).value; });
+    c.fields.forEach(f => { values[f.key] = f.type === 'list' ? collectListField(f) : document.getElementById('cf-' + f.key).value; });
     const html = c.render(values);
     insertBlockAt(region, insertIndex, html);
     closeModal();
