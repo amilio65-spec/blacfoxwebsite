@@ -1284,6 +1284,14 @@ window.addEventListener('message', e => {
       ? addFaqItem(e.data.region, e.data.groupIndex)
       : removeFaqItem(e.data.region, e.data.groupIndex, e.data.itemIndex);
     if (ok) { setStatus('edited (unsaved)', ''); refreshPreview(); }
+  } else if (e.data.type === 'card-marker-mode') {
+    if (setCardMarkerMode(e.data.region, e.data.groupIndex, e.data.mode)) {
+      setStatus('edited (unsaved)', ''); refreshPreview();
+    }
+  } else if (e.data.type === 'card-marker-icon') {
+    if (setCardIcon(e.data.region, e.data.groupIndex, e.data.cardIndex, e.data.icon)) {
+      setStatus('edited (unsaved)', ''); refreshPreview();
+    }
   }
 });
 
@@ -1307,6 +1315,8 @@ function buildPreviewEditScript(editable) {
   var CHART_ARC_CIRCUMFERENCE = ${CHART_ARC_CIRCUMFERENCE};
   var CHART_ARC_RADIUS = ${CHART_ARC_RADIUS};
   var CHART_ARC_CENTER = ${CHART_ARC_CENTER};
+  var ICON_LIBRARY = ${JSON.stringify(ICON_LIBRARY)};
+  ${renderIcon.toString()}
   ${isPhrasingOnly.toString()}
   ${hasEditableText.toString()}
   ${collectEditableLeaves.toString()}
@@ -1358,7 +1368,17 @@ function buildPreviewEditScript(editable) {
     '.stat-item:hover .cms-stat-del,.faq-item:hover .cms-faq-del{opacity:1}' +
     '.faq-item{position:relative}' +
     '.cms-stat-add,.cms-faq-add{display:block;margin:16px auto 0;background:rgba(233,92,37,.1);border:1px dashed rgba(233,92,37,.4);color:#e95c25;border-radius:6px;padding:7px 16px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}' +
-    '.cms-stat-add:hover,.cms-faq-add:hover{background:rgba(233,92,37,.18)}';
+    '.cms-stat-add:hover,.cms-faq-add:hover{background:rgba(233,92,37,.18)}' +
+    '.cms-cardgrp-toolbar{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:4px;gap:2px;box-shadow:0 6px 20px rgba(0,0,0,.4)}' +
+    '.cms-cardgrp-toolbar button{background:none;border:none;color:#eee;font-size:11px;font-weight:700;padding:5px 9px;border-radius:5px;cursor:pointer;font-family:inherit}' +
+    '.cms-cardgrp-toolbar button:hover{background:rgba(255,255,255,.12)}' +
+    '.cms-cardgrp-toolbar button.on{background:rgba(233,92,37,.3);color:#e95c25}' +
+    '.cms-card-icon-picker{cursor:pointer;outline:1px dashed transparent;border-radius:6px;transition:outline-color .1s}' +
+    '.cms-card-icon-picker:hover{outline-color:rgba(233,92,37,.5)}' +
+    '#cms-card-icon-popup{position:fixed;z-index:99999;display:none;background:#1a1a1a;border:1px solid rgba(233,92,37,.5);border-radius:8px;padding:8px;box-shadow:0 8px 26px rgba(0,0,0,.45);width:190px}' +
+    '#cms-card-icon-popup .icon-pick-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}' +
+    '#cms-card-icon-popup button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:5px;color:#aaa;padding:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}' +
+    '#cms-card-icon-popup button:hover{background:rgba(233,92,37,.15);color:#fff}';
   document.head.appendChild(style);
 
   function toggleWrap(tagName) {
@@ -1849,6 +1869,93 @@ function buildPreviewEditScript(editable) {
     });
   }
 
+  // Card marker mode (number / icon / plain) for any .card-grid-3/
+  // .card-grid-2 of .dark-card items -- same "works on pre-existing
+  // hand-authored markup too" approach as stats/FAQ above. A small toolbar
+  // on hovering the grid switches the whole group's mode; when the mode is
+  // "icon", each card's marker becomes clickable to open a per-card icon
+  // picker. The chosen icon is stored as a data-cms-icon attribute on the
+  // card itself so it survives switching modes back and forth.
+  var iconPopup = document.createElement('div');
+  iconPopup.id = 'cms-card-icon-popup';
+  document.body.appendChild(iconPopup);
+  var iconPopupHideTimer = null;
+  function showIconPopup(anchorEl, region, groupIndex, cardIndex) {
+    clearTimeout(iconPopupHideTimer);
+    var html = Object.keys(ICON_LIBRARY).map(function(key) {
+      return '<button type="button" data-icon-key="' + key + '" title="' + ICON_LIBRARY[key].label + '">' + renderIcon(key, 18) + '</button>';
+    }).join('');
+    iconPopup.innerHTML = '<div class="icon-pick-grid">' + html + '</div>';
+    var r = anchorEl.getBoundingClientRect();
+    iconPopup.style.display = 'block';
+    iconPopup.style.top = Math.max(4, r.bottom + 6) + 'px';
+    iconPopup.style.left = Math.max(4, Math.min(r.left, window.innerWidth - 206)) + 'px';
+    Array.from(iconPopup.querySelectorAll('button')).forEach(function(b) {
+      b.onclick = function(e) {
+        e.preventDefault(); e.stopPropagation();
+        parent.postMessage({ source: 'blacfox-cms-preview', type: 'card-marker-icon', region: region, groupIndex: groupIndex, cardIndex: cardIndex, icon: b.dataset.iconKey }, '*');
+        iconPopup.style.display = 'none';
+      };
+    });
+  }
+  iconPopup.addEventListener('mouseenter', function() { clearTimeout(iconPopupHideTimer); });
+  iconPopup.addEventListener('mouseleave', function() { iconPopupHideTimer = setTimeout(function() { iconPopup.style.display = 'none'; }, 400); });
+  document.addEventListener('click', function(e) { if (!iconPopup.contains(e.target)) iconPopup.style.display = 'none'; });
+
+  var cardGrpToolbar = document.createElement('div');
+  cardGrpToolbar.className = 'cms-cardgrp-toolbar';
+  cardGrpToolbar.innerHTML = '<button data-mode="number" title="Numbered">123</button><button data-mode="icon" title="Icon">✦</button><button data-mode="plain" title="No marker">—</button>';
+  document.body.appendChild(cardGrpToolbar);
+  var cardGrpHideTimer = null;
+  var activeCardGroup = null;
+  function cardGroupMode(group) {
+    var first = group.querySelector('.dark-card');
+    if (!first) return 'plain';
+    if (first.querySelector(':scope > .card-num')) return 'number';
+    if (first.querySelector(':scope > .cms-card-icon')) return 'icon';
+    return 'plain';
+  }
+  function showCardGrpToolbar(group, groupIndex) {
+    clearTimeout(cardGrpHideTimer);
+    activeCardGroup = { groupIndex: groupIndex };
+    var mode = cardGroupMode(group);
+    Array.from(cardGrpToolbar.querySelectorAll('button')).forEach(function(b) { b.classList.toggle('on', b.dataset.mode === mode); });
+    var r = group.getBoundingClientRect();
+    cardGrpToolbar.style.display = 'flex';
+    cardGrpToolbar.style.top = Math.max(4, r.top - 34) + 'px';
+    cardGrpToolbar.style.left = Math.max(4, r.right - 120) + 'px';
+  }
+  function scheduleHideCardGrpToolbar() {
+    clearTimeout(cardGrpHideTimer);
+    cardGrpHideTimer = setTimeout(function() { cardGrpToolbar.style.display = 'none'; activeCardGroup = null; }, 300);
+  }
+  cardGrpToolbar.addEventListener('mouseenter', function() { clearTimeout(cardGrpHideTimer); });
+  cardGrpToolbar.addEventListener('mouseleave', scheduleHideCardGrpToolbar);
+  function wireCardGroups(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    Array.from(root.querySelectorAll('.card-grid-3, .card-grid-2')).forEach(function(group, groupIndex) {
+      group.addEventListener('mouseenter', function() { showCardGrpToolbar(group, groupIndex); });
+      group.addEventListener('mouseleave', scheduleHideCardGrpToolbar);
+      cardGrpToolbar.onclick = function(e) {
+        var btn = e.target.closest('button');
+        if (!btn || !activeCardGroup) return;
+        parent.postMessage({ source: 'blacfox-cms-preview', type: 'card-marker-mode', region: region, groupIndex: activeCardGroup.groupIndex, mode: btn.dataset.mode }, '*');
+      };
+      Array.from(group.querySelectorAll(':scope > .dark-card')).forEach(function(card, cardIndex) {
+        var marker = card.querySelector(':scope > .cms-card-icon');
+        if (marker) {
+          marker.classList.add('cms-card-icon-picker');
+          marker.title = 'Click to change icon';
+          marker.addEventListener('click', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            showIconPopup(marker, region, groupIndex, cardIndex);
+          });
+        }
+      });
+    });
+  }
+
   wireRegion('#cms-hero-root', 'hero');
   wireRegion('#page-content, .other-page-content', 'main');
   wireBlocks('#cms-hero-root', 'hero');
@@ -1867,6 +1974,8 @@ function buildPreviewEditScript(editable) {
   wireStatsGroups('#page-content, .other-page-content', 'main');
   wireFaqGroups('#cms-hero-root', 'hero');
   wireFaqGroups('#page-content, .other-page-content', 'main');
+  wireCardGroups('#cms-hero-root', 'hero');
+  wireCardGroups('#page-content, .other-page-content', 'main');
   ` : ''}
 })();
 <\/script>`;
@@ -2764,6 +2873,65 @@ function removeFaqItem(region, groupIndex, itemIndex) {
     const items = Array.from(group.querySelectorAll(':scope > .faq-item'));
     if (items.length <= 1) return;
     if (items[itemIndex]) items[itemIndex].remove();
+  });
+}
+
+/* ------------------------------------------------------------
+   Card marker mode (number / icon / plain) for any .card-grid-3/
+   .card-grid-2 of .dark-card cards -- see wireCardGroups in
+   buildPreviewEditScript for the hover toolbar + icon popup that
+   send these. The chosen icon is kept as a data-cms-icon attribute
+   on the card (not just in the marker's rendered SVG) so it isn't
+   lost if the mode is switched away and back.
+   ------------------------------------------------------------ */
+function mutateCardGroup(region, groupIndex, mutate) {
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const group = Array.from(doc.body.querySelectorAll('.card-grid-3, .card-grid-2'))[groupIndex];
+  if (!group) return false;
+  mutate(group, doc);
+  setRegionHtml(region, doc.body.innerHTML.trim());
+  return true;
+}
+function setCardMarkerMode(region, groupIndex, mode) {
+  return mutateCardGroup(region, groupIndex, (group, doc) => {
+    const cards = Array.from(group.querySelectorAll(':scope > .dark-card'));
+    cards.forEach((card, i) => {
+      const existing = card.querySelector(':scope > .card-num, :scope > .cms-card-icon');
+      if (existing) existing.remove();
+      if (mode === 'number') {
+        const p = doc.createElement('p');
+        p.className = 'card-num';
+        p.textContent = String(i + 1).padStart(2, '0');
+        card.insertBefore(p, card.firstChild);
+      } else if (mode === 'icon') {
+        const iconKey = card.getAttribute('data-cms-icon') || 'target';
+        const div = doc.createElement('div');
+        div.className = 'cms-card-icon';
+        div.setAttribute('style', 'color:var(--orange);margin-bottom:10px;');
+        div.innerHTML = renderIcon(iconKey, 28);
+        card.setAttribute('data-cms-icon', iconKey);
+        card.insertBefore(div, card.firstChild);
+      }
+    });
+  });
+}
+function setCardIcon(region, groupIndex, cardIndex, iconKey) {
+  return mutateCardGroup(region, groupIndex, (group, doc) => {
+    const card = Array.from(group.querySelectorAll(':scope > .dark-card'))[cardIndex];
+    if (!card) return;
+    card.setAttribute('data-cms-icon', iconKey);
+    let marker = card.querySelector(':scope > .cms-card-icon');
+    if (!marker) {
+      const existingNum = card.querySelector(':scope > .card-num');
+      if (existingNum) existingNum.remove();
+      marker = doc.createElement('div');
+      marker.className = 'cms-card-icon';
+      marker.setAttribute('style', 'color:var(--orange);margin-bottom:10px;');
+      card.insertBefore(marker, card.firstChild);
+    }
+    marker.innerHTML = renderIcon(iconKey, 28);
   });
 }
 
