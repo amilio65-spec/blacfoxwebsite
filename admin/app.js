@@ -1802,7 +1802,7 @@ function buildPreviewEditScript(editable) {
       el.innerHTML = lines.join('<br>');
     } else {
       var sourceHtml = current ? Array.from(current.children).map(function(li) { return li.innerHTML; }).join('<br>') : el.innerHTML;
-      var items = sourceHtml.split(/<br\s*\/?>/i).map(function(s) { return s.trim(); }).filter(function(s) { return s.length; });
+      var items = sourceHtml.split(/<br\\s*\\/?>/i).map(function(s) { return s.trim(); }).filter(function(s) { return s.length; });
       if (!items.length) items = [sourceHtml];
       var tag = wantTag.toLowerCase();
       el = reparentActiveLeaf(el);
