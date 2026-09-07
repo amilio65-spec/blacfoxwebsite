@@ -1176,6 +1176,10 @@ function collectEditableLeaves(root, out) {
     // both the label and the href together -- skip them here so a click
     // doesn't ALSO trigger plain inline text-editing on the same element.
     if (el.tagName === 'A' && (el.classList.contains('btn-primary') || el.classList.contains('btn-ghost') || el.classList.contains('btn-white'))) continue;
+    // Add/remove UI injected live by wireStatsGroups/wireFaqGroups (buttons
+    // that exist only in the rendered preview DOM, never in the saved HTML
+    // string) -- skip so they don't get treated as stray editable text leaves.
+    if (el.classList && (el.classList.contains('cms-stat-del') || el.classList.contains('cms-stat-add') || el.classList.contains('cms-faq-del') || el.classList.contains('cms-faq-add'))) continue;
     if (isPhrasingOnly(el) && hasEditableText(el)) {
       out.push(el);
     } else {
@@ -1270,6 +1274,16 @@ window.addEventListener('message', e => {
       setStatus('edited (unsaved)', '');
       refreshPreview();
     }
+  } else if (e.data.type === 'stat-item') {
+    const ok = e.data.action === 'add'
+      ? addStatItem(e.data.region, e.data.groupIndex)
+      : removeStatItem(e.data.region, e.data.groupIndex, e.data.itemIndex);
+    if (ok) { setStatus('edited (unsaved)', ''); refreshPreview(); }
+  } else if (e.data.type === 'faq-item') {
+    const ok = e.data.action === 'add'
+      ? addFaqItem(e.data.region, e.data.groupIndex)
+      : removeFaqItem(e.data.region, e.data.groupIndex, e.data.itemIndex);
+    if (ok) { setStatus('edited (unsaved)', ''); refreshPreview(); }
   }
 });
 
@@ -1338,7 +1352,13 @@ function buildPreviewEditScript(editable) {
     '#cms-link-popup input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:6px;color:#eee;font-size:12px;padding:6px 8px;font-family:inherit;outline:none}' +
     '#cms-link-popup input:focus{border-color:#e95c25}' +
     '#cms-link-popup button{background:#e95c25;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;padding:6px;cursor:pointer;font-family:inherit}' +
-    '#cms-link-popup label{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:-3px}';
+    '#cms-link-popup label{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:-3px}' +
+    '.stat-item{position:relative}' +
+    '.cms-stat-del,.cms-faq-del{position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;background:#e95c25;color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s;z-index:20;font-family:inherit}' +
+    '.stat-item:hover .cms-stat-del,.faq-item:hover .cms-faq-del{opacity:1}' +
+    '.faq-item{position:relative}' +
+    '.cms-stat-add,.cms-faq-add{display:block;margin:16px auto 0;background:rgba(233,92,37,.1);border:1px dashed rgba(233,92,37,.4);color:#e95c25;border-radius:6px;padding:7px 16px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}' +
+    '.cms-stat-add:hover,.cms-faq-add:hover{background:rgba(233,92,37,.18)}';
   document.head.appendChild(style);
 
   function toggleWrap(tagName) {
@@ -1761,6 +1781,74 @@ function buildPreviewEditScript(editable) {
     });
   }
 
+  // Add/remove for repeating groups (stats rows, FAQ questions) -- works on
+  // ANY .stats-inner/.faq-list on the page, whether it's a fresh component
+  // insert or a pre-existing hand-authored section, since both use the same
+  // real classes. Addressed by position (group index within the region,
+  // item index within that group), same convention as the illustration/
+  // chart wiring above -- nothing here is written into the saved HTML
+  // (delete/add buttons are injected fresh into the live DOM on every
+  // preview reload), so the position mapping always matches what's actually
+  // saved.
+  function wireStatsGroups(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    Array.from(root.querySelectorAll('.stats-inner')).forEach(function(group, groupIndex) {
+      var items = Array.from(group.children).filter(function(el) { return el.classList.contains('stat-item'); });
+      items.forEach(function(item, itemIndex) {
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'cms-stat-del';
+        del.textContent = '✕';
+        del.title = 'Remove this stat';
+        del.addEventListener('click', function(e) {
+          e.preventDefault(); e.stopPropagation();
+          if (items.length <= 1) return;
+          parent.postMessage({ source: 'blacfox-cms-preview', type: 'stat-item', action: 'remove', region: region, groupIndex: groupIndex, itemIndex: itemIndex }, '*');
+        });
+        item.appendChild(del);
+      });
+      var addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'cms-stat-add';
+      addBtn.textContent = '+ Add stat';
+      addBtn.addEventListener('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        parent.postMessage({ source: 'blacfox-cms-preview', type: 'stat-item', action: 'add', region: region, groupIndex: groupIndex }, '*');
+      });
+      group.parentElement.appendChild(addBtn);
+    });
+  }
+  function wireFaqGroups(rootSelector, region) {
+    var root = document.querySelector(rootSelector);
+    if (!root) return;
+    Array.from(root.querySelectorAll('.faq-list')).forEach(function(group, groupIndex) {
+      var items = Array.from(group.children).filter(function(el) { return el.classList.contains('faq-item'); });
+      items.forEach(function(item, itemIndex) {
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'cms-faq-del';
+        del.textContent = '✕';
+        del.title = 'Remove this question';
+        del.addEventListener('click', function(e) {
+          e.preventDefault(); e.stopPropagation();
+          if (items.length <= 1) return;
+          parent.postMessage({ source: 'blacfox-cms-preview', type: 'faq-item', action: 'remove', region: region, groupIndex: groupIndex, itemIndex: itemIndex }, '*');
+        });
+        item.appendChild(del);
+      });
+      var addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'cms-faq-add';
+      addBtn.textContent = '+ Add question';
+      addBtn.addEventListener('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        parent.postMessage({ source: 'blacfox-cms-preview', type: 'faq-item', action: 'add', region: region, groupIndex: groupIndex }, '*');
+      });
+      group.parentElement.appendChild(addBtn);
+    });
+  }
+
   wireRegion('#cms-hero-root', 'hero');
   wireRegion('#page-content, .other-page-content', 'main');
   wireBlocks('#cms-hero-root', 'hero');
@@ -1775,6 +1863,10 @@ function buildPreviewEditScript(editable) {
   wireChartArcPanels('#page-content, .other-page-content', 'main');
   wireLinkButtons('#cms-hero-root', 'hero');
   wireLinkButtons('#page-content, .other-page-content', 'main');
+  wireStatsGroups('#cms-hero-root', 'hero');
+  wireStatsGroups('#page-content, .other-page-content', 'main');
+  wireFaqGroups('#cms-hero-root', 'hero');
+  wireFaqGroups('#page-content, .other-page-content', 'main');
   ` : ''}
 })();
 <\/script>`;
@@ -2591,6 +2683,88 @@ function updateLinkButton(region, index, text, url) {
   }
   setRegionHtml(region, doc.body.innerHTML.trim());
   return true;
+}
+
+/* ------------------------------------------------------------
+   Add/remove for repeating groups (stats rows, FAQ questions) --
+   see wireStatsGroups/wireFaqGroups in buildPreviewEditScript for
+   the preview-side buttons that send these. Works identically on
+   a freshly-inserted component's markup and on any pre-existing
+   hand-authored .stats-inner/.faq-list, since both use the same
+   real classes -- there's nothing component-specific being relied
+   on here, just the shared site markup.
+   ------------------------------------------------------------ */
+// Stats columns are normally balanced via a scoped <style>#id{...} emitted
+// by the 'stats' component's own render() (see COMPONENTS above) -- a
+// pre-existing hand-authored stats bar never had one, so this assigns an id
+// and creates it the first time an edit touches that block, then keeps it
+// in sync on every later add/remove.
+function ensureStatsScopedStyle(group, doc) {
+  let id = group.getAttribute('id');
+  if (!id) {
+    id = 'stats-' + Math.random().toString(36).slice(2, 9);
+    group.setAttribute('id', id);
+  }
+  const n = Math.max(group.querySelectorAll(':scope > .stat-item').length, 1);
+  const css = `#${id}{grid-template-columns:repeat(${n},1fr);}@media(max-width:640px){#${id}{grid-template-columns:repeat(2,1fr);}}`;
+  const parent = group.parentElement;
+  let styleEl = Array.from(parent.children).find(el => el.tagName === 'STYLE' && el.textContent.includes(`#${id}`));
+  if (!styleEl) {
+    styleEl = doc.createElement('style');
+    parent.insertBefore(styleEl, group);
+  }
+  styleEl.textContent = css;
+}
+function mutateStatsGroup(region, groupIndex, mutate) {
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const group = Array.from(doc.body.querySelectorAll('.stats-inner'))[groupIndex];
+  if (!group) return false;
+  mutate(group, doc);
+  ensureStatsScopedStyle(group, doc);
+  setRegionHtml(region, doc.body.innerHTML.trim());
+  return true;
+}
+function addStatItem(region, groupIndex) {
+  return mutateStatsGroup(region, groupIndex, (group, doc) => {
+    const div = doc.createElement('div');
+    div.className = 'stat-item';
+    div.innerHTML = '<div class="stat-num">New</div>\n      <p class="stat-label">Caption</p>';
+    group.appendChild(div);
+  });
+}
+function removeStatItem(region, groupIndex, itemIndex) {
+  return mutateStatsGroup(region, groupIndex, group => {
+    const items = Array.from(group.querySelectorAll(':scope > .stat-item'));
+    if (items.length <= 1) return;
+    if (items[itemIndex]) items[itemIndex].remove();
+  });
+}
+function mutateFaqGroup(region, groupIndex, mutate) {
+  const raw = getRegionHtml(region);
+  if (raw == null) return false;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const group = Array.from(doc.body.querySelectorAll('.faq-list'))[groupIndex];
+  if (!group) return false;
+  mutate(group, doc);
+  setRegionHtml(region, doc.body.innerHTML.trim());
+  return true;
+}
+function addFaqItem(region, groupIndex) {
+  return mutateFaqGroup(region, groupIndex, (group, doc) => {
+    const div = doc.createElement('div');
+    div.className = 'faq-item';
+    div.innerHTML = '<p class="faq-q">New question?</p>\n      <p class="faq-a">New answer.</p>';
+    group.appendChild(div);
+  });
+}
+function removeFaqItem(region, groupIndex, itemIndex) {
+  return mutateFaqGroup(region, groupIndex, group => {
+    const items = Array.from(group.querySelectorAll(':scope > .faq-item'));
+    if (items.length <= 1) return;
+    if (items[itemIndex]) items[itemIndex].remove();
+  });
 }
 
 async function commitPage(slug, data, hero, main, message) {
