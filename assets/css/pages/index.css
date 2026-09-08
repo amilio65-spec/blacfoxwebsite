@@ -380,7 +380,7 @@ section{position:relative;overflow:clip}
    case-studies grids) render identically on the home page. */
 .article-card{display:block;text-decoration:none;overflow:hidden}
 .article-card-thumb{
-  aspect-ratio:16/9;margin:-1px -1px 20px;border-radius:19px 19px 0 0;
+  aspect-ratio:16/9;margin:-37px -29px 20px;border-radius:20px 20px 0 0;
   overflow:hidden;background:var(--bg-alt,#f3f0ec);
 }
 .article-card-thumb img{width:100%;height:100%;object-fit:cover;display:block}
