@@ -125,7 +125,7 @@ function renderPostHero(data, kindLabel) {
   const panelInner = data.banner
     ? `<img src="${data.banner}" alt="${escHtml(data.title || '')}">`
     : `<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.75"/><path d="M21 15l-5-5L5 21"/></svg><span>Illustration placeholder</span>`;
-  return `<section class="hero-section article-hero" style="position:relative;overflow:hidden;min-height:100vh;">
+  return `<section class="page-hero article-hero" style="position:relative;overflow:hidden;min-height:100vh;">
   <canvas class="hero-bg-grid"></canvas>
   <div class="hero-split" style="position:relative;z-index:1;width:100%;max-width:1240px;margin:0 auto;">
     <div>
