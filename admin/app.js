@@ -1344,7 +1344,7 @@ const App = {
   composeKey: null,
 };
 
-const ARTICLE_META_FIELD_ORDER = ['title', 'description', 'author', 'date', 'banner', 'cssFiles', 'bodyClass', 'canonical', 'pageScripts'];
+const ARTICLE_META_FIELD_ORDER = ['title', 'subheading', 'description', 'author', 'date', 'banner', 'cssFiles', 'bodyClass', 'canonical', 'pageScripts'];
 function serializeArticleFrontmatter(data, body) {
   const lines = [];
   for (const key of ARTICLE_META_FIELD_ORDER) {
@@ -2797,7 +2797,7 @@ function wireAddPostButton(kind, buttonId) {
       setStatus(`creating ${cfg.label.toLowerCase()}…`, 'busy');
       try {
         const data = {
-          title, description: '', author, date: today, banner: '',
+          title, subheading: '', description: '', author, date: today, banner: '',
           cssFiles: cfg.cssFiles, bodyClass: 'theme-hero-dark',
           canonical: `https://blacfox.com/${cfg.prefix}${slug}.html`, pageScripts: [],
         };
@@ -3586,7 +3586,7 @@ function renderPostDetailsTab(kind) {
   const slug = App.current.slug;
   const d = App[cfg.store][slug].data;
   return `
-    <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>. Write or paste the ${cfg.label.toLowerCase()}'s content into the editor → — this panel is for the title, author/date, excerpt, and banner.</div>
+    <div class="callout-box">Editing <b>${slug}.md</b> on branch <b>${App.branch}</b>. Write or paste the ${cfg.label.toLowerCase()}'s content into the editor → (title and subheading live at the top of that panel too) — this one is for the author/date, excerpt, and hero illustration.</div>
 
     <div class="field-group"><label class="field-label">Author</label><input class="field-input" id="a-author" value="${escHtml(d.author || '')}"></div>
     <div class="field-group"><label class="field-label">Date</label><input class="field-input" id="a-date" type="date" value="${escHtml(d.date || '')}"></div>
@@ -3667,10 +3667,12 @@ async function savePostMeta(kind) {
   const slug = App.current.slug;
   const p = App[cfg.store][slug];
   const titleEl = document.getElementById('compose-title');
+  const subheadingEl = document.getElementById('compose-subheading');
   const bodyEl = document.getElementById('compose-body');
   const newData = {
     ...p.data,
     title: (titleEl ? titleEl.value : p.data.title || '').trim(),
+    subheading: (subheadingEl ? subheadingEl.value : p.data.subheading || '').trim(),
     author: document.getElementById('a-author').value.trim(),
     date: document.getElementById('a-date').value.trim(),
     description: document.getElementById('a-description').value.trim(),
@@ -4193,6 +4195,7 @@ function renderPostHeroClient(data, kindLabel) {
     <div>
       <p class="section-tag reveal">${escHtml(kindLabel)}</p>
       <h1 class="hero-title">${escHtml(data.title || 'Untitled')}</h1>
+      ${data.subheading ? `<p class="hero-sub reveal">${escHtml(data.subheading)}</p>` : ''}
       ${metaLine ? `<p class="hero-meta reveal">${escHtml(metaLine)}</p>` : ''}
     </div>
     <div class="hero-quote-panel ${data.banner ? 'has-image' : 'is-placeholder'}">
@@ -4445,10 +4448,23 @@ function ensureComposePane(kind, slug) {
   if (App.composeKey === key) return;
   App.composeKey = key;
   const p = App[POST_KINDS[kind].store][slug];
-  document.getElementById('compose-title').value = (p.data && p.data.title) || '';
+  const titleEl = document.getElementById('compose-title');
+  const subheadingEl = document.getElementById('compose-subheading');
+  titleEl.value = (p.data && p.data.title) || '';
+  subheadingEl.value = (p.data && p.data.subheading) || '';
+  autoGrowTextarea(titleEl);
+  autoGrowTextarea(subheadingEl);
   const bodyEl = document.getElementById('compose-body');
   bodyEl.innerHTML = p.body || '';
   hydrateComposeBodyImages(bodyEl);
+}
+// Grows a title/subheading textarea to fit its content (no internal scroll,
+// no clipped text) instead of the single-line <input> these used to be --
+// #compose-scroll is the actual scroll container, so letting these grow
+// just pushes the body down, it never needs its own scrollbar.
+function autoGrowTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
 }
 
 // #compose-body renders directly in the admin page, not inside the
@@ -4553,6 +4569,7 @@ function syncComposeBody() {
 function initComposeEditor() {
   const bodyEl = document.getElementById('compose-body');
   const titleEl = document.getElementById('compose-title');
+  const subheadingEl = document.getElementById('compose-subheading');
   // Makes Enter produce <p> like a hand-built article body, instead of
   // Chrome's default bare <div> per line.
   document.execCommand('defaultParagraphSeparator', false, 'p');
@@ -4560,7 +4577,24 @@ function initComposeEditor() {
   titleEl.addEventListener('input', () => {
     const editable = getCurrentEditable();
     if (editable) editable.data.title = titleEl.value;
+    autoGrowTextarea(titleEl);
   });
+  // Enter/Tab move on to the next field instead of inserting a newline --
+  // these render as single-line hero text, a literal line break in the
+  // stored value would just show up as an odd wrapped gap.
+  titleEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); subheadingEl.focus(); }
+  });
+
+  subheadingEl.addEventListener('input', () => {
+    const editable = getCurrentEditable();
+    if (editable) editable.data.subheading = subheadingEl.value;
+    autoGrowTextarea(subheadingEl);
+  });
+  subheadingEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); bodyEl.focus(); }
+  });
+  window.addEventListener('resize', () => { autoGrowTextarea(titleEl); autoGrowTextarea(subheadingEl); });
 
   document.querySelectorAll('#compose-toolbar [data-cmd]').forEach(btn => {
     btn.addEventListener('mousedown', e => e.preventDefault()); // keep focus/selection in the editor

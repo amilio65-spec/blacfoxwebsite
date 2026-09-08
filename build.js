@@ -131,6 +131,7 @@ function renderPostHero(data, kindLabel) {
     <div>
       <p class="section-tag reveal">${escHtml(kindLabel)}</p>
       <h1 class="hero-title">${escHtml(data.title || 'Untitled')}</h1>
+      ${data.subheading ? `<p class="hero-sub reveal">${escHtml(data.subheading)}</p>` : ''}
       ${metaLine ? `<p class="hero-meta reveal">${escHtml(metaLine)}</p>` : ''}
     </div>
     <div class="hero-quote-panel ${data.banner ? 'has-image' : 'is-placeholder'}">
