@@ -10,9 +10,14 @@
 .article-card { display: block; text-decoration: none; overflow: hidden; }
 .article-card-thumb {
   aspect-ratio: 16 / 9; margin: -37px -29px 20px; border-radius: 20px 20px 0 0;
-  overflow: hidden; background: var(--bg-alt);
+  overflow: hidden;
+  background-color: #000;
+  background-image:
+    linear-gradient(rgba(233,92,37,0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(233,92,37,0.15) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
-.article-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.article-card-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 .article-body { max-width: 760px; margin: 0 auto; padding: 60px 0 40px; }
 .article-body p { font-size: 16px; line-height: 1.8; color: var(--muted); margin-bottom: 22px; }
