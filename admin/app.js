@@ -1213,7 +1213,7 @@ ${revenueOptions.map(o => `              <option value="${escHtml(o.value)}">${e
       </div>`;
       }).join('\n');
       return `<section class="bg-grey" id="${uid}" style="overflow:hidden;">
-  <div class="section-inner" style="padding-bottom:48px;">
+  <div class="section-inner">
     <p class="section-tag reveal">${escHtml(f.tag)}</p>
     <h2 class="section-h reveal">${f.heading}</h2>
     <p class="section-p reveal">${escHtml(f.body)}</p>
@@ -1229,7 +1229,7 @@ ${labels}
     </div>
   </div>
 
-  ${f.buttonText ? `<div style="text-align:center;padding:32px 60px 48px;">
+  ${f.buttonText ? `<div style="text-align:center;padding:32px 60px 80px;">
     <a href="${escHtml(f.buttonUrl)}" class="btn-ghost">${escHtml(f.buttonText)} →</a>
   </div>` : ''}
 
@@ -4249,7 +4249,7 @@ function renderFeaturedCarouselClient(articles, caseStudies) {
   ].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10);
   if (!items.length) return '';
   return `<section class="bg-white featured-carousel-section cms-generated">
-  <div class="section-inner" style="padding-bottom:60px;">
+  <div class="section-inner">
     <p class="section-tag reveal">From the team</p>
     <h2 class="section-h reveal">Articles &amp; <em>case studies.</em></h2>
   </div>

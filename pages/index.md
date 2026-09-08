@@ -254,7 +254,7 @@ pageScripts: ["assets/js/pages/index.js"]
 
 <!-- S04 PMF WAVE -->
 <section class="section-mid bg-grey" id="pmfWaveSection" style="overflow:hidden;">
-  <div class="section-inner" style="padding-bottom:48px;">
+  <div class="section-inner">
     <p class="section-tag reveal">The method</p>
     <h2 class="section-h reveal">From buyer research to <em>PMF</em>, in six moves.</h2>
     <p class="section-p reveal">Our Positioning &amp; Messaging Framework is built in eight structured steps, from market context to the 4 Ps. Every move has a purpose.</p>
@@ -327,7 +327,7 @@ pageScripts: ["assets/js/pages/index.js"]
   </svg>
   </div>
 
-  <div style="text-align:center;padding:32px 60px 48px;">
+  <div style="text-align:center;padding:32px 60px 80px;">
     <a href="method.html" class="btn-ghost">See the full method →</a>
   </div>
 </section>

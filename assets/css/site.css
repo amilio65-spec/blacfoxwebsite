@@ -302,7 +302,7 @@ section + section {
    ========================================================= */
 section{position:relative;overflow:clip}
 
-.section-inner{max-width:1200px;margin:0 auto;padding:120px 60px}
+.section-inner{max-width:1200px;margin:0 auto;padding:60px 60px 80px}
 
 .section-tag{
   display:inline-flex;align-items:center;gap:8px;
@@ -603,7 +603,7 @@ section{position:relative;overflow:clip}
    CTA BANNER — same light background + neon grid trail as the Hero
    ========================================================= */
 .cta-section{
-  background:#e5e2dc;padding:100px 60px;text-align:center;
+  background:#e5e2dc;padding:60px 60px 80px;text-align:center;
   position:relative;overflow:hidden;
 }
 .cta-section > a{position:relative;z-index:1}
@@ -670,7 +670,7 @@ footer{
    RESPONSIVE
    ========================================================= */
 @media(max-width:1024px){
-  .section-inner{padding:80px 32px}
+  .section-inner{padding:60px 32px 80px}
   .hero-section{padding:60px 32px 100px}
   .hero-split{grid-template-columns:1fr;padding:16px 32px 48px}
   .hero-quote-panel{display:none}
@@ -704,7 +704,7 @@ footer{
   }
   .nav-links-list.open{display:flex}
   .nav-links-pill a{padding:12px 16px;font-size:14px;text-align:center}
-  .section-inner{padding:64px 20px}
+  .section-inner{padding:60px 20px 80px}
   .stats-section{padding:32px 20px}
   .stats-inner{grid-template-columns:repeat(2,1fr)}
   .card-grid-3,.card-grid-2{grid-template-columns:1fr}
@@ -715,7 +715,7 @@ footer{
   .case-study-body{padding:28px}
   .step-item{grid-template-columns:1fr;gap:8px}
   .form-row{grid-template-columns:1fr}
-  .cta-section{padding:72px 24px}
+  .cta-section{padding:60px 24px 80px}
 }
 
 /* =========================================================

@@ -191,7 +191,7 @@ function renderFeaturedCarousel(articles, caseStudies) {
   ].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10);
   if (!items.length) return '';
   return `<section class="bg-white featured-carousel-section">
-  <div class="section-inner" style="padding-bottom:60px;">
+  <div class="section-inner">
     <p class="section-tag reveal">From the team</p>
     <h2 class="section-h reveal">Articles &amp; <em>case studies.</em></h2>
   </div>
