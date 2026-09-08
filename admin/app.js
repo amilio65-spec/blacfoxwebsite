@@ -3593,9 +3593,9 @@ function renderPostDetailsTab(kind) {
     <div class="field-group"><label class="field-label">Excerpt <span style="color:#444">(shown on the ${cfg.pluralLabel} list)</span></label><textarea class="field-textarea" id="a-description" style="min-height:70px">${escHtml(d.description || '')}</textarea></div>
 
     <div class="section-divider"></div>
-    <div class="section-title">Banner image</div>
+    <div class="section-title">Hero illustration</div>
     <div class="img-drop" id="banner-drop">
-      <div class="img-drop-lbl" id="banner-drop-lbl">${d.banner ? d.banner + ' (loading preview…)' : `Click or drop a JPG — shown at the top of the ${cfg.label.toLowerCase()} and on the ${cfg.pluralLabel} list`}</div>
+      <div class="img-drop-lbl" id="banner-drop-lbl">${d.banner ? d.banner + ' (loading preview…)' : `Click or drop a JPG — shown in the hero's illustration panel and on the ${cfg.pluralLabel} list`}</div>
       <input type="file" id="banner-file" accept="image/*">
     </div>
 
@@ -4184,19 +4184,29 @@ async function inlineLocalAssets(html) {
    ------------------------------------------------------------ */
 function renderPostHeroClient(data, kindLabel) {
   const metaLine = [data.author, formatArticleDate(data.date)].filter(Boolean).join(' — ');
-  return `<section class="hero-section article-hero">
+  const panelInner = data.banner
+    ? `<img src="${data.banner}" alt="${escHtml(data.title || '')}">`
+    : `<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.75"/><path d="M21 15l-5-5L5 21"/></svg><span>Illustration placeholder</span>`;
+  return `<section class="hero-section article-hero" style="position:relative;overflow:hidden;min-height:100vh;">
   <canvas class="hero-bg-grid"></canvas>
-  <div class="section-inner">
-    <p class="section-tag reveal">${escHtml(kindLabel)}</p>
-    <h1 class="hero-title">${escHtml(data.title || 'Untitled')}</h1>
-    ${metaLine ? `<p class="article-meta reveal">${escHtml(metaLine)}</p>` : ''}
+  <div class="hero-split" style="position:relative;z-index:1;width:100%;max-width:1240px;margin:0 auto;">
+    <div>
+      <p class="section-tag reveal">${escHtml(kindLabel)}</p>
+      <h1 class="hero-title">${escHtml(data.title || 'Untitled')}</h1>
+      ${metaLine ? `<p class="hero-meta reveal">${escHtml(metaLine)}</p>` : ''}
+    </div>
+    <div class="hero-quote-panel ${data.banner ? 'has-image' : 'is-placeholder'}">
+      ${panelInner}
+    </div>
   </div>
-</section>
-${data.banner ? `<div class="article-banner-wrap"><img class="article-banner" src="${data.banner}" alt="${escHtml(data.title || '')}"></div>` : ''}`;
+</section>`;
 }
 function renderPostPageClient(data, bodyHtml, partials, kindLabel) {
   const layout = LAYOUTS.inner;
   const bodyClassAttr = data.bodyClass ? ` class="${data.bodyClass}"` : '';
+  const pageScripts = (data.pageScripts || [])
+    .map(src => `<script src="${src}"></script>`)
+    .join('\n');
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4216,8 +4226,10 @@ ${bodyHtml}
 
 ${partials.footer}
 
+${pageScripts}
 ${layout.wrapClose}
 <script src="assets/js/hero-bg-grid.js"></script>
+<script src="assets/js/pages/article-hero.js"></script>
 <script src="assets/js/nav.js"></script>
 <script src="segment-gate.js" defer></script>
 </body>
