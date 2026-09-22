@@ -3,24 +3,64 @@
 
    No backend. No database. Every save is a real git commit made
    directly from this browser via the GitHub REST API, using a
-   personal access token the user pastes in once (kept only in
-   localStorage). Draft = a branch; Publish = merge that branch
-   into `main`, which Cloudflare's existing deploy hook picks up.
+   fixed, repo-scoped token embedded below. Draft = a branch;
+   Publish = merge that branch into `main`, which Cloudflare's
+   existing deploy hook picks up.
 
-   Nothing here is hardcoded to any one repo — owner/repo/token
-   live in localStorage and are set from the login screen, so the
-   exact same file works against the test repo and, later, the
-   real one.
+   Access is gated by an email/password screen (see AUTH_USERS
+   below) rather than per-user GitHub tokens. Because this is a
+   static page with no backend, the embedded token and password
+   hashes are extractable by anyone who inspects the deployed JS
+   — this only keeps out casual/unintended access, not a
+   determined attacker with devtools access.
    ============================================================ */
 
 const GH_API = 'https://api.github.com';
 const RAW_HOST = 'https://raw.githubusercontent.com';
 
 /* ------------------------------------------------------------
-   Settings (localStorage)
+   Repo this CMS instance writes to. The repo itself is fixed;
+   the GitHub token is NOT — it's never committed to this public
+   repo (GitHub's own push protection rejects that), so each
+   signed-in person pastes their own token once per browser
+   instead. See the Login section below.
    ------------------------------------------------------------ */
-const Settings = {
-  KEY: 'bxcms_settings_v1',
+const GH_OWNER = 'amilio65-spec';
+const GH_REPO = 'blacfoxwebsite';
+
+/* ------------------------------------------------------------
+   Accounts allowed to sign in. Passwords are never stored —
+   only a SHA-256 hash of `email|password`, checked with the
+   Web Crypto API at login time.
+   ------------------------------------------------------------ */
+const AUTH_USERS = {
+  'ab@blacfox.com': '8bf4f153f3ed03638117773757b3f085f1c44a01b7116f1ab97123218188bfcd',
+  'kg@blacfox.com': 'fa8e30d4b27b2bf29ae4b479db3e2760b1ca66731a45ccbcfcbd51dd442d7326',
+  'ob@blacfox.com': '54fea4533a24354430d7da75d8a341feb9e87aaf69eda266ac361be49cf9faf7',
+};
+
+async function sha256Hex(str) {
+  const bytes = new TextEncoder().encode(str);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function checkCredentials(email, password) {
+  const normalized = (email || '').trim().toLowerCase();
+  const expected = AUTH_USERS[normalized];
+  if (!expected) return false;
+  const actual = await sha256Hex(normalized + '|' + password);
+  return actual === expected;
+}
+
+/* ------------------------------------------------------------
+   Session (localStorage) — remembers who's signed in and that
+   browser's GitHub token, never the password itself, so
+   returning to this browser skips both the password and token
+   prompts. Local to each browser; never committed anywhere.
+   ------------------------------------------------------------ */
+const Session = {
+  KEY: 'bxcms_session_v1',
   load() {
     try { return JSON.parse(localStorage.getItem(this.KEY) || 'null'); }
     catch { return null; }
@@ -2512,53 +2552,94 @@ function toast(msg, kind) {
 /* ------------------------------------------------------------
    Login
    ------------------------------------------------------------ */
-async function tryLogin(token, owner, repo) {
-  gh.token = token; gh.owner = owner; gh.repo = repo;
+let pendingEmail = null;
+
+async function tryLogin(email, token) {
+  gh.token = token; gh.owner = GH_OWNER; gh.repo = GH_REPO;
   await gh.whoami();
-  await gh.getRepo(owner, repo);
-  Settings.save({ token, owner, repo });
+  await gh.getRepo(GH_OWNER, GH_REPO);
+  Session.save({ email, token });
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').style.display = 'flex';
-  document.getElementById('repo-label').textContent = `${owner}/${repo}`;
+  document.getElementById('repo-label').textContent = `${GH_OWNER}/${GH_REPO}`;
   await loadBranches();
   await loadBranchContent();
 }
 
-document.getElementById('login-btn').addEventListener('click', async () => {
-  const token = document.getElementById('login-token').value.trim();
-  const owner = document.getElementById('login-owner').value.trim();
-  const repo = document.getElementById('login-repo').value.trim();
+function showTokenStep() {
+  document.getElementById('login-step-creds').style.display = 'none';
+  document.getElementById('login-step-token').style.display = 'block';
+  document.getElementById('login-token-note').style.display = 'block';
+  document.getElementById('login-sub').textContent = 'Signed in as ' + pendingEmail + '. One more step on this device.';
+  document.getElementById('login-btn').textContent = 'Continue';
+  document.getElementById('login-token').focus();
+}
+
+async function submitLogin() {
   const errEl = document.getElementById('login-error');
   errEl.style.display = 'none';
-  if (!token || !owner || !repo) { errEl.textContent = 'All three fields are required.'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('login-btn');
+  const onTokenStep = document.getElementById('login-step-token').style.display !== 'none';
+
+  if (!onTokenStep) {
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) { errEl.textContent = 'Email and password are both required.'; errEl.style.display = 'block'; return; }
+    try {
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+      const ok = await checkCredentials(email, password);
+      if (!ok) { errEl.textContent = 'Incorrect email or password.'; errEl.style.display = 'block'; return; }
+      const saved = Session.load();
+      if (saved && saved.email === email && saved.token) {
+        await tryLogin(email, saved.token);
+        return;
+      }
+      pendingEmail = email;
+      showTokenStep();
+    } catch (e) {
+      errEl.textContent = 'Could not sign in: ' + e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      if (document.getElementById('login-step-token').style.display === 'none') btn.textContent = 'Sign in';
+    }
+    return;
+  }
+
+  const token = document.getElementById('login-token').value.trim();
+  if (!token) { errEl.textContent = 'Paste your GitHub token to continue.'; errEl.style.display = 'block'; return; }
   try {
-    document.getElementById('login-btn').disabled = true;
-    document.getElementById('login-btn').textContent = 'Connecting…';
-    await tryLogin(token, owner, repo);
+    btn.disabled = true;
+    btn.textContent = 'Connecting…';
+    await tryLogin(pendingEmail, token);
   } catch (e) {
     errEl.textContent = 'Could not connect: ' + e.message;
     errEl.style.display = 'block';
   } finally {
-    document.getElementById('login-btn').disabled = false;
-    document.getElementById('login-btn').textContent = 'Connect';
+    btn.disabled = false;
+    btn.textContent = 'Continue';
   }
-});
+}
+
+document.getElementById('login-btn').addEventListener('click', submitLogin);
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') submitLogin(); });
+document.getElementById('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-password').focus(); });
+document.getElementById('login-token').addEventListener('keydown', e => { if (e.key === 'Enter') submitLogin(); });
 
 document.getElementById('settings-btn').addEventListener('click', () => {
-  if (confirm('Disconnect and clear the saved token from this browser?')) {
-    Settings.clear();
+  if (confirm('Sign out of the Blacfox CMS? (This also forgets the saved GitHub token on this device.)')) {
+    Session.clear();
     location.reload();
   }
 });
 
 (function boot() {
-  const s = Settings.load();
-  if (s && s.token && s.owner && s.repo) {
-    document.getElementById('login-token').value = s.token;
-    document.getElementById('login-owner').value = s.owner;
-    document.getElementById('login-repo').value = s.repo;
-    tryLogin(s.token, s.owner, s.repo).catch(e => {
-      document.getElementById('login-error').textContent = 'Saved session failed: ' + e.message;
+  const s = Session.load();
+  if (s && s.email && s.token && AUTH_USERS[s.email]) {
+    tryLogin(s.email, s.token).catch(e => {
+      Session.clear();
+      document.getElementById('login-error').textContent = 'Session expired: ' + e.message;
       document.getElementById('login-error').style.display = 'block';
     });
   }

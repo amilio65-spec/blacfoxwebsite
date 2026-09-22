@@ -195,24 +195,26 @@ a{color:inherit}
 <div id="login-screen">
   <div class="login-card">
     <h1>Blacfox CMS</h1>
-    <p class="sub">Connect a GitHub repo to start editing. Your token stays in this browser only — it's never sent anywhere but api.github.com.</p>
-    <div class="field-group">
-      <label class="field-label">Personal access token</label>
-      <input class="field-input" id="login-token" type="password" placeholder="ghp_… (repo scope, or fine-grained w/ Contents R+W)">
-    </div>
-    <div class="field-row-2">
+    <p class="sub" id="login-sub">Sign in with your Blacfox CMS account to start editing.</p>
+    <div id="login-step-creds">
       <div class="field-group">
-        <label class="field-label">Repo owner</label>
-        <input class="field-input" id="login-owner" type="text" placeholder="amilio65-spec">
+        <label class="field-label">Email</label>
+        <input class="field-input" id="login-email" type="email" placeholder="you@blacfox.com" autocomplete="username">
       </div>
       <div class="field-group">
-        <label class="field-label">Repo name</label>
-        <input class="field-input" id="login-repo" type="text" placeholder="website-test">
+        <label class="field-label">Password</label>
+        <input class="field-input" id="login-password" type="password" placeholder="Password" autocomplete="current-password">
       </div>
     </div>
-    <button class="btn btn-primary" id="login-btn" style="width:100%;padding:10px;margin-top:6px;">Connect</button>
+    <div id="login-step-token" style="display:none">
+      <div class="field-group">
+        <label class="field-label">GitHub token (first sign-in on this device only)</label>
+        <input class="field-input" id="login-token" type="password" placeholder="github_pat_… (Contents read/write on this repo)" autocomplete="off">
+      </div>
+    </div>
+    <button class="btn btn-primary" id="login-btn" style="width:100%;padding:10px;margin-top:6px;">Sign in</button>
     <p class="login-error" id="login-error"></p>
-    <p class="login-note">Token needs the <b>repo</b> scope (classic) or Contents read/write (fine-grained). Nothing is hardcoded to any one repo — point this at the test repo now, the real one later.</p>
+    <p class="login-note" id="login-token-note" style="display:none">Ask an admin for a fine-grained token scoped to Contents read/write on this repo only. It's saved in this browser only — you won't be asked again here, but a new device will need it once too.</p>
   </div>
 </div>
 
@@ -228,7 +230,7 @@ a{color:inherit}
     <div class="topbar-spacer"></div>
     <span id="status-line"></span>
     <button class="btn btn-primary btn-sm" id="publish-btn" style="display:none">Publish to main →</button>
-    <button class="btn btn-ghost btn-sm" id="settings-btn">Settings</button>
+    <button class="btn btn-ghost btn-sm" id="settings-btn">Sign out</button>
   </div>
 
   <div id="main-body">
